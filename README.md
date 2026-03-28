@@ -139,7 +139,11 @@ This project uses git hooks for code quality checks. To enable them:
 git config core.hooksPath .githooks
 ```
 
-The pre-commit hook runs `mix format --check-formatted` to prevent unformatted code from being committed. If the check fails, run `mix format` to fix formatting before committing.
+The pre-commit hook runs the following checks automatically:
+
+- **Elixir**: `mix precommit` — compile (warnings-as-errors), format, credo --strict, tests, dialyzer
+- **OpenClaw plugin**: If files in `channel/openclaw-plugin-viche/` are staged — `npm ci`, typecheck, build
+- **OpenCode plugin**: If files in `channel/opencode-plugin-viche/` are staged — `bun install`, typecheck, build, test
 
 ## Self-Hosting
 
