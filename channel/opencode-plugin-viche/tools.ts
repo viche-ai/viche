@@ -123,13 +123,20 @@ export function createVicheTools(
         .describe(
           "Capability to search for (e.g. 'coding', 'research'). Use '*' for all."
         ),
+      token: z
+        .string()
+        .optional()
+        .describe(
+          "Registry token to scope discovery to a private registry. Omit for global discovery."
+        ),
     },
     async execute(
-      args: { capability: string },
+      args: { capability: string; token?: string },
       _context: { sessionID: string }
     ): Promise<string> {
-      const { capability } = args;
-      const url = `${config.registryUrl}/registry/discover?capability=${encodeURIComponent(capability)}`;
+      const { capability, token } = args;
+      let url = `${config.registryUrl}/registry/discover?capability=${encodeURIComponent(capability)}`;
+      if (token) url += `&token=${encodeURIComponent(token)}`;
 
       let resp: Response;
       try {
@@ -162,7 +169,7 @@ export function createVicheTools(
       "Use this to delegate tasks, ask questions, or ping other agents. " +
       "You must know the target agent ID (use viche_discover first if needed).",
     args: {
-      to: z.string().describe("Target agent ID (8-character hex string, e.g. 'a1b2c3d4')"),
+      to: z.string().describe("Target agent ID (UUID, e.g. '550e8400-e29b-41d4-a716-446655440000')"),
       body: z.string().describe("Message content to send to the target agent"),
       type: z
         .string()
@@ -208,9 +215,9 @@ export function createVicheTools(
     args: {
       to: z
         .string()
-        .regex(/^[0-9a-f]{8}$/)
+        .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
         .describe(
-          "Agent ID to reply to — copy from the 'from' field of the task message you received (8-character hex string)"
+          "Agent ID to reply to — copy from the 'from' field of the task message you received (UUID)"
         ),
       body: z.string().describe("Your result, answer, or response to send back"),
     },

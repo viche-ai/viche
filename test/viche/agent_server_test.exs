@@ -4,7 +4,7 @@ defmodule Viche.AgentServerTest do
   alias Viche.AgentServer
 
   defp unique_id do
-    :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+    Ecto.UUID.generate()
   end
 
   defp start_agent(opts \\ []) do
@@ -61,6 +61,39 @@ defmodule Viche.AgentServerTest do
       assert meta.name == "meta-agent"
       assert meta.capabilities == ["reading", "writing"]
       assert meta.description == "Reads and writes"
+    end
+
+    test "stores registries in registry meta, defaulting to [\"global\"]" do
+      agent_id = unique_id()
+
+      opts = [
+        id: agent_id,
+        name: "registry-meta-agent",
+        capabilities: ["test"],
+        description: nil
+      ]
+
+      {:ok, _pid} = AgentServer.start_link(opts)
+      [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+
+      assert meta.registries == ["global"]
+    end
+
+    test "stores custom registries in registry meta" do
+      agent_id = unique_id()
+
+      opts = [
+        id: agent_id,
+        name: "custom-registry-agent",
+        capabilities: ["test"],
+        description: nil,
+        registries: ["team-x", "global"]
+      ]
+
+      {:ok, _pid} = AgentServer.start_link(opts)
+      [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+
+      assert meta.registries == ["team-x", "global"]
     end
   end
 

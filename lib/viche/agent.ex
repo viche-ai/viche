@@ -2,7 +2,7 @@ defmodule Viche.Agent do
   @moduledoc """
   Data model for a registered agent in the Viche registry.
 
-  An agent is an autonomous process identified by a unique 8-character hex ID,
+  An agent is an autonomous process identified by a UUID v4,
   supervised by `Viche.AgentSupervisor`, and registered in `Viche.AgentRegistry`.
   """
 
@@ -13,6 +13,7 @@ defmodule Viche.Agent do
           name: String.t() | nil,
           capabilities: [String.t()],
           description: String.t() | nil,
+          registries: [String.t()],
           inbox: list(),
           registered_at: DateTime.t(),
           connection_type: connection_type(),
@@ -28,6 +29,7 @@ defmodule Viche.Agent do
     :capabilities,
     :description,
     :registered_at,
+    registries: ["global"],
     inbox: [],
     connection_type: :long_poll,
     last_activity: nil,

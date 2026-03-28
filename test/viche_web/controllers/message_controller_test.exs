@@ -22,7 +22,8 @@ defmodule VicheWeb.MessageControllerTest do
 
       assert %{"message_id" => message_id} = json_response(conn, 202)
       assert String.starts_with?(message_id, "msg-")
-      assert String.length(message_id) == 12
+      # "msg-" + UUID (36 chars) = 40 chars total
+      assert String.length(message_id) == 40
     end
 
     test "message appears in agent's GenServer inbox", %{conn: conn} do

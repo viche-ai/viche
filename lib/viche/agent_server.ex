@@ -28,6 +28,7 @@ defmodule Viche.AgentServer do
           name: String.t() | nil,
           capabilities: [String.t()],
           description: String.t() | nil,
+          registries: [String.t()] | nil,
           polling_timeout_ms: pos_integer() | nil
         ]
 
@@ -50,8 +51,15 @@ defmodule Viche.AgentServer do
     name = Keyword.get(opts, :name)
     capabilities = Keyword.get(opts, :capabilities, [])
     description = Keyword.get(opts, :description)
+    registries = Keyword.get(opts, :registries, ["global"])
 
-    meta = %{name: name, capabilities: capabilities, description: description}
+    meta = %{
+      name: name,
+      capabilities: capabilities,
+      description: description,
+      registries: registries
+    }
+
     via = {:via, Registry, {Viche.AgentRegistry, agent_id, meta}}
 
     GenServer.start_link(__MODULE__, opts, name: via)
@@ -87,6 +95,7 @@ defmodule Viche.AgentServer do
     name = Keyword.get(opts, :name)
     capabilities = Keyword.get(opts, :capabilities, [])
     description = Keyword.get(opts, :description)
+    registries = Keyword.get(opts, :registries, ["global"])
     polling_timeout_ms = Keyword.get(opts, :polling_timeout_ms, 60_000)
 
     registered_at = DateTime.utc_now()
@@ -96,6 +105,7 @@ defmodule Viche.AgentServer do
       name: name,
       capabilities: capabilities,
       description: description,
+      registries: registries,
       inbox: [],
       registered_at: registered_at,
       last_activity: registered_at,

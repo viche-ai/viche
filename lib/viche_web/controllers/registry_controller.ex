@@ -14,13 +14,15 @@ defmodule VicheWeb.RegistryController do
   @spec register(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def register(conn, params) do
     polling_timeout_ms = Map.get(params, "polling_timeout_ms")
+    registries = Map.get(params, "registries")
 
     with :ok <- validate_polling_timeout(polling_timeout_ms),
          attrs = %{
            capabilities: Map.get(params, "capabilities"),
            name: Map.get(params, "name"),
            description: Map.get(params, "description"),
-           polling_timeout_ms: polling_timeout_ms
+           polling_timeout_ms: polling_timeout_ms,
+           registries: registries
          },
          {:ok, agent} <- Agents.register_agent(attrs) do
       conn
@@ -30,6 +32,7 @@ defmodule VicheWeb.RegistryController do
         name: agent.name,
         capabilities: agent.capabilities,
         description: agent.description,
+        registries: agent.registries,
         inbox_url: "/inbox/#{agent.id}",
         registered_at: DateTime.to_iso8601(agent.registered_at),
         polling_timeout_ms: agent.polling_timeout_ms
@@ -59,6 +62,11 @@ defmodule VicheWeb.RegistryController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "invalid_description"})
+
+      {:error, :invalid_registry_token} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "invalid_registry_token"})
     end
   end
 
@@ -95,10 +103,16 @@ defmodule VicheWeb.RegistryController do
 
   @spec build_discover_query(map()) :: map()
   defp build_discover_query(params) do
-    cond do
-      cap = params["capability"] -> %{capability: cap}
-      name = params["name"] -> %{name: name}
-      true -> %{}
-    end
+    base =
+      cond do
+        cap = params["capability"] -> %{capability: cap}
+        name = params["name"] -> %{name: name}
+        true -> %{}
+      end
+
+    # "registry" takes precedence over "token" (legacy alias)
+    registry = params["registry"] || params["token"]
+
+    if registry, do: Map.put(base, :registry, registry), else: base
   end
 end

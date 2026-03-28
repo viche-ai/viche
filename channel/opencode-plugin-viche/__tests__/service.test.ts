@@ -168,7 +168,7 @@ describe("createVicheService", () => {
   // ── 1. New session → registers agent via HTTP POST ─────────────────────────
 
   it("registers a new agent via HTTP POST to /registry/register", async () => {
-    global.fetch = fetchOk("abc12345");
+    global.fetch = fetchOk("abc12345-0000-4000-a000-000000000000");
     const service = createVicheService(config, state, client, "/project");
 
     const session = await service.ensureSessionReady("sess-1");
@@ -185,7 +185,7 @@ describe("createVicheService", () => {
     const body = JSON.parse((reqInit as RequestInit).body as string) as unknown;
     expect(body).toMatchObject({ capabilities: ["coding"] });
 
-    expect(session.agentId).toBe("abc12345");
+    expect(session.agentId).toBe("abc12345-0000-4000-a000-000000000000");
   });
 
   // ── 2. Session already in state → returns existing without re-registering ──
@@ -225,13 +225,13 @@ describe("createVicheService", () => {
   // ── 4. Successful registration → WebSocket joins agent:{agentId} topic ──────
 
   it("connects WebSocket and joins the agent:{agentId} channel topic", async () => {
-    global.fetch = fetchOk("ws-agent-id");
+    global.fetch = fetchOk("a1b2c3d4-0000-4000-a000-000000000001");
     const service = createVicheService(config, state, client, "/project");
 
     await service.ensureSessionReady("sess-2");
 
     expect(mockSocketMethods.connect).toHaveBeenCalledTimes(1);
-    expect(mockSocketMethods.channel).toHaveBeenCalledWith("agent:ws-agent-id", {});
+    expect(mockSocketMethods.channel).toHaveBeenCalledWith("agent:a1b2c3d4-0000-4000-a000-000000000001", {});
     expect(mockChannel.join).toHaveBeenCalledTimes(1);
 
     // Verify the WebSocket URL uses ws:// scheme and the correct Phoenix socket path.
@@ -344,14 +344,19 @@ describe("createVicheService", () => {
 
   it("re-registers and retries WebSocket connection on agent_not_found error", async () => {
     // First call: agent_not_found; second call (re-register): new agent, ok join.
+    const attemptUuids = [
+      "a1b2c3d4-0000-4000-a000-000000000001",
+      "a1b2c3d4-0000-4000-a000-000000000002",
+    ];
     let fetchCallCount = 0;
     global.fetch = mock(() => {
+      const uuid = attemptUuids[fetchCallCount]!;
       fetchCallCount++;
       return Promise.resolve({
         ok: true,
         status: 200,
         statusText: "OK",
-        json: () => Promise.resolve({ id: `agent-attempt-${fetchCallCount}` }),
+        json: () => Promise.resolve({ id: uuid }),
       } as Response);
     });
 
@@ -385,7 +390,7 @@ describe("createVicheService", () => {
     // Should have joined twice (original failed + retry succeeded).
     expect(joinCallCount).toBe(2);
     // Session should use the second agent ID.
-    expect(session.agentId).toBe("agent-attempt-2");
+    expect(session.agentId).toBe("a1b2c3d4-0000-4000-a000-000000000002");
   });
 
   // ── 11. shutdown() cleans up all active sessions ────────────────────────────

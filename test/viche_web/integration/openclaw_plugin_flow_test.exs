@@ -67,7 +67,8 @@ defmodule VicheWeb.Integration.OpenclawPluginFlowTest do
         })
 
       assert %{"id" => agent_id} = json_response(conn, 201)
-      assert String.length(agent_id) == 8
+      uuid_v4 = ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      assert Regex.match?(uuid_v4, agent_id)
 
       # Steps 2 & 3: WebSocket connect + channel join
       assert {:ok, _, socket} = connect_and_join(agent_id)

@@ -31,7 +31,7 @@ function makeState(): VicheState {
 }
 
 const fakeSessionState: SessionState = {
-  agentId: "abc123de",
+  agentId: "abc123de-0000-4000-a000-000000000000",
   socket: {},
   channel: {},
 };
@@ -202,7 +202,7 @@ describe("createVicheTools", () => {
     // Formats agents with optional fields correctly
     it("formats agent entries with optional name and description omitted when absent", async () => {
       global.fetch = fetchOkJson({
-        agents: [{ id: "deadbeef", capabilities: ["research"] }],
+        agents: [{ id: "deadbeef-0000-4000-a000-000000000000", capabilities: ["research"] }],
       });
 
       const tools = createVicheTools(config, state, ensureSessionReady);
@@ -211,7 +211,7 @@ describe("createVicheTools", () => {
         TEST_CONTEXT
       );
 
-      expect(result).toContain("• deadbeef");
+      expect(result).toContain("• deadbeef-0000-4000-a000-000000000000");
       expect(result).toContain("capabilities: research");
       // No name or description in the line
       expect(result).not.toContain("undefined");
@@ -227,7 +227,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       const result = await tools["viche_send"]!.execute(
-        { to: "deadbeef", body: "Please review this code", type: "task" },
+        { to: "deadbeef-0000-4000-a000-000000000000", body: "Please review this code", type: "task" },
         TEST_CONTEXT
       );
 
@@ -236,7 +236,7 @@ describe("createVicheTools", () => {
         string,
         RequestInit,
       ];
-      expect(url).toBe("http://localhost:4000/messages/deadbeef");
+      expect(url).toBe("http://localhost:4000/messages/deadbeef-0000-4000-a000-000000000000");
       expect((init as RequestInit).method).toBe("POST");
 
       const body = JSON.parse((init as RequestInit).body as string) as {
@@ -244,11 +244,11 @@ describe("createVicheTools", () => {
         body: string;
         type: string;
       };
-      expect(body.from).toBe("abc123de"); // from session state
+      expect(body.from).toBe("abc123de-0000-4000-a000-000000000000"); // from session state
       expect(body.body).toBe("Please review this code");
       expect(body.type).toBe("task");
 
-      expect(result).toContain("Message sent to deadbeef");
+      expect(result).toContain("Message sent to deadbeef-0000-4000-a000-000000000000");
       expect(result).toContain("type: task");
     });
 
@@ -258,7 +258,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       const result = await tools["viche_send"]!.execute(
-        { to: "deadbeef", body: "Hello" },
+        { to: "deadbeef-0000-4000-a000-000000000000", body: "Hello" },
         TEST_CONTEXT
       );
 
@@ -277,7 +277,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       await tools["viche_send"]!.execute(
-        { to: "deadbeef", body: "ping", type: "ping" },
+        { to: "deadbeef-0000-4000-a000-000000000000", body: "ping", type: "ping" },
         TEST_CONTEXT
       );
 
@@ -295,7 +295,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       await tools["viche_send"]!.execute(
-        { to: "deadbeef", body: "Hello" },
+        { to: "deadbeef-0000-4000-a000-000000000000", body: "Hello" },
         TEST_CONTEXT
       );
 
@@ -328,7 +328,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       const result = await tools["viche_reply"]!.execute(
-        { to: "cafebabe", body: "Task complete" },
+        { to: "cafebabe-0000-4000-a000-000000000000", body: "Task complete" },
         TEST_CONTEXT
       );
 
@@ -337,7 +337,7 @@ describe("createVicheTools", () => {
         string,
         RequestInit,
       ];
-      expect(url).toBe("http://localhost:4000/messages/cafebabe");
+      expect(url).toBe("http://localhost:4000/messages/cafebabe-0000-4000-a000-000000000000");
       expect((init as RequestInit).method).toBe("POST");
 
       const body = JSON.parse((init as RequestInit).body as string) as {
@@ -345,11 +345,11 @@ describe("createVicheTools", () => {
         body: string;
         type: string;
       };
-      expect(body.from).toBe("abc123de"); // from session state
+      expect(body.from).toBe("abc123de-0000-4000-a000-000000000000"); // from session state
       expect(body.body).toBe("Task complete");
       expect(body.type).toBe("result");
 
-      expect(result).toContain("Reply sent to cafebabe");
+      expect(result).toContain("Reply sent to cafebabe-0000-4000-a000-000000000000");
     });
 
     // Calls ensureSessionReady before sending reply
@@ -358,7 +358,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       await tools["viche_reply"]!.execute(
-        { to: "cafebabe", body: "Done" },
+        { to: "cafebabe-0000-4000-a000-000000000000", body: "Done" },
         TEST_CONTEXT
       );
 
@@ -372,7 +372,7 @@ describe("createVicheTools", () => {
 
       const tools = createVicheTools(config, state, ensureSessionReady);
       const result = await tools["viche_reply"]!.execute(
-        { to: "cafebabe", body: "Done" },
+        { to: "cafebabe-0000-4000-a000-000000000000", body: "Done" },
         TEST_CONTEXT
       );
 

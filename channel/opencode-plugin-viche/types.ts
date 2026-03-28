@@ -19,6 +19,8 @@ export interface VicheConfig {
   agentName?: string;
   /** Optional agent description. */
   description?: string;
+  /** Registry token for private registry. Auto-generated if not set. */
+  registryToken?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -27,7 +29,7 @@ export interface VicheConfig {
 
 /** State tracked for a single OpenCode session connected to Viche. */
 export interface SessionState {
-  /** Registered Viche agent ID (8-char hex). */
+  /** Registered Viche agent ID (UUID). */
   agentId: string;
   /** Phoenix Socket instance (typed as any to avoid import coupling). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

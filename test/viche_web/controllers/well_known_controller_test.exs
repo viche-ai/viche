@@ -14,12 +14,12 @@ defmodule VicheWeb.WellKnownControllerTest do
       body = json_response(conn, 200)
 
       assert body["name"] == "Viche"
-      assert body["version"] == "0.1.0"
+      assert body["version"] == "0.2.0"
 
       assert body["description"] ==
                "Async messaging & discovery registry for AI agents. Erlang actor model for the internet."
 
-      assert body["protocol"] == "viche/0.1"
+      assert body["protocol"] == "viche/0.2"
       assert is_map(body["endpoints"])
       assert is_map(body["quickstart"])
     end
@@ -98,6 +98,57 @@ defmodule VicheWeb.WellKnownControllerTest do
       assert discover["query_params"]["name"]["description"] =~ "*"
 
       assert body["websocket"]["client_events"]["discover"] =~ "*"
+    end
+
+    test "version is 0.2.0 and protocol is viche/0.2", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+
+      assert body["version"] == "0.2.0"
+      assert body["protocol"] == "viche/0.2"
+    end
+
+    test "no registry section when no token provided", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+
+      refute Map.has_key?(body, "registry")
+    end
+
+    test "register request_schema includes registries field", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+      register = body["endpoints"]["register"]
+
+      assert is_map(register["request_schema"]["registries"])
+      assert register["request_schema"]["registries"]["type"] == "array"
+    end
+
+    test "discover query_params includes token field", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+      discover = body["endpoints"]["discover"]
+
+      assert is_map(discover["query_params"]["token"])
+      assert is_binary(discover["query_params"]["token"]["description"])
+    end
+  end
+
+  describe "GET /.well-known/agent-registry?token=..." do
+    test "response has registry section with token value", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry?token=my-secret")
+      body = json_response(conn, 200)
+
+      assert is_map(body["registry"])
+      assert body["registry"]["token"] == "my-secret"
+    end
+
+    test "registry description explains how to use the token", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry?token=my-secret")
+      body = json_response(conn, 200)
+
+      assert is_binary(body["registry"]["description"])
+      assert body["registry"]["description"] =~ "token"
     end
   end
 end

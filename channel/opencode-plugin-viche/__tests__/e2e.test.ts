@@ -141,7 +141,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
     }
     const firstCall = promptCalls[0] as [{ body: { parts: Array<{ text: string }> } }];
     const text = firstCall[0].body.parts[0].text;
-    const match = text.match(/Your agent ID is ([a-f0-9]{8})/);
+    const match = text.match(/Your agent ID is ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/);
     if (!match) {
       throw new Error(`Could not extract agent ID from identity prompt: ${text}`);
     }
@@ -198,7 +198,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
   it(
     "Test 2: registered agent appears in discovery results (capability='*')",
     async () => {
-      expect(ourAgentId).toMatch(/^[a-f0-9]{8}$/);
+      expect(ourAgentId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
 
       const tool = hooks.tool["viche_discover"] as ToolDef;
       const result = await tool.execute(

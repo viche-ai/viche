@@ -29,7 +29,7 @@ defmodule Viche.AgentsTest do
       assert Agents.list_agents() == []
     end
 
-    test "returns all registered agents as maps with id/name/capabilities/description" do
+    test "returns all registered agents as maps with id/name/capabilities/description/registries" do
       {:ok, _} = Agents.register_agent(%{capabilities: ["coding"], name: "agent-a"})
       {:ok, _} = Agents.register_agent(%{capabilities: ["testing"], name: "agent-b"})
 
@@ -45,6 +45,7 @@ defmodule Viche.AgentsTest do
         assert Map.has_key?(agent, :name)
         assert Map.has_key?(agent, :capabilities)
         assert Map.has_key?(agent, :description)
+        assert Map.has_key?(agent, :registries)
       end
     end
   end
@@ -62,7 +63,12 @@ defmodule Viche.AgentsTest do
       assert agent.capabilities == ["coding"]
       assert agent.name == "test-agent"
       assert agent.description == "A test agent"
-      assert String.length(agent.id) == 8
+
+      assert Regex.match?(
+               ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+               agent.id
+             )
+
       assert %DateTime{} = agent.registered_at
     end
 
@@ -83,6 +89,90 @@ defmodule Viche.AgentsTest do
 
     test "returns {:error, :capabilities_required} when capabilities is not a list" do
       assert {:error, :capabilities_required} = Agents.register_agent(%{capabilities: "coding"})
+    end
+
+    test "agent ID is UUID v4 format" do
+      assert {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})
+      uuid_v4 = ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+      assert Regex.match?(uuid_v4, agent.id),
+             "Expected UUID v4 format but got: #{inspect(agent.id)}"
+    end
+
+    test "registries defaults to [\"global\"] when not provided" do
+      assert {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})
+      assert agent.registries == ["global"]
+    end
+
+    test "registries can be set on registration" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{
+                 capabilities: ["test"],
+                 registries: ["my-team-token"]
+               })
+
+      assert agent.registries == ["my-team-token"]
+    end
+
+    test "registries can contain multiple tokens" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{
+                 capabilities: ["test"],
+                 registries: ["global", "my-team-token"]
+               })
+
+      assert agent.registries == ["global", "my-team-token"]
+    end
+
+    test "returns {:error, :invalid_registry_token} for empty string token" do
+      assert {:error, :invalid_registry_token} =
+               Agents.register_agent(%{capabilities: ["test"], registries: [""]})
+    end
+
+    test "returns {:error, :invalid_registry_token} for token shorter than 4 chars" do
+      assert {:error, :invalid_registry_token} =
+               Agents.register_agent(%{capabilities: ["test"], registries: ["ab"]})
+    end
+
+    test "accepts token of exactly 4 chars" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{capabilities: ["test"], registries: ["abcd"]})
+
+      assert agent.registries == ["abcd"]
+    end
+
+    test "accepts token with valid special chars (hyphens, underscores, dots)" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{
+                 capabilities: ["test"],
+                 registries: ["my-team_token.v2"]
+               })
+
+      assert agent.registries == ["my-team_token.v2"]
+    end
+
+    test "returns {:error, :invalid_registry_token} for token with spaces" do
+      assert {:error, :invalid_registry_token} =
+               Agents.register_agent(%{capabilities: ["test"], registries: ["has spaces"]})
+    end
+
+    test "returns {:error, :invalid_registry_token} for token with special chars like @" do
+      assert {:error, :invalid_registry_token} =
+               Agents.register_agent(%{capabilities: ["test"], registries: ["has@special!"]})
+    end
+
+    test "returns {:error, :invalid_registry_token} for token longer than 256 chars" do
+      long_token = String.duplicate("a", 257)
+
+      assert {:error, :invalid_registry_token} =
+               Agents.register_agent(%{capabilities: ["test"], registries: [long_token]})
+    end
+
+    test "accepts \"global\" as a valid (reserved) token" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{capabilities: ["test"], registries: ["global"]})
+
+      assert agent.registries == ["global"]
     end
   end
 
@@ -184,6 +274,7 @@ defmodule Viche.AgentsTest do
         assert Map.has_key?(agent, :name)
         assert Map.has_key?(agent, :capabilities)
         assert Map.has_key?(agent, :description)
+        assert Map.has_key?(agent, :registries)
         refute Map.has_key?(agent, :inbox)
         refute Map.has_key?(agent, :registered_at)
       end
@@ -206,7 +297,8 @@ defmodule Viche.AgentsTest do
                })
 
       assert String.starts_with?(message_id, "msg-")
-      assert String.length(message_id) == 12
+      # "msg-" + UUID (36 chars) = 40 chars total
+      assert String.length(message_id) == 40
     end
 
     test "defaults type to task when omitted", %{agent_id: agent_id} do
@@ -368,6 +460,156 @@ defmodule Viche.AgentsTest do
       # Re-register a fresh agent (different ID, clean state)
       {:ok, new_agent} = Agents.register_agent(%{capabilities: ["test"]})
       assert {:ok, []} = Agents.drain_inbox(new_agent.id)
+    end
+  end
+
+  describe "discover/1 scoped by registry" do
+    setup do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-a",
+          registries: ["team-x"]
+        })
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-b",
+          registries: ["team-y"]
+        })
+
+      {:ok, agent_global} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-global",
+          registries: ["global"]
+        })
+
+      {:ok, agent_multi} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-multi",
+          registries: ["global", "team-x"]
+        })
+
+      %{
+        id_a: agent_a.id,
+        id_b: agent_b.id,
+        id_global: agent_global.id,
+        id_multi: agent_multi.id
+      }
+    end
+
+    test "scoped to team-x returns agent_a and agent_multi only", %{
+      id_a: id_a,
+      id_b: id_b,
+      id_global: id_global,
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "*", registry: "team-x"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_a in ids
+      assert id_multi in ids
+      refute id_b in ids
+      refute id_global in ids
+      assert length(agents) == 2
+    end
+
+    test "scoped to team-y returns only agent_b", %{
+      id_a: id_a,
+      id_b: id_b,
+      id_global: id_global,
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "*", registry: "team-y"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_b in ids
+      refute id_a in ids
+      refute id_global in ids
+      refute id_multi in ids
+      assert length(agents) == 1
+    end
+
+    test "no registry key defaults to global namespace", %{
+      id_a: id_a,
+      id_b: id_b,
+      id_global: id_global,
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "*"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_global in ids
+      assert id_multi in ids
+      refute id_a in ids
+      refute id_b in ids
+      assert length(agents) == 2
+    end
+
+    test "agent in both global and team-x is discoverable in team-x namespace", %{
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "*", registry: "team-x"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_multi in ids
+    end
+
+    test "agent in both global and team-x is discoverable in global namespace", %{
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "*"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_multi in ids
+    end
+
+    test "no agents in team-z returns empty list" do
+      assert {:ok, []} = Agents.discover(%{capability: "*", registry: "team-z"})
+    end
+
+    test "scoped capability search returns only matching agents in that registry", %{
+      id_a: id_a,
+      id_multi: id_multi
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "coding", registry: "team-x"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_a in ids
+      assert id_multi in ids
+      assert length(agents) == 2
+    end
+
+    test "unscoped capability search defaults to global namespace", %{
+      id_global: id_global,
+      id_multi: id_multi,
+      id_a: id_a,
+      id_b: id_b
+    } do
+      assert {:ok, agents} = Agents.discover(%{capability: "coding"})
+      ids = Enum.map(agents, & &1.id)
+      assert id_global in ids
+      assert id_multi in ids
+      refute id_a in ids
+      refute id_b in ids
+    end
+
+    test "scoped name search finds agent in registry", %{id_a: id_a} do
+      assert {:ok, agents} = Agents.discover(%{name: "agent-a", registry: "team-x"})
+      assert length(agents) == 1
+      [agent] = agents
+      assert agent.id == id_a
+    end
+
+    test "scoped name search returns empty when agent is in different registry", %{id_a: _id_a} do
+      assert {:ok, []} = Agents.discover(%{name: "agent-a", registry: "team-y"})
+    end
+
+    test "unscoped name search defaults to global", %{id_global: id_global, id_a: id_a} do
+      assert {:ok, agents} = Agents.discover(%{name: "agent-global"})
+      assert length(agents) == 1
+      [agent] = agents
+      assert agent.id == id_global
+      _ = id_a
     end
   end
 

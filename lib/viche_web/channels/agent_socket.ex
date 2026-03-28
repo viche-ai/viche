@@ -12,6 +12,7 @@ defmodule VicheWeb.AgentSocket do
   use Phoenix.Socket
 
   channel "agent:*", VicheWeb.AgentChannel
+  channel "registry:*", VicheWeb.AgentChannel
 
   @impl true
   def connect(%{"agent_id" => agent_id}, socket, _connect_info)

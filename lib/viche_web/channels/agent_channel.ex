@@ -8,9 +8,14 @@ defmodule VicheWeb.AgentChannel do
   - Send messages to other agents
   - Inspect or drain their own inbox
 
+  Agents may also join `"registry:{token}"` topics to:
+  - Receive `"agent_joined"` broadcasts when agents register in that namespace
+  - Receive `"agent_left"` broadcasts when agents deregister from that namespace
+  - Discover agents scoped to that registry via the `"discover"` event
+
   ## Events (client → server)
 
-  - `"discover"` — find agents by capability or name
+  - `"discover"` — find agents by capability or name (scoped to registry when on a registry topic)
   - `"send_message"` — send a message to another agent
   - `"inspect_inbox"` — peek at inbox without consuming
   - `"drain_inbox"` — consume and return all inbox messages
@@ -19,6 +24,8 @@ defmodule VicheWeb.AgentChannel do
 
   - `"new_message"` — pushed when a message arrives in the agent's inbox;
     delivered automatically via `VicheWeb.Endpoint.broadcast/3`
+  - `"agent_joined"` — pushed on registry topics when a new agent registers
+  - `"agent_left"` — pushed on registry topics when an agent deregisters
 
   ## Lifecycle notifications
 
@@ -46,6 +53,23 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
+  def join("registry:" <> token, _params, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{_pid, meta}] ->
+        if token in (meta.registries || []) do
+          Logger.info("Agent #{agent_id} joined registry channel: #{token}")
+          {:ok, assign(socket, :registry_token, token)}
+        else
+          {:error, %{reason: "not_in_registry"}}
+        end
+
+      [] ->
+        {:error, %{reason: "not_in_registry"}}
+    end
+  end
+
   def terminate(_reason, socket) do
     agent_id = Map.get(socket.assigns, :agent_id)
 
@@ -62,7 +86,9 @@ defmodule VicheWeb.AgentChannel do
   end
 
   def handle_in("discover", %{"capability" => cap}, socket) do
-    case Viche.Agents.discover(%{capability: cap}) do
+    query = build_discover_query(%{capability: cap}, socket)
+
+    case Viche.Agents.discover(query) do
       {:ok, agents} ->
         {:reply, {:ok, %{agents: agents}}, socket}
 
@@ -73,7 +99,9 @@ defmodule VicheWeb.AgentChannel do
   end
 
   def handle_in("discover", %{"name" => name}, socket) do
-    case Viche.Agents.discover(%{name: name}) do
+    query = build_discover_query(%{name: name}, socket)
+
+    case Viche.Agents.discover(query) do
       {:ok, agents} ->
         {:reply, {:ok, %{agents: agents}}, socket}
 
@@ -149,6 +177,14 @@ defmodule VicheWeb.AgentChannel do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  # Scopes the discover query to the registry when on a registry channel.
+  defp build_discover_query(base_query, socket) do
+    case Map.get(socket.assigns, :registry_token) do
+      nil -> base_query
+      token -> Map.put(base_query, :registry, token)
+    end
+  end
 
   defp format_messages(messages) do
     Enum.map(messages, fn msg ->

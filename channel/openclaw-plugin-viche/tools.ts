@@ -93,13 +93,21 @@ export function registerVicheTools(
         description:
           "Capability to search for (e.g. 'coding', 'research', 'code-review', 'testing'). Use '*' to return all agents.",
       }),
+      token: Type.Optional(
+        Type.String({
+          description:
+            "Registry token to scope discovery to a private registry. Omit for global discovery.",
+        }),
+      ),
     }),
     async execute(
       _toolCallId: string,
-      params: { capability: string },
+      params: { capability: string; token?: string },
       _signal?: AbortSignal,
     ): Promise<AgentToolResult> {
-      const url = `${config.registryUrl}/registry/discover?capability=${encodeURIComponent(params.capability)}`;
+      const queryParams = new URLSearchParams({ capability: params.capability });
+      if (params.token) queryParams.set("token", params.token);
+      const url = `${config.registryUrl}/registry/discover?${queryParams.toString()}`;
 
       let resp: Response;
       try {
@@ -136,7 +144,7 @@ export function registerVicheTools(
       "You must know the target agent ID (use viche_discover first if needed).",
     parameters: Type.Object({
       to: Type.String({
-        description: "Target agent ID (8-character hex string, e.g. 'a1b2c3d4')",
+        description: "Target agent ID (UUID format, e.g. '550e8400-e29b-41d4-a716-446655440000')",
       }),
       body: Type.String({
         description: "Message content to send to the target agent",

@@ -79,7 +79,7 @@ function makeClient() {
 }
 
 /** Fetch mock that resolves to a successful agent registration. */
-function fetchRegistrationOk(agentId = "deadbeef") {
+function fetchRegistrationOk(agentId = "deadbeef-0000-4000-a000-000000000000") {
   return mock(() =>
     Promise.resolve({
       ok: true,
@@ -91,7 +91,7 @@ function fetchRegistrationOk(agentId = "deadbeef") {
 }
 
 /** Build a plugin hooks object and the client it was created with. */
-async function buildHooks(agentId = "deadbeef") {
+async function buildHooks(agentId = "deadbeef-0000-4000-a000-000000000000") {
   const client = makeClient();
   global.fetch = fetchRegistrationOk(agentId);
   const hooks = await vichePlugin({ client, directory: "/test/project" });
@@ -255,13 +255,13 @@ describe("vichePlugin", () => {
     // Two separate plugin instances.
     const client1 = makeClient();
     const client2 = makeClient();
-    global.fetch = fetchRegistrationOk("aaa11111");
+    global.fetch = fetchRegistrationOk("aaa11111-0000-4000-a000-000000000000");
 
     const hooks1 = await vichePlugin({ client: client1, directory: "/proj1" });
     const hooks2 = await vichePlugin({ client: client2, directory: "/proj2" });
 
     // Create a session in instance 1.
-    global.fetch = fetchRegistrationOk("aaa11111");
+    global.fetch = fetchRegistrationOk("aaa11111-0000-4000-a000-000000000000");
     await hooks1.event({
       event: {
         type: "session.created",

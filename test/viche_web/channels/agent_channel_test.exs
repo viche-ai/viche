@@ -298,6 +298,190 @@ defmodule VicheWeb.AgentChannelTest do
     end
   end
 
+  # ---------------------------------------------------------------------------
+  # Registry Channel Tests (Phase 3)
+  # ---------------------------------------------------------------------------
+
+  describe "registry channel - join/3" do
+    test "agent in team-x can join registry:team-x" do
+      clear_all_agents()
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["team-x"]})
+
+      assert {:ok, _, socket} =
+               AgentSocket
+               |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      assert socket.assigns.registry_token == "team-x"
+    end
+
+    test "agent in team-x cannot join registry:team-y" do
+      clear_all_agents()
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["team-x"]})
+
+      assert {:error, %{reason: "not_in_registry"}} =
+               AgentSocket
+               |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-y")
+    end
+
+    test "agent in global registry can join registry:global" do
+      clear_all_agents()
+      # Default registration puts agent in "global"
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"]})
+
+      assert {:ok, _, _socket} =
+               AgentSocket
+               |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "registry:global")
+    end
+
+    test "agent not in any registry cannot join any registry channel" do
+      clear_all_agents()
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["team-x"]})
+
+      assert {:error, %{reason: "not_in_registry"}} =
+               AgentSocket
+               |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "registry:global")
+    end
+  end
+
+  describe "registry channel - scoped discover" do
+    test "discover returns only agents in the registry", %{agent_id: _global_agent_id} do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-x"]})
+
+      # agent_b is in "global" (default), not "team-x"
+      {:ok, agent_b} = Agents.register_agent(%{capabilities: ["coding"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      ref = push(socket, "discover", %{"capability" => "*"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      ids = Enum.map(agents, & &1.id)
+      assert agent_a.id in ids
+      refute agent_b.id in ids
+    end
+
+    test "discover by name is scoped to the registry" do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "forge",
+          registries: ["team-x"]
+        })
+
+      # Same name, different registry
+      {:ok, _agent_b} =
+        Agents.register_agent(%{capabilities: ["coding"], name: "forge", registries: ["team-y"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      ref = push(socket, "discover", %{"name" => "forge"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      assert length(agents) == 1
+      assert hd(agents).id == agent_a.id
+    end
+  end
+
+  describe "registry channel - agent_joined broadcast" do
+    test "agent receives agent_joined when another agent registers in the same registry" do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["observer"], registries: ["team-x"]})
+
+      {:ok, _, _socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{
+          capabilities: ["builder"],
+          name: "new-agent",
+          registries: ["team-x"]
+        })
+
+      assert_push "agent_joined", payload
+      assert payload.id == agent_b.id
+      assert payload.name == agent_b.name
+      assert payload.capabilities == agent_b.capabilities
+    end
+
+    test "agent does NOT receive agent_joined when agent registers in a different registry" do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["observer"], registries: ["team-x"]})
+
+      {:ok, _, _socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      # Register in team-y — should NOT trigger agent_joined on team-x
+      {:ok, _agent_b} =
+        Agents.register_agent(%{capabilities: ["builder"], registries: ["team-y"]})
+
+      refute_push "agent_joined", _payload
+    end
+  end
+
+  describe "registry channel - agent_left broadcast" do
+    test "agent receives agent_left when another agent in same registry deregisters" do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["observer"], registries: ["team-x"]})
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{capabilities: ["worker"], registries: ["team-x"]})
+
+      {:ok, _, _socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      :ok = Agents.deregister(agent_b.id)
+
+      assert_push "agent_left", payload
+      assert payload.id == agent_b.id
+    end
+
+    test "agent does NOT receive agent_left when agent in different registry deregisters" do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["observer"], registries: ["team-x"]})
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{capabilities: ["worker"], registries: ["team-y"]})
+
+      {:ok, _, _socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      :ok = Agents.deregister(agent_b.id)
+
+      refute_push "agent_left", _payload
+    end
+  end
+
   describe "terminate/2 - sends :websocket_disconnected to AgentServer" do
     test "closing the socket triggers grace period and eventually deregisters the agent", %{
       agent_id: agent_id

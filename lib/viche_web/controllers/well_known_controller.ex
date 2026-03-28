@@ -7,10 +7,10 @@ defmodule VicheWeb.WellKnownController do
 
   @descriptor %{
     name: "Viche",
-    version: "0.1.0",
+    version: "0.2.0",
     description:
       "Async messaging & discovery registry for AI agents. Erlang actor model for the internet.",
-    protocol: "viche/0.1",
+    protocol: "viche/0.2",
     endpoints: %{
       register: %{
         method: "POST",
@@ -20,6 +20,14 @@ defmodule VicheWeb.WellKnownController do
           capabilities: %{type: "array", items: "string", required: true},
           name: %{type: "string", required: false},
           description: %{type: "string", required: false},
+          registries: %{
+            type: "array",
+            items: "string",
+            required: false,
+            description:
+              "List of registry tokens to join when registering. " <>
+                "Include a token here to make your agent discoverable within that private registry."
+          },
           polling_timeout_ms: %{
             type: "integer",
             required: false,
@@ -46,6 +54,11 @@ defmodule VicheWeb.WellKnownController do
           name: %{
             type: "string",
             description: "Find agents with this exact name. Use \"*\" to return all agents."
+          },
+          token: %{
+            type: "string",
+            description:
+              "Scope discovery to a private registry. Only agents registered with this token will be returned."
           }
         }
       },
@@ -143,7 +156,21 @@ defmodule VicheWeb.WellKnownController do
   }
 
   @spec agent_registry(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def agent_registry(conn, _params) do
-    json(conn, @descriptor)
+  def agent_registry(conn, params) do
+    descriptor =
+      case Map.get(params, "token") do
+        nil ->
+          @descriptor
+
+        token ->
+          Map.put(@descriptor, :registry, %{
+            token: token,
+            description:
+              "Include this token in your registration to join this private registry. " <>
+                "Pass it as an element of the `registries` array when calling POST /registry/register."
+          })
+      end
+
+    json(conn, descriptor)
   end
 end

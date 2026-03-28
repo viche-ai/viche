@@ -24,7 +24,8 @@ defmodule Viche.Agents do
           id: String.t(),
           name: String.t() | nil,
           capabilities: [String.t()],
-          description: String.t() | nil
+          description: String.t() | nil,
+          registries: [String.t()]
         }
 
   # ---------------------------------------------------------------------------
@@ -62,45 +63,13 @@ defmodule Viche.Agents do
           | {:error, :invalid_capabilities}
           | {:error, :invalid_name}
           | {:error, :invalid_description}
-  def register_agent(%{capabilities: caps} = attrs)
-      when is_list(caps) and caps != [] do
-    name = Map.get(attrs, :name)
-    description = Map.get(attrs, :description)
-
-    cond do
-      not Enum.all?(caps, &is_binary/1) ->
-        {:error, :invalid_capabilities}
-
-      not is_nil(name) and not is_binary(name) ->
-        {:error, :invalid_name}
-
-      not is_nil(description) and not is_binary(description) ->
-        {:error, :invalid_description}
-
-      true ->
-        polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
-        agent_id = generate_unique_id()
-
-        child_opts = [id: agent_id, name: name, capabilities: caps, description: description]
-
-        child_opts =
-          if polling_timeout_ms,
-            do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
-            else: child_opts
-
-        child_spec = {AgentServer, child_opts}
-        {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
-
-        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
-        agent = AgentServer.get_state(via)
-
-        Logger.info(
-          "Agent #{agent.id} registered (name: #{inspect(agent.name)}, " <>
-            "capabilities: #{inspect(agent.capabilities)}, " <>
-            "polling_timeout: #{agent.polling_timeout_ms}ms)"
-        )
-
-        {:ok, agent}
+          | {:error, :invalid_registry_token}
+  def register_agent(%{capabilities: caps} = attrs) when is_list(caps) and caps != [] do
+    with :ok <- validate_string_list(caps, :invalid_capabilities),
+         :ok <- validate_optional_string(Map.get(attrs, :name), :invalid_name),
+         :ok <- validate_optional_string(Map.get(attrs, :description), :invalid_description),
+         {:ok, registries} <- normalize_and_validate_registries(Map.get(attrs, :registries)) do
+      start_agent(attrs, caps, registries)
     end
   end
 
@@ -118,7 +87,8 @@ defmodule Viche.Agents do
   @spec deregister(String.t()) :: :ok | {:error, :agent_not_found}
   def deregister(agent_id) do
     case Registry.lookup(Viche.AgentRegistry, agent_id) do
-      [{pid, _meta}] ->
+      [{pid, meta}] ->
+        broadcast_agent_left(agent_id, meta.registries || [])
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
         Logger.info("Agent #{agent_id} deregistered")
         :ok
@@ -129,32 +99,36 @@ defmodule Viche.Agents do
   end
 
   @doc """
-  Discovers agents by capability or name.
+  Discovers agents by capability or name, scoped to a registry namespace.
 
   ## Parameters
-    - `%{capability: "*"}` — return ALL registered agents (wildcard)
-    - `%{name: "*"}` — return ALL registered agents (wildcard)
-    - `%{capability: "..."}` — find agents that have the given capability
-    - `%{name: "..."}` — find agents with an exact name match
+    - `%{capability: "*"}` — return all agents in the `"global"` namespace (default)
+    - `%{capability: "*", registry: token}` — return all agents in the given namespace
+    - `%{name: "*"}` — return all agents in the `"global"` namespace (default)
+    - `%{name: "*", registry: token}` — return all agents in the given namespace
+    - `%{capability: "..."}` — find agents in `"global"` with the given capability
+    - `%{capability: "...", registry: token}` — find agents in the given namespace with the capability
+    - `%{name: "..."}` — find agents in `"global"` with an exact name match
+    - `%{name: "...", registry: token}` — find agents in the given namespace with an exact name match
+
+  Discovery is namespace-scoped. When no `registry` key is provided, the `"global"` namespace
+  is searched. Messaging remains cross-namespace (see `send_message/1`).
 
   ## Returns
     - `{:ok, [agent_info()]}` — list may be empty if no matches
     - `{:error, :query_required}` — when neither `:capability` nor `:name` is provided
   """
   @spec discover(map()) :: {:ok, [agent_info()]} | {:error, :query_required}
-  def discover(%{capability: "*"}), do: {:ok, list_agents()}
+  def discover(query) do
+    registry = Map.get(query, :registry, "global")
 
-  def discover(%{name: "*"}), do: {:ok, list_agents()}
-
-  def discover(%{capability: cap}) when is_binary(cap) and cap != "" do
-    {:ok, find_by_capability(cap)}
+    case classify_query(query) do
+      :all -> {:ok, agents_in_registry(registry)}
+      {:capability, cap} -> {:ok, find_by_capability_in(cap, registry)}
+      {:name, name} -> {:ok, find_by_name_in(name, registry)}
+      :error -> {:error, :query_required}
+    end
   end
-
-  def discover(%{name: name}) when is_binary(name) and name != "" do
-    {:ok, find_by_name(name)}
-  end
-
-  def discover(_query), do: {:error, :query_required}
 
   @doc """
   Sends a message to an agent's inbox.
@@ -256,17 +230,38 @@ defmodule Viche.Agents do
     Registry.select(registry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
   end
 
-  @spec find_by_capability(String.t()) :: [agent_info()]
-  defp find_by_capability(capability) do
+  @spec classify_query(map()) ::
+          :all | {:capability, String.t()} | {:name, String.t()} | :error
+  defp classify_query(%{capability: "*"}), do: :all
+  defp classify_query(%{name: "*"}), do: :all
+
+  defp classify_query(%{capability: cap}) when is_binary(cap) and cap != "",
+    do: {:capability, cap}
+
+  defp classify_query(%{name: name}) when is_binary(name) and name != "", do: {:name, name}
+  defp classify_query(_), do: :error
+
+  @spec agents_in_registry(String.t()) :: [agent_info()]
+  defp agents_in_registry(registry) do
     for {id, meta} <- all_agents(Viche.AgentRegistry),
+        registry in (meta.registries || []) do
+      format_agent({id, meta})
+    end
+  end
+
+  @spec find_by_capability_in(String.t(), String.t()) :: [agent_info()]
+  defp find_by_capability_in(capability, registry) do
+    for {id, meta} <- all_agents(Viche.AgentRegistry),
+        registry in (meta.registries || []),
         capability in meta.capabilities do
       format_agent({id, meta})
     end
   end
 
-  @spec find_by_name(String.t()) :: [agent_info()]
-  defp find_by_name(name) do
+  @spec find_by_name_in(String.t(), String.t()) :: [agent_info()]
+  defp find_by_name_in(name, registry) do
     for {id, meta} <- all_agents(Viche.AgentRegistry),
+        registry in (meta.registries || []),
         meta.name == name do
       format_agent({id, meta})
     end
@@ -278,7 +273,8 @@ defmodule Viche.Agents do
       id: id,
       name: meta.name,
       capabilities: meta.capabilities,
-      description: meta.description
+      description: meta.description,
+      registries: meta.registries
     }
   end
 
@@ -292,17 +288,102 @@ defmodule Viche.Agents do
 
   @spec generate_unique_id() :: String.t()
   defp generate_unique_id do
-    id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-
-    case Registry.lookup(Viche.AgentRegistry, id) do
-      [] -> id
-      _ -> generate_unique_id()
-    end
+    Ecto.UUID.generate()
   end
 
   @spec generate_message_id() :: String.t()
   defp generate_message_id do
-    hex = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    "msg-#{hex}"
+    "msg-#{Ecto.UUID.generate()}"
+  end
+
+  @spec validate_string_list([term()], atom()) :: :ok | {:error, atom()}
+  defp validate_string_list(list, error_key) do
+    if Enum.all?(list, &is_binary/1), do: :ok, else: {:error, error_key}
+  end
+
+  @spec validate_optional_string(term(), atom()) :: :ok | {:error, atom()}
+  defp validate_optional_string(nil, _error_key), do: :ok
+  defp validate_optional_string(value, _error_key) when is_binary(value), do: :ok
+  defp validate_optional_string(_value, error_key), do: {:error, error_key}
+
+  @spec normalize_and_validate_registries(term()) ::
+          {:ok, [String.t()]} | {:error, :invalid_registry_token}
+  defp normalize_and_validate_registries(nil), do: {:ok, ["global"]}
+  defp normalize_and_validate_registries([]), do: {:ok, ["global"]}
+
+  defp normalize_and_validate_registries(registries) when is_list(registries) do
+    if Enum.all?(registries, &valid_token?/1),
+      do: {:ok, registries},
+      else: {:error, :invalid_registry_token}
+  end
+
+  defp normalize_and_validate_registries(_), do: {:error, :invalid_registry_token}
+
+  @spec start_agent(map(), [String.t()], [String.t()]) :: {:ok, Agent.t()}
+  defp start_agent(attrs, caps, registries) do
+    name = Map.get(attrs, :name)
+    description = Map.get(attrs, :description)
+    polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
+    agent_id = generate_unique_id()
+
+    child_opts = [
+      id: agent_id,
+      name: name,
+      capabilities: caps,
+      description: description,
+      registries: registries
+    ]
+
+    child_opts =
+      if polling_timeout_ms,
+        do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
+        else: child_opts
+
+    child_spec = {AgentServer, child_opts}
+    {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
+
+    via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+    agent = AgentServer.get_state(via)
+
+    Logger.info(
+      "Agent #{agent.id} registered (name: #{inspect(agent.name)}, " <>
+        "capabilities: #{inspect(agent.capabilities)}, " <>
+        "registries: #{inspect(agent.registries)}, " <>
+        "polling_timeout: #{agent.polling_timeout_ms}ms)"
+    )
+
+    broadcast_agent_joined(agent)
+
+    {:ok, agent}
+  end
+
+  @token_regex ~r/^[a-zA-Z0-9._-]+$/
+
+  @spec valid_token?(String.t()) :: boolean()
+  defp valid_token?(token) when is_binary(token) do
+    byte_size(token) >= 4 and byte_size(token) <= 256 and Regex.match?(@token_regex, token)
+  end
+
+  defp valid_token?(_), do: false
+
+  @spec broadcast_agent_joined(Agent.t()) :: :ok
+  defp broadcast_agent_joined(agent) do
+    payload = %{
+      id: agent.id,
+      name: agent.name,
+      capabilities: agent.capabilities,
+      description: agent.description
+    }
+
+    Enum.each(agent.registries, fn registry ->
+      VicheWeb.Endpoint.broadcast("registry:#{registry}", "agent_joined", payload)
+    end)
+  end
+
+  @spec broadcast_agent_left(String.t(), [String.t()]) :: :ok
+  defp broadcast_agent_left(agent_id, registries) do
+    Enum.each(registries, fn registry ->
+      VicheWeb.Endpoint.broadcast("registry:#{registry}", "agent_left", %{id: agent_id})
+    end)
   end
 end

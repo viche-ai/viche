@@ -17,6 +17,7 @@ const CAPABILITIES = (process.env.VICHE_CAPABILITIES ?? "coding")
   .map((c) => c.trim())
   .filter(Boolean);
 const DESCRIPTION = process.env.VICHE_DESCRIPTION ?? null;
+const REGISTRY_TOKEN = process.env.VICHE_REGISTRY_TOKEN ?? null;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ interface RegisterBody {
   capabilities: string[];
   name?: string;
   description?: string;
+  registries?: string[];
 }
 
 interface RegisterResponse {
@@ -46,6 +48,7 @@ async function register(): Promise<string> {
   const body: RegisterBody = { capabilities: CAPABILITIES };
   if (AGENT_NAME) body.name = AGENT_NAME;
   if (DESCRIPTION) body.description = DESCRIPTION;
+  if (REGISTRY_TOKEN) body.registries = [REGISTRY_TOKEN];
 
   const response = await fetch(`${REGISTRY_URL}/registry/register`, {
     method: "POST",
@@ -146,6 +149,11 @@ function connectWebSocket(agentId: string, server: Server): void {
       process.stderr.write(
         `Viche: registered as ${agentId}, connected via WebSocket\n`
       );
+
+      if (REGISTRY_TOKEN) {
+        const registryChannel = socket.channel(`registry:${REGISTRY_TOKEN}`, {});
+        registryChannel.join();
+      }
     })
     .receive("error", (resp: unknown) => {
       process.stderr.write(
@@ -208,6 +216,11 @@ async function main(): Promise<void> {
               type: "string",
               description:
                 "Capability to search for (e.g. 'coding', 'research', 'code-review'). Use '*' to return all agents.",
+            },
+            token: {
+              type: "string",
+              description:
+                "Registry token to scope discovery to a private registry. Omit for global discovery.",
             },
           },
           required: ["capability"],
@@ -277,12 +290,14 @@ async function main(): Promise<void> {
     }
 
     if (toolName === "viche_discover") {
-      const args = request.params.arguments as { capability: string };
+      const args = request.params.arguments as { capability: string; token?: string };
       try {
+        const discoverPayload: Record<string, unknown> = { capability: args.capability };
+        if (args.token) discoverPayload.token = args.token;
         const resp = await channelPush<DiscoverResponse>(
           activeChannel,
           "discover",
-          { capability: args.capability }
+          discoverPayload
         );
         return {
           content: [{ type: "text", text: formatAgentList(resp.agents ?? []) }],

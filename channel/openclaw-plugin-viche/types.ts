@@ -20,6 +20,8 @@ export interface VicheConfig {
   agentName?: string;
   /** Optional agent description. */
   description?: string;
+  /** Optional registry token for joining a private registry. */
+  registryToken?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +92,11 @@ export const VicheConfigSchema = {
       return issue(["description"], "must be a string");
     }
 
+    // registryToken
+    if (raw.registryToken !== undefined && typeof raw.registryToken !== "string") {
+      return issue(["registryToken"], "must be a string");
+    }
+
     const normalized: VicheConfig = {
       registryUrl:
         typeof raw.registryUrl === "string"
@@ -103,6 +110,7 @@ export const VicheConfigSchema = {
     // Only assign optional string properties when present to satisfy exactOptionalPropertyTypes.
     if (typeof raw.agentName === "string") normalized.agentName = raw.agentName;
     if (typeof raw.description === "string") normalized.description = raw.description;
+    if (typeof raw.registryToken === "string") normalized.registryToken = raw.registryToken;
 
     return { success: true, data: normalized };
   },
@@ -129,6 +137,10 @@ export const VicheConfigSchema = {
       description: {
         type: "string",
         description: "Short description of this agent",
+      },
+      registryToken: {
+        type: "string",
+        description: "Registry token to join a private registry for scoped discovery and messaging",
       },
     },
   },

@@ -11,7 +11,7 @@
  * ignored and falls back to defaults.
  */
 
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { VicheConfig } from "./types.js";
 
@@ -32,6 +32,7 @@ type RawFileConfig = {
   capabilities?: unknown;
   agentName?: unknown;
   description?: unknown;
+  registryToken?: unknown;
 };
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,11 @@ function pickCapabilities(
 /**
  * Build a `VicheConfig` for the given project directory.
  *
+ * Registry token precedence (highest → lowest):
+ *   1. `VICHE_REGISTRY_TOKEN` env var
+ *   2. `registryToken` field in .opencode/viche.json
+ *   3. Auto-generate a UUID, persist it to .opencode/viche.json, and use it
+ *
  * @param projectDir  Absolute path to the OpenCode project root.
  */
 export function loadConfig(projectDir: string): VicheConfig {
@@ -139,9 +145,36 @@ export function loadConfig(projectDir: string): VicheConfig {
       ""
     ) || undefined;
 
+  // Registry token: env var → file → auto-generate + persist
+  let registryToken: string | undefined;
+  const envToken = process.env.VICHE_REGISTRY_TOKEN;
+  if (typeof envToken === "string" && envToken.trim().length > 0) {
+    registryToken = envToken.trim();
+  } else if (
+    typeof fileConfig.registryToken === "string" &&
+    fileConfig.registryToken.trim().length > 0
+  ) {
+    registryToken = fileConfig.registryToken.trim();
+  } else {
+    // Auto-generate and persist so subsequent runs reuse the same token.
+    registryToken = crypto.randomUUID();
+    const opencodeDir = join(projectDir, ".opencode");
+    const configPath = join(opencodeDir, "viche.json");
+    try {
+      mkdirSync(opencodeDir, { recursive: true });
+      // Merge with existing file content to avoid overwriting other fields.
+      const merged = { ...fileConfig, registryToken };
+      writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+    } catch {
+      // Persistence failure is non-fatal — we still return the generated token
+      // for this run; a new one will be generated next time.
+    }
+  }
+
   const config: VicheConfig = { registryUrl, capabilities };
   if (agentName !== undefined) config.agentName = agentName;
   if (description !== undefined) config.description = description;
+  if (registryToken !== undefined) config.registryToken = registryToken;
 
   return config;
 }

@@ -45,6 +45,7 @@ async function registerOnce(config: VicheConfig): Promise<string> {
   };
   if (config.agentName) body.name = config.agentName;
   if (config.description) body.description = config.description;
+  if (config.registryToken) body.registries = [config.registryToken];
 
   const resp = await fetch(`${config.registryUrl}/registry/register`, {
     method: "POST",
@@ -170,6 +171,12 @@ export function createVicheService(
               logger.info(
                 `Viche: registered as ${agentId}, connected via WebSocket`,
               );
+
+              if (config.registryToken) {
+                const registryChannel = socket!.channel(`registry:${config.registryToken}`, {});
+                registryChannel.join();
+              }
+
               resolve();
             })
             .receive("error", (resp: unknown) => {

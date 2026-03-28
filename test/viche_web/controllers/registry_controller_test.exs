@@ -20,7 +20,8 @@ defmodule VicheWeb.RegistryControllerTest do
                "registered_at" => registered_at
              } = json_response(conn, 201)
 
-      assert String.length(id) == 8
+      uuid_v4 = ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      assert Regex.match?(uuid_v4, id)
       assert inbox_url == "/inbox/#{id}"
       assert is_binary(registered_at)
     end
@@ -39,7 +40,8 @@ defmodule VicheWeb.RegistryControllerTest do
                "registered_at" => _registered_at
              } = json_response(conn, 201)
 
-      assert String.length(id) == 8
+      uuid_v4 = ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      assert Regex.match?(uuid_v4, id)
     end
 
     test "returns 422 when capabilities is missing", %{conn: conn} do
@@ -121,6 +123,51 @@ defmodule VicheWeb.RegistryControllerTest do
       conn = post(conn, ~p"/registry/register", params)
 
       assert %{"polling_timeout_ms" => 5_000} = json_response(conn, 201)
+    end
+
+    test "registration without registries returns registries: [\"global\"] in response",
+         %{conn: conn} do
+      params = %{"capabilities" => ["test"], "name" => "no-registry-agent"}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"registries" => ["global"]} = json_response(conn, 201)
+    end
+
+    test "registration with registries returns them in response", %{conn: conn} do
+      params = %{
+        "capabilities" => ["coding"],
+        "name" => "team-agent",
+        "registries" => ["my-team-token"]
+      }
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{
+               "registries" => ["my-team-token"]
+             } = json_response(conn, 201)
+    end
+
+    test "registration with multiple registries returns all in response", %{conn: conn} do
+      params = %{
+        "capabilities" => ["coding"],
+        "registries" => ["global", "team-secret"]
+      }
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"registries" => ["global", "team-secret"]} = json_response(conn, 201)
+    end
+
+    test "returns 422 for invalid registry token", %{conn: conn} do
+      params = %{
+        "capabilities" => ["coding"],
+        "registries" => ["bad token!"]
+      }
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"error" => "invalid_registry_token"} = json_response(conn, 422)
     end
   end
 
@@ -267,6 +314,108 @@ defmodule VicheWeb.RegistryControllerTest do
       conn = get(conn, ~p"/registry/discover", %{"capability" => "*"})
 
       assert %{"agents" => []} = json_response(conn, 200)
+    end
+  end
+
+  describe "GET /registry/discover scoped by token" do
+    setup do
+      Viche.AgentSupervisor
+      |> DynamicSupervisor.which_children()
+      |> Enum.each(fn {_, pid, _, _} ->
+        DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+      end)
+
+      # agent in team-x only
+      conn_a =
+        post(build_conn(), ~p"/registry/register", %{
+          "name" => "team-agent",
+          "capabilities" => ["coding"],
+          "registries" => ["team-x"]
+        })
+
+      # agent in global only
+      conn_b =
+        post(build_conn(), ~p"/registry/register", %{
+          "name" => "global-agent",
+          "capabilities" => ["coding"],
+          "registries" => ["global"]
+        })
+
+      # agent in both
+      conn_c =
+        post(build_conn(), ~p"/registry/register", %{
+          "name" => "both-agent",
+          "capabilities" => ["coding"],
+          "registries" => ["global", "team-x"]
+        })
+
+      %{"id" => id_a} = json_response(conn_a, 201)
+      %{"id" => id_b} = json_response(conn_b, 201)
+      %{"id" => id_c} = json_response(conn_c, 201)
+
+      %{id_a: id_a, id_b: id_b, id_c: id_c}
+    end
+
+    test "discover with token=team-x returns only team-x agents", %{
+      conn: conn,
+      id_a: id_a,
+      id_b: id_b,
+      id_c: id_c
+    } do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "coding", "token" => "team-x"})
+
+      assert %{"agents" => agents} = json_response(conn, 200)
+      ids = Enum.map(agents, & &1["id"])
+      assert id_a in ids
+      assert id_c in ids
+      refute id_b in ids
+      assert length(agents) == 2
+    end
+
+    test "discover without token returns global agents only", %{
+      conn: conn,
+      id_a: id_a,
+      id_b: id_b,
+      id_c: id_c
+    } do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "coding"})
+
+      assert %{"agents" => agents} = json_response(conn, 200)
+      ids = Enum.map(agents, & &1["id"])
+      assert id_b in ids
+      assert id_c in ids
+      refute id_a in ids
+      assert length(agents) == 2
+    end
+
+    test "discover with token for empty registry returns empty list", %{conn: conn} do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "*", "token" => "team-z"})
+
+      assert %{"agents" => []} = json_response(conn, 200)
+    end
+
+    test "wildcard with token=team-x returns all agents in team-x", %{
+      conn: conn,
+      id_a: id_a,
+      id_c: id_c
+    } do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "*", "token" => "team-x"})
+
+      assert %{"agents" => agents} = json_response(conn, 200)
+      ids = Enum.map(agents, & &1["id"])
+      assert id_a in ids
+      assert id_c in ids
+      assert length(agents) == 2
+    end
+
+    test "response agents include registries field", %{conn: conn} do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "*", "token" => "team-x"})
+
+      assert %{"agents" => agents} = json_response(conn, 200)
+
+      for agent <- agents do
+        assert Map.has_key?(agent, "registries")
+      end
     end
   end
 end

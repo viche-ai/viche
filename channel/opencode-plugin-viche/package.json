@@ -1,9 +1,45 @@
 {
   "name": "opencode-plugin-viche",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode plugin: Discover and message AI agents across the Viche network",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "bun test __tests__/{config,index,service,tools}.test.ts",
+    "test:e2e": "bun test __tests__/e2e.test.ts",
+    "test:all": "bun run test && bun run test:e2e",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "license": "MIT",
+  "author": "LaunchClaw",
+  "homepage": "https://github.com/ihorkatkov/viche/tree/main/channel/opencode-plugin-viche",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihorkatkov/viche.git",
+    "directory": "channel/opencode-plugin-viche"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "viche",
+    "agent",
+    "ai",
+    "messaging",
+    "multi-agent",
+    "discovery"
+  ],
   "dependencies": {
     "phoenix": "^1.8.5",
     "zod": "^4.0.0"
