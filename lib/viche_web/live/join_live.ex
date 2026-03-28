@@ -16,19 +16,34 @@ defmodule VicheWeb.JoinLive do
 
   @impl true
   def handle_params(%{"hash" => hash}, _uri, socket) do
-    if Regex.match?(~r/^[a-zA-Z0-9]{6,}$/, hash) do
+    if String.match?(hash, ~r/^[a-zA-Z0-9]{4,}$/) do
       token =
-        "viche_tk_#{hash}_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
+        case Viche.JoinTokens.get(hash) do
+          {:ok, data} -> data.token
+          _ -> Viche.JoinTokens.create(hash)
+        end
+
+      agent_name = "my-agent-#{hash}"
 
       {:noreply,
        assign(socket,
          expired: false,
          hash: hash,
-         agent_name: "my-agent-#{hash}",
-         token: token
+         token: token,
+         agent_name: agent_name,
+         show_config: :json,
+         copied: false
        )}
     else
-      {:noreply, assign(socket, expired: true)}
+      {:noreply,
+       assign(socket,
+         expired: true,
+         hash: hash,
+         token: nil,
+         agent_name: nil,
+         show_config: :json,
+         copied: false
+       )}
     end
   end
 

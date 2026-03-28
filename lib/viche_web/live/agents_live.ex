@@ -55,9 +55,9 @@ defmodule VicheWeb.AgentsLive do
   # -- Helpers --
 
   defp load_agents(socket) do
-    all = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
+    all = Viche.Agents.list_agents_with_status()
     filtered = apply_filters(all, socket.assigns.filter, socket.assigns.query)
-    online = Enum.count(all, &(&1.status in [:idle, :busy]))
+    online = Enum.count(all, &(&1.status == :online))
 
     socket
     |> assign(:all_agents, all)
@@ -71,8 +71,9 @@ defmodule VicheWeb.AgentsLive do
   end
 
   defp filter_by_status(agents, :all), do: agents
-  defp filter_by_status(agents, :online), do: Enum.filter(agents, &(&1.status in [:idle, :busy]))
-  defp filter_by_status(agents, status), do: Enum.filter(agents, &(&1.status == status))
+  defp filter_by_status(agents, :online), do: Enum.filter(agents, &(&1.status == :online))
+  defp filter_by_status(agents, :offline), do: Enum.filter(agents, &(&1.status == :offline))
+  defp filter_by_status(agents, _), do: agents
 
   defp filter_by_query(agents, ""), do: agents
 
@@ -84,20 +85,4 @@ defmodule VicheWeb.AgentsLive do
         Enum.any?(a.capabilities, &String.contains?(String.downcase(&1), q))
     end)
   end
-
-  defp augment_agent(agent) do
-    statuses = [:idle, :idle, :idle, :busy, :offline]
-    status = Enum.at(statuses, :erlang.phash2(agent.name, 5))
-    queue = if status == :busy, do: :erlang.phash2(agent.id, 6), else: 0
-
-    Map.merge(agent, %{
-      status: status,
-      queue_depth: queue,
-      last_seen: last_seen_mock(status)
-    })
-  end
-
-  defp last_seen_mock(:idle), do: "just now"
-  defp last_seen_mock(:busy), do: "#{:rand.uniform(30)}s ago"
-  defp last_seen_mock(:offline), do: "#{:rand.uniform(60)}m ago"
 end

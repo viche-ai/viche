@@ -125,7 +125,7 @@
               <div class="text-[12.5px] font-medium truncate" style="color:var(--fg)">{agent.name}</div>
               <div class="text-[10px]" style="color:var(--fg-dim)">{agent.status}</div>
             </div>
-            <span class={"status-pill #{agent.status} text-[9px] px-1.5"}>{agent.status}</span>
+            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"} text-[9px] px-1.5"}>{agent.status}</span>
           </div>
         <% end %>
       </div>

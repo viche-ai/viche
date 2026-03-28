@@ -61,10 +61,10 @@ defmodule VicheWeb.SessionsLive do
   # -- Private --
 
   defp load_inboxes(socket) do
-    agents = Viche.Agents.list_agents()
+    agents_with_status = Viche.Agents.list_agents_with_status()
 
     inbox_agents =
-      agents
+      agents_with_status
       |> Enum.map(fn agent ->
         case Viche.Agents.inspect_inbox(agent.id) do
           {:ok, messages} when messages != [] ->
@@ -83,11 +83,7 @@ defmodule VicheWeb.SessionsLive do
         :desc
       )
 
-    online =
-      Enum.count(agents, fn a ->
-        statuses = [:idle, :idle, :idle, :busy, :offline]
-        Enum.at(statuses, :erlang.phash2(a.name, 5)) in [:idle, :busy]
-      end)
+    online = Enum.count(agents_with_status, &(&1.status == :online))
 
     selected_messages =
       case socket.assigns[:selected_agent_id] do
@@ -103,8 +99,8 @@ defmodule VicheWeb.SessionsLive do
 
     socket
     |> assign(:inbox_agents, inbox_agents)
-    |> assign(:all_agents, agents)
-    |> assign(:agent_count, length(agents))
+    |> assign(:all_agents, agents_with_status)
+    |> assign(:agent_count, length(agents_with_status))
     |> assign(:online_count, online)
     |> assign(:session_count, length(inbox_agents))
     |> assign(:selected_messages, selected_messages)

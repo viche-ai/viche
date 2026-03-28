@@ -16,8 +16,11 @@ defmodule VicheWeb.AgentDetailLive do
 
   @impl true
   def handle_params(%{"id" => id}, _uri, socket) do
-    all = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
-    agent = Enum.find(all, &(&1.id == id))
+    agent =
+      case Viche.Agents.get_agent_with_status(id) do
+        {:ok, a} -> a
+        {:error, _} -> nil
+      end
 
     if connected?(socket) && agent do
       Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{id}")
@@ -79,8 +82,8 @@ defmodule VicheWeb.AgentDetailLive do
   # -- Helpers --
 
   defp load_sidebar_counts(socket) do
-    all = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
-    online = Enum.count(all, &(&1.status in [:idle, :busy]))
+    all = Viche.Agents.list_agents_with_status()
+    online = Enum.count(all, &(&1.status == :online))
 
     socket
     |> assign(:agent_count, length(all))
@@ -88,17 +91,6 @@ defmodule VicheWeb.AgentDetailLive do
     |> assign(:session_count, 3)
     |> assign(:messages_today, 1247)
   end
-
-  defp augment_agent(agent) do
-    statuses = [:idle, :idle, :idle, :busy, :offline]
-    status = Enum.at(statuses, :erlang.phash2(agent.name, 5))
-    queue = if status == :busy, do: :erlang.phash2(agent.id, 6), else: 0
-    Map.merge(agent, %{status: status, queue_depth: queue, last_seen: last_seen_mock(status)})
-  end
-
-  defp last_seen_mock(:idle), do: "just now"
-  defp last_seen_mock(:busy), do: "#{:rand.uniform(30)}s ago"
-  defp last_seen_mock(:offline), do: "#{:rand.uniform(60)}m ago"
 
   defp cap_icon("coding"), do: "⚡"
   defp cap_icon("testing"), do: "✓"

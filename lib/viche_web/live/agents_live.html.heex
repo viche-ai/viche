@@ -109,7 +109,7 @@
         />
       </form>
 
-      <%= for {label, value} <- [{"All", "all"}, {"Online", "online"}, {"Idle", "idle"}, {"Busy", "busy"}, {"Offline", "offline"}] do %>
+      <%= for {label, value} <- [{"All", "all"}, {"Online", "online"}, {"Offline", "offline"}] do %>
         <button
           phx-click="filter"
           phx-value-status={value}
@@ -181,7 +181,7 @@
             </div>
 
             <%!-- Status --%>
-            <span class={"status-pill #{agent.status}"}>{agent.status}</span>
+            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>{agent.status}</span>
 
             <%!-- Queue --%>
             <span class="text-[12px] font-mono" style="color:var(--fg-dim)">
@@ -189,7 +189,7 @@
             </span>
 
             <%!-- Last seen --%>
-            <span class="text-[11px]" style="color:var(--fg-dim)">{agent.last_seen}</span>
+            <span class="text-[11px]" style="color:var(--fg-dim)">{VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}</span>
 
             <%!-- Registry --%>
             <span class="text-[11px]" style="color:var(--fg-dim)">global</span>

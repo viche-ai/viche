@@ -8,15 +8,15 @@ defmodule VicheWeb.NetworkLive do
       Process.send_after(self(), :tick, 3_000)
     end
 
-    agents = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
+    agents = Viche.Agents.list_agents_with_status() |> Enum.map(&add_color/1)
     links = compute_links(agents)
-    online = Enum.count(agents, &(&1.status in [:idle, :busy]))
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
       |> assign(:agents, agents)
       |> assign(:links, links)
-      |> assign(:feed, seed_feed())
+      |> assign(:feed, [])
       |> assign(:paused, false)
       |> assign(:agent_count, length(agents))
       |> assign(:online_count, online)
@@ -29,9 +29,9 @@ defmodule VicheWeb.NetworkLive do
   @impl true
   def handle_info(:tick, socket) do
     Process.send_after(self(), :tick, 3_000)
-    agents = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
+    agents = Viche.Agents.list_agents_with_status() |> Enum.map(&add_color/1)
     links = compute_links(agents)
-    online = Enum.count(agents, &(&1.status in [:idle, :busy]))
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
@@ -68,9 +68,9 @@ defmodule VicheWeb.NetworkLive do
       at: "just now"
     }
 
-    agents = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
+    agents = Viche.Agents.list_agents_with_status() |> Enum.map(&add_color/1)
     links = compute_links(agents)
-    online = Enum.count(agents, &(&1.status in [:idle, :busy]))
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
@@ -108,9 +108,9 @@ defmodule VicheWeb.NetworkLive do
       at: "just now"
     }
 
-    agents = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
+    agents = Viche.Agents.list_agents_with_status() |> Enum.map(&add_color/1)
     links = compute_links(agents)
-    online = Enum.count(agents, &(&1.status in [:idle, :busy]))
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
@@ -153,28 +153,12 @@ defmodule VicheWeb.NetworkLive do
     |> Enum.take(8)
   end
 
-  defp augment_agent(agent) do
-    statuses = [:idle, :idle, :idle, :busy, :offline]
-    status = Enum.at(statuses, :erlang.phash2(agent.name, 5))
-
-    Map.merge(agent, %{
-      status: status,
-      queue_depth: 0,
-      last_seen: "just now",
-      color: agent_color(agent.name)
-    })
+  defp add_color(agent) do
+    Map.put(agent, :color, agent_color(agent.name))
   end
 
   defp agent_color(name) do
     colors = ["#A7C080", "#7FBBB3", "#D699B6", "#DBBC7F", "#83C092", "#E69875", "#E67E80"]
     Enum.at(colors, rem(:erlang.phash2(name), 7))
-  end
-
-  defp seed_feed do
-    [
-      %{type: "task", from: "geth-hivemind", to: "claude-code-1", color: "#A7C080", at: "just now"},
-      %{type: "ack", from: "claude-code-1", to: "geth-hivemind", color: "#7FBBB3", at: "4s ago"},
-      %{type: "join", from: "demo-agent", to: "registry", color: "#DBBC7F", at: "2m ago"}
-    ]
   end
 end

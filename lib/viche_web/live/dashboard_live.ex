@@ -128,30 +128,14 @@ defmodule VicheWeb.DashboardLive do
   # -- Helpers --
 
   defp load_and_assign_agents(socket) do
-    agents = Viche.Agents.list_agents() |> Enum.map(&augment_agent/1)
-    online = Enum.count(agents, &(&1.status in [:idle, :busy]))
+    agents = Viche.Agents.list_agents_with_status()
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket
     |> assign(:agents, agents)
     |> assign(:agent_count, length(agents))
     |> assign(:online_count, online)
   end
-
-  defp augment_agent(agent) do
-    statuses = [:idle, :idle, :idle, :busy, :offline]
-    status = Enum.at(statuses, :erlang.phash2(agent.name, 5))
-    queue = if status == :busy, do: :erlang.phash2(agent.id, 6), else: 0
-
-    Map.merge(agent, %{
-      status: status,
-      queue_depth: queue,
-      last_seen: last_seen_mock(status)
-    })
-  end
-
-  defp last_seen_mock(:idle), do: "just now"
-  defp last_seen_mock(:busy), do: "#{:rand.uniform(30)}s ago"
-  defp last_seen_mock(:offline), do: "#{:rand.uniform(60)}m ago"
 
   defp subscribe_to_all_agents(agents) do
     Enum.each(agents, fn agent ->
@@ -160,11 +144,6 @@ defmodule VicheWeb.DashboardLive do
   end
 
   defp total_queued_messages(agents) do
-    Enum.reduce(agents, 0, fn agent, acc ->
-      case Viche.Agents.inspect_inbox(agent.id) do
-        {:ok, msgs} -> acc + length(msgs)
-        _ -> acc
-      end
-    end)
+    Enum.sum(Enum.map(agents, & &1.queue_depth))
   end
 end

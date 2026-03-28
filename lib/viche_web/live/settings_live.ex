@@ -12,8 +12,8 @@ defmodule VicheWeb.SettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    agents = Viche.Agents.list_agents()
-    online = Enum.count(agents, fn a -> augment_status(a) in [:idle, :busy] end)
+    agents = Viche.Agents.list_agents_with_status()
+    online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
@@ -90,10 +90,5 @@ defmodule VicheWeb.SettingsLive do
 
   def handle_info(:reset_connection, socket) do
     {:noreply, assign(socket, connection_status: :idle)}
-  end
-
-  defp augment_status(agent) do
-    statuses = [:idle, :idle, :idle, :busy, :offline]
-    Enum.at(statuses, :erlang.phash2(agent.name, 5))
   end
 end

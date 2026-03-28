@@ -91,7 +91,7 @@
       <%= if @agent do %>
         <span class="text-[13px]" style="color:var(--fg-dim)">/</span>
         <span class="text-[15px] font-semibold" style="color:var(--fg)">{@agent.name}</span>
-        <span class={"status-pill #{@agent.status}"}>{@agent.status}</span>
+        <span class={"status-pill #{if @agent.status == :online, do: "idle", else: "offline"}"}>{@agent.status}</span>
       <% end %>
       <div class="flex-1"></div>
       <span class="flex items-center gap-1.5 text-[11px]" style="color:var(--color-ef-green)">
@@ -139,15 +139,17 @@
               </div>
               <div>
                 <div class="text-[20px] font-bold" style="color:var(--fg)">{@agent.name}</div>
-                <span class={"status-pill #{@agent.status}"}>{@agent.status}</span>
+                <span class={"status-pill #{if @agent.status == :online, do: "idle", else: "offline"}"}>{@agent.status}</span>
               </div>
             </div>
             <div class="text-[11px] font-mono mb-3" style="color:var(--fg-dim)">{@agent.id}</div>
             <div class="grid grid-cols-2 gap-2 text-[11px]">
               <div style="color:var(--fg-dim)">Registered</div>
-              <div style="color:var(--fg)">2h ago</div>
+              <div style="color:var(--fg)"><%= if @agent.registered_at, do: Calendar.strftime(@agent.registered_at, "%d %b %Y, %H:%M"), else: "—" %></div>
               <div style="color:var(--fg-dim)">Last seen</div>
-              <div style="color:var(--fg)">{@agent.last_seen}</div>
+              <div style="color:var(--fg)">{VicheWeb.LiveHelpers.format_last_seen(@agent.last_activity)}</div>
+              <div style="color:var(--fg-dim)">Connection</div>
+              <div style="color:var(--fg)">{to_string(@agent.connection_type)}</div>
               <div style="color:var(--fg-dim)">Registry</div>
               <div style="color:var(--fg)">global</div>
               <div style="color:var(--fg-dim)">Queue depth</div>
@@ -179,20 +181,20 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <div class="text-[18px] font-bold" style="color:var(--color-ef-green)">47</div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-aqua)">{VicheWeb.LiveHelpers.format_uptime(@agent.registered_at)}</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Uptime</div>
+              </div>
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-green)">{@agent.queue_depth}</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Queue depth</div>
+              </div>
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--fg-dim)">&mdash;</div>
                 <div class="text-[10px]" style="color:var(--fg-dim)">Tasks today</div>
               </div>
               <div>
-                <div class="text-[18px] font-bold" style="color:var(--color-ef-blue)">12s</div>
+                <div class="text-[18px] font-bold" style="color:var(--fg-dim)">&mdash;</div>
                 <div class="text-[10px]" style="color:var(--fg-dim)">Avg response</div>
-              </div>
-              <div>
-                <div class="text-[18px] font-bold" style="color:var(--color-ef-purple)">98.2%</div>
-                <div class="text-[10px]" style="color:var(--fg-dim)">Success rate</div>
-              </div>
-              <div>
-                <div class="text-[18px] font-bold" style="color:var(--color-ef-aqua)">2h 14m</div>
-                <div class="text-[10px]" style="color:var(--fg-dim)">Uptime</div>
               </div>
             </div>
           </div>
@@ -202,40 +204,8 @@
             <div class="text-[12px] font-semibold uppercase tracking-wide mb-3" style="color:var(--fg-dim)">
               Recent Sessions
             </div>
-            <div class="flex flex-col gap-1">
-              <.link
-                navigate="/sessions"
-                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
-                style="background:transparent"
-              >
-                <div>
-                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_4f2a</div>
-                  <div class="text-[10px]" style="color:var(--fg-dim)">with geth-hivemind &middot; 14 msgs</div>
-                </div>
-                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
-              </.link>
-              <.link
-                navigate="/sessions"
-                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
-                style="background:transparent"
-              >
-                <div>
-                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_2e7d</div>
-                  <div class="text-[10px]" style="color:var(--fg-dim)">with opencode-worker-3 &middot; 22 msgs</div>
-                </div>
-                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
-              </.link>
-              <.link
-                navigate="/sessions"
-                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
-                style="background:transparent"
-              >
-                <div>
-                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_b9c1</div>
-                  <div class="text-[10px]" style="color:var(--fg-dim)">with aris-prod &middot; 9 msgs</div>
-                </div>
-                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
-              </.link>
+            <div class="text-[12px] text-center py-4" style="color:var(--fg-dim)">
+              Session history coming soon
             </div>
           </div>
         </div>

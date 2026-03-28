@@ -42,6 +42,90 @@ defmodule Viche.Agents do
   end
 
   @doc """
+  Returns all registered agents enriched with live status data from their GenServer state.
+
+  Each agent map includes:
+    - All fields from `list_agents/0` (id, name, capabilities, description)
+    - `:status` — :online | :offline derived from last_activity vs polling_timeout_ms
+    - `:last_activity` — DateTime or nil
+    - `:registered_at` — DateTime
+    - `:connection_type` — :websocket | :long_poll
+    - `:queue_depth` — current inbox length
+    - `:polling_timeout_ms` — the agent's configured timeout
+  """
+  @spec list_agents_with_status() :: [map()]
+  def list_agents_with_status do
+    Viche.AgentRegistry
+    |> all_agents()
+    |> Enum.map(fn {id, meta} ->
+      via = {:via, Registry, {Viche.AgentRegistry, id}}
+
+      try do
+        agent = AgentServer.get_state(via)
+        status = derive_status(agent)
+        inbox_depth = length(agent.inbox)
+
+        %{
+          id: id,
+          name: meta.name,
+          capabilities: meta.capabilities,
+          description: meta.description,
+          status: status,
+          last_activity: agent.last_activity,
+          registered_at: agent.registered_at,
+          connection_type: agent.connection_type,
+          queue_depth: inbox_depth,
+          polling_timeout_ms: agent.polling_timeout_ms
+        }
+      rescue
+        _ ->
+          %{
+            id: id,
+            name: meta.name,
+            capabilities: meta.capabilities,
+            description: meta.description,
+            status: :offline,
+            last_activity: nil,
+            registered_at: nil,
+            connection_type: :long_poll,
+            queue_depth: 0,
+            polling_timeout_ms: 60_000
+          }
+      end
+    end)
+  end
+
+  @doc """
+  Returns a single agent enriched with live status data.
+  """
+  @spec get_agent_with_status(String.t()) :: {:ok, map()} | {:error, :agent_not_found}
+  def get_agent_with_status(agent_id) do
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [] ->
+        {:error, :agent_not_found}
+
+      [{_pid, meta}] ->
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        agent = AgentServer.get_state(via)
+        status = derive_status(agent)
+
+        {:ok,
+         %{
+           id: agent_id,
+           name: meta.name,
+           capabilities: meta.capabilities,
+           description: meta.description,
+           status: status,
+           last_activity: agent.last_activity,
+           registered_at: agent.registered_at,
+           connection_type: agent.connection_type,
+           queue_depth: length(agent.inbox),
+           polling_timeout_ms: agent.polling_timeout_ms
+         }}
+    end
+  end
+
+  @doc """
   Registers a new agent and starts its GenServer.
 
   ## Parameters
@@ -236,6 +320,15 @@ defmodule Viche.Agents do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  @spec derive_status(Agent.t()) :: :online | :offline
+  defp derive_status(%Agent{connection_type: :websocket}), do: :online
+  defp derive_status(%Agent{last_activity: nil}), do: :offline
+
+  defp derive_status(%Agent{last_activity: last_activity, polling_timeout_ms: timeout_ms}) do
+    elapsed_ms = DateTime.diff(DateTime.utc_now(), last_activity, :millisecond)
+    if elapsed_ms < timeout_ms * 2, do: :online, else: :offline
+  end
 
   @spec all_agents(atom()) :: [{String.t(), map()}]
   defp all_agents(registry) do

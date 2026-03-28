@@ -100,12 +100,10 @@
       <%!-- STAT CARDS --%>
       <%
         total = max(@agent_count, 1)
-        idle_count = Enum.count(@agents, &(&1.status == :idle))
-        busy_count = Enum.count(@agents, &(&1.status == :busy))
-        offline_count = @agent_count - idle_count - busy_count
-        idle_pct = trunc(idle_count / total * 100)
-        busy_pct = trunc(busy_count / total * 100)
-        offline_pct = 100 - idle_pct - busy_pct
+        online_count = Enum.count(@agents, &(&1.status == :online))
+        offline_count = @agent_count - online_count
+        online_pct = trunc(online_count / total * 100)
+        offline_pct = 100 - online_pct
       %>
       <div class="grid grid-cols-4 gap-3">
         <%!-- Total Agents --%>
@@ -125,13 +123,11 @@
             {@agent_count}
           </div>
           <div class="flex gap-0.5 mt-2.5 h-[3px] rounded overflow-hidden">
-            <div style={"width:#{idle_pct}%;background:var(--color-ef-green)"}></div>
-            <div style={"width:#{busy_pct}%;background:var(--color-ef-yellow)"}></div>
+            <div style={"width:#{online_pct}%;background:var(--color-ef-green)"}></div>
             <div style={"width:#{offline_pct}%;background:var(--color-ef-bg3)"}></div>
           </div>
           <div class="flex gap-1.5 mt-2">
-            <span class="status-pill idle">{idle_count} idle</span>
-            <span class="status-pill busy">{busy_count} busy</span>
+            <span class="status-pill idle">{online_count} online</span>
             <span class="status-pill offline">{offline_count} off</span>
           </div>
         </div>
@@ -272,13 +268,13 @@
                   <% end %>
                 </div>
                 <%!-- Status --%>
-                <span class={"status-pill #{agent.status}"}>{agent.status}</span>
+                <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>{agent.status}</span>
                 <%!-- Queue --%>
                 <span class="text-[12px] font-mono" style="color:var(--fg-dim)">
                   {agent.queue_depth}
                 </span>
                 <%!-- Last seen --%>
-                <span class="text-[11px]" style="color:var(--fg-dim)">{agent.last_seen}</span>
+                <span class="text-[11px]" style="color:var(--fg-dim)">{VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}</span>
               </div>
             <% end %>
           <% end %>
