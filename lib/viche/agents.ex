@@ -18,9 +18,9 @@ defmodule Viche.Agents do
   import Ecto.Query
 
   alias Viche.Agent
-  alias Viche.AgentServer
   alias Viche.Agents.AgentRecord
   alias Viche.Agents.MessageRecord
+  alias Viche.AgentServer
   alias Viche.Message
   alias Viche.Repo
 
@@ -181,8 +181,11 @@ defmodule Viche.Agents do
 
         # Soft-delete in database
         case Repo.get(AgentRecord, agent_id) do
-          nil -> :ok
-          record -> Repo.update!(AgentRecord.changeset(record, %{deregistered_at: DateTime.utc_now()}))
+          nil ->
+            :ok
+
+          record ->
+            Repo.update!(AgentRecord.changeset(record, %{deregistered_at: DateTime.utc_now()}))
         end
 
         Logger.info("Agent #{agent_id} deregistered")
