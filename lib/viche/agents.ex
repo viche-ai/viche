@@ -181,8 +181,11 @@ defmodule Viche.Agents do
 
         # Soft-delete in database
         case Repo.get(AgentRecord, agent_id) do
-          nil -> :ok
-          record -> Repo.update!(AgentRecord.changeset(record, %{deregistered_at: DateTime.utc_now()}))
+          nil ->
+            :ok
+
+          record ->
+            Repo.update!(AgentRecord.changeset(record, %{deregistered_at: DateTime.utc_now()}))
         end
 
         Logger.info("Agent #{agent_id} deregistered")

@@ -1,36 +1,29 @@
 #!/usr/bin/env sh
-# bd-shim v1
-# bd-hooks-version: 0.49.0
-#
-# bd (beads) pre-commit hook - thin shim
-#
-# This shim delegates to 'bd hook pre-commit' which contains
-# the actual hook logic. This pattern ensures hook behavior is always
-# in sync with the installed bd version - no manual updates needed.
-#
-# The 'bd hook' command (singular) supports:
-# - Per-worktree export state tracking
-# - Dolt branch-then-merge pattern for cell-level conflict resolution
-# - Hook chaining configuration
+set -e
 
-# Run mix format check
+# --- Elixir checks ---
 if command -v mix >/dev/null 2>&1; then
-    echo "Checking code formatting..."
-    if ! mix format --check-formatted; then
-        echo ""
-        echo "Error: Code is not formatted. Run 'mix format' and try again." >&2
-        exit 1
-    fi
+    echo "==> Running Elixir pre-commit checks..."
+    mix precommit
 else
-    echo "Warning: mix not found, skipping format check" >&2
+    echo "Warning: mix not found, skipping Elixir checks" >&2
 fi
 
-# Check if bd is available
-if ! command -v bd >/dev/null 2>&1; then
-    echo "Warning: bd command not found in PATH, skipping pre-commit hook" >&2
-    echo "  Install bd: brew install steveyegge/tap/bd" >&2
-    echo "  Or add bd to your PATH" >&2
-    exit 0
+# --- OpenClaw plugin checks (only if files changed) ---
+OPENCLAW_DIR="channel/openclaw-plugin-viche"
+if git diff --cached --name-only | grep -q "^${OPENCLAW_DIR}/"; then
+    echo "==> Running OpenClaw plugin checks..."
+    (cd "$OPENCLAW_DIR" && npm ci && npx tsc --noEmit && npm run build)
 fi
 
-exec bd hook pre-commit "$@"
+# --- OpenCode plugin checks (only if files changed) ---
+OPENCODE_DIR="channel/opencode-plugin-viche"
+if git diff --cached --name-only | grep -q "^${OPENCODE_DIR}/"; then
+    echo "==> Running OpenCode plugin checks..."
+    (cd "$OPENCODE_DIR" && bun install && bunx tsc --noEmit && bun run build && bun run test)
+fi
+
+# --- bd hook delegation ---
+if command -v bd >/dev/null 2>&1; then
+    exec bd hook pre-commit "$@"
+fi
