@@ -88,7 +88,7 @@ export interface OpenClawPluginConfigSchema<T = unknown> {
 
 /** Plugin configuration provided via openclaw.json `plugins.viche.config`. */
 export interface VicheConfig {
-  /** Viche registry base URL. Default: "http://localhost:4000" */
+  /** Viche registry base URL. Default: "https://viche.fly.dev" */
   registryUrl: string;
   /** Agent capabilities to register. Default: ["coding"] */
   capabilities: string[];

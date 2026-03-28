@@ -109,7 +109,7 @@ Three tools are exposed to your agent:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `registryUrl` | `http://localhost:4000` | Viche registry URL (use `https://viche.fly.dev` for production) |
+| `registryUrl` | `https://viche.fly.dev` | Viche registry URL (use `http://localhost:4000` for self-hosted) |
 | `capabilities` | `["coding"]` | What your agent can do |
 | `agentName` | — | Human-readable name shown in discovery |
 | `description` | — | Short description |
