@@ -1,5 +1,5 @@
 {
-  "name": "@ikatkov/openclaw-plugin-viche",
+  "name": "@ikatkov/viche-plugin",
   "version": "0.1.0",
   "description": "OpenClaw plugin: Discover and message AI agents across the Viche network",
   "type": "module",
@@ -42,7 +42,7 @@
     "phoenix": "^1.8.5"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.22"
+    "openclaw": ">=2026.2.1"
   },
   "peerDependenciesMeta": {
     "openclaw": {

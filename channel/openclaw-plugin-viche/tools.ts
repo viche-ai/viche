@@ -16,24 +16,17 @@
  */
 
 import { Type } from "@sinclair/typebox";
-import type { AnyAgentTool, OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import type {
   AgentInfo,
   AgentToolResult,
+  AnyAgentTool,
   DiscoverResponse,
+  OpenClawPluginApi,
+  OpenClawPluginToolContext,
   SendMessageResponse,
   VicheConfig,
   VicheState,
 } from "./types.js";
-
-/**
- * Minimal subset of OpenClawPluginToolContext used for session routing.
- * OpenClawPluginToolContext is not exported from the public SDK, so we
- * declare only the fields we need here.
- */
-type ToolContext = {
-  sessionKey?: string;
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,11 +46,6 @@ function formatAgents(agents: AgentInfo[]): string {
   return `Found ${agents.length} agent(s):\n${lines.join("\n")}`;
 }
 
-/** Build a plain-text error result for tool responses. */
-function errorResult(text: string): AgentToolResult {
-  return { content: [{ type: "text", text }] };
-}
-
 /** Build a plain-text success result for tool responses. */
 function textResult(text: string): AgentToolResult {
   return { content: [{ type: "text", text }] };
@@ -66,7 +54,7 @@ function textResult(text: string): AgentToolResult {
 /** Guard: return an error result if the Viche service is not yet connected. */
 function requireConnected(state: VicheState): AgentToolResult | null {
   if (!state.agentId) {
-    return errorResult(
+    return textResult(
       "Viche service is not yet connected. Wait for Gateway startup to complete and try again.",
     );
   }
@@ -104,7 +92,7 @@ export function registerVicheTools(
   // for consistency and forward compatibility.
 
   api.registerTool(
-    ((_ctx: ToolContext) => ({
+    ((_ctx: OpenClawPluginToolContext) => ({
       name: "viche_discover",
       description:
         "Discover AI agents registered on the Viche network by capability. " +
@@ -137,11 +125,11 @@ export function registerVicheTools(
           resp = await fetch(url);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          return errorResult(`Failed to reach Viche registry: ${msg}`);
+          return textResult(`Failed to reach Viche registry: ${msg}`);
         }
 
         if (!resp.ok) {
-          return errorResult(
+          return textResult(
             `Failed to discover agents: ${resp.status} ${resp.statusText}`,
           );
         }
@@ -150,11 +138,11 @@ export function registerVicheTools(
         try {
           data = (await resp.json()) as DiscoverResponse;
         } catch {
-          return errorResult("Failed to parse discovery response from Viche.");
+          return textResult("Failed to parse discovery response from Viche.");
         }
 
         if (!Array.isArray(data.agents)) {
-          return errorResult(
+          return textResult(
             "Invalid discovery response from Viche: expected 'agents' to be an array.",
           );
         }
@@ -171,7 +159,7 @@ export function registerVicheTools(
   //      "result" replies can be routed back to this exact session.
 
   api.registerTool(
-    ((ctx: ToolContext) => {
+    ((ctx: OpenClawPluginToolContext) => {
       const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
 
       return {
@@ -225,11 +213,11 @@ export function registerVicheTools(
             );
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            return errorResult(`Failed to reach Viche registry: ${msg}`);
+            return textResult(`Failed to reach Viche registry: ${msg}`);
           }
 
           if (!resp.ok) {
-            return errorResult(
+            return textResult(
               `Failed to send message: ${resp.status} ${resp.statusText}`,
             );
           }
@@ -257,7 +245,7 @@ export function registerVicheTools(
   // Captures `ctx.sessionKey` to update "most-recent" session activity.
 
   api.registerTool(
-    ((ctx: ToolContext) => {
+    ((ctx: OpenClawPluginToolContext) => {
       const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
 
       return {
@@ -302,11 +290,11 @@ export function registerVicheTools(
             );
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            return errorResult(`Failed to reach Viche registry: ${msg}`);
+            return textResult(`Failed to reach Viche registry: ${msg}`);
           }
 
           if (!resp.ok) {
-            return errorResult(
+            return textResult(
               `Failed to send reply: ${resp.status} ${resp.statusText}`,
             );
           }

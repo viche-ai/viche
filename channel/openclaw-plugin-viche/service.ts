@@ -14,13 +14,11 @@
 // @ts-ignore — phoenix ships CJS without ESM types; import works at runtime
 import { Socket } from "phoenix";
 import type {
+  AgentInfo,
+  InboundMessagePayload,
   OpenClawPluginService,
   OpenClawPluginServiceContext,
   PluginLogger,
-} from "openclaw/plugin-sdk/plugin-entry";
-import type {
-  AgentInfo,
-  InboundMessagePayload,
   PluginRuntime,
   RegisterResponse,
   VicheConfig,
