@@ -12,27 +12,53 @@
       >
         V
       </div>
-      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">viche</span>
-      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1</span>
+      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">Viche</span>
+      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1.0-alpha</span>
     </div>
 
     <%!-- Nav --%>
-    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1"><div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <.link navigate="/sessions" class="nav-item">
-        <.icon name="hero-clock-micro" class="size-4" />
-        <span class="flex-1">Sessions</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
-        >
-          {@session_count}
-        </span>
+    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
+      <.link navigate="/" class="nav-item">
+        <.icon name="hero-squares-2x2-micro" class="size-4" />
+        <span>Dashboard</span>
       </.link>
 
-      <.link navigate="/inbox" class="nav-item">
+      <.link navigate="/network" class="nav-item">
+        <.icon name="hero-signal-micro" class="size-4" />
+        <span>Network</span>
+      </.link>
+
+      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+        Agents
+      </div>
+
+      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+        <.icon name="hero-users-micro" class="size-4" />
+        <span class="flex-1">All Agents</span>
+        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+      </div>
+
+      <.link navigate="/sessions" class="nav-item">
         <.icon name="hero-envelope-micro" class="size-4" />
-        <span>Inbox Monitor</span>
+        <span>Inboxes</span>
+      </.link>
+
+      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+        Demo
+      </div>
+
+      <.link navigate="/demo" class="nav-item">
+        <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
+        <span>Network Demo</span>
+      </.link>
+
+      <.link navigate="/join/demo" class="nav-item">
+        <.icon name="hero-link-micro" class="size-4" />
+        <span>Join</span>
       </.link>
 
       <div class="flex-1"></div>
