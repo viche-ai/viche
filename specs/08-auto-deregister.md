@@ -359,6 +359,55 @@ NEW=$(curl -s -X POST http://localhost:4000/registry/register \
 # Expect: 201 with new ID, empty inbox
 ```
 
+## E2E Validation
+
+The curl/wscat acceptance criteria above verify the API surface manually. In addition, **both deregistration modes must be validated end-to-end using real Claude Code agent instances** connecting to a running Viche server — not just raw HTTP calls or wscat scripts.
+
+### Why real Claude Code instances?
+
+Claude Code agents carry their own connection lifecycle (WebSocket handshake, channel join, polling loop), error handling, and reconnect logic. Manual curl/wscat commands cannot reproduce the exact timing and teardown behaviour of a live agent process. E2E validation with real clients catches integration gaps that unit tests and curl scripts miss.
+
+### Scenarios to validate
+
+#### E2E-1: WebSocket mode — clean disconnect
+
+1. Start Viche server.
+2. Launch a real Claude Code agent instance; it registers and joins its Phoenix Channel.
+3. Terminate the Claude Code process (SIGTERM or equivalent).
+4. Within 5 seconds, confirm the agent is still listed in discovery results.
+5. After the 5-second grace period, confirm the agent is absent from discovery and its inbox returns `{"error": "agent_not_found"}`.
+
+#### E2E-2: WebSocket mode — reconnect within grace period
+
+1. Launch a Claude Code agent; it registers and joins its Channel.
+2. Force-disconnect the agent (kill network or close the process briefly).
+3. Restart the agent so it reconnects using the **same agent ID** within 5 seconds.
+4. After 10 seconds total, confirm the agent is still listed and its inbox is reachable — the grace timer was cancelled.
+
+#### E2E-3: Long-polling mode — inactivity timeout
+
+1. Launch a Claude Code agent that uses long-polling (no WebSocket), registered with a short `polling_timeout_ms` (e.g. 15 000 ms).
+2. Allow the agent to poll its inbox at least once to confirm liveness.
+3. Stop the agent's polling loop (shut down the agent process).
+4. Wait for the polling timeout to elapse.
+5. Confirm the agent is absent from discovery and its inbox returns `{"error": "agent_not_found"}`.
+
+#### E2E-4: Long-polling mode — polling keeps agent alive
+
+1. Launch a Claude Code long-polling agent with `polling_timeout_ms: 15000`.
+2. Have the agent poll its inbox every 7 seconds for 45 seconds.
+3. Confirm the agent remains discoverable throughout — each poll resets the inactivity timer.
+
+#### E2E-5: Re-registration after deregistration
+
+1. Allow a Claude Code agent to be deregistered (via either mode above).
+2. Launch a new Claude Code agent instance (it will receive a new ID).
+3. Confirm registration returns 201 with a fresh ID and an empty inbox — no state bleed from the previous process.
+
+### Pass criteria
+
+All five scenarios must succeed on a live Viche instance before the feature is considered complete. Failures in any scenario must be fixed before shipping, even if all unit tests and manual curl checks pass.
+
 ## Test Plan
 
 1. **AgentServer — WebSocket grace period**: send `:websocket_disconnected`, verify agent still alive at 4s, verify deregistered after 5s
