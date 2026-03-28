@@ -245,6 +245,7 @@ defmodule Viche.Agents do
       AgentServer.receive_message(via, message)
 
       Viche.MessageCounter.increment()
+
       VicheWeb.Endpoint.broadcast("agent:#{agent_id}", "new_message", %{
         id: message.id,
         type: message.type,
