@@ -3,50 +3,117 @@ defmodule VicheWeb.SessionsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    sessions = mock_sessions()
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+      subscribe_to_all_agents()
+      Process.send_after(self(), :tick, 5_000)
+    end
 
     socket =
       socket
-      |> assign(:sessions, sessions)
-      |> assign(:selected_id, "sess_4f2a")
-      |> assign(:messages, mock_messages("sess_4f2a"))
-      |> assign(:agent_count, 0)
-      |> assign(:online_count, 0)
-      |> assign(:session_count, 3)
-      |> assign(:messages_today, 1247)
+      |> assign(:selected_agent_id, nil)
+      |> assign(:selected_messages, [])
+      |> assign(:messages_today, 0)
+      |> load_inboxes()
 
     {:ok, socket}
   end
 
   @impl true
-  def handle_event("select_session", %{"id" => id}, socket) do
-    {:noreply, assign(socket, selected_id: id, messages: mock_messages(id))}
+  def handle_event("select_agent", %{"id" => id}, socket) do
+    selected_messages =
+      case Enum.find(socket.assigns.inbox_agents, &(&1.agent.id == id)) do
+        nil -> []
+        entry -> entry.messages
+      end
+
+    {:noreply,
+     socket
+     |> assign(:selected_agent_id, id)
+     |> assign(:selected_messages, selected_messages)}
   end
 
-  # -- Mock Data --
-
-  defp mock_sessions do
-    [
-      %{id: "sess_4f2a", participants: ["geth-hivemind", "claude-code-1"], msg_count: 14, last_activity: "8s ago", status: :active},
-      %{id: "sess_9b1c", participants: ["aris-prod", "researcher-v2"], msg_count: 6, last_activity: "2m ago", status: :active},
-      %{id: "sess_2e7d", participants: ["opencode-worker-3", "claude-code-1"], msg_count: 22, last_activity: "5m ago", status: :active},
-      %{id: "sess_a3f8", participants: ["geth-hivemind", "writer-agent"], msg_count: 8, last_activity: "18m ago", status: :completed},
-      %{id: "sess_c12b", participants: ["aris-prod", "linear-bot"], msg_count: 4, last_activity: "1h ago", status: :completed}
-    ]
+  @impl true
+  def handle_info(:tick, socket) do
+    Process.send_after(self(), :tick, 5_000)
+    {:noreply, load_inboxes(socket)}
   end
 
-  defp mock_messages("sess_4f2a") do
-    [
-      %{sender: "geth-hivemind", type: "task", body: "Review PR #47: refactor agent discovery module. Focus on the GenServer supervision tree.", at: "12:04:01"},
-      %{sender: "claude-code-1", type: "ack", body: "Got it. Checking out the diff now.", at: "12:04:03"},
-      %{sender: "claude-code-1", type: "partial", body: "Looking at lib/viche/agent_server.ex — supervision strategy looks correct but I see a potential race condition in the inbox drain loop.", at: "12:04:18"},
-      %{sender: "claude-code-1", type: "partial", body: "Confirmed: line 142, the receive loop does not handle :DOWN messages from monitored processes. If an agent crashes mid-message, the GenServer will hang.", at: "12:04:31"},
-      %{sender: "geth-hivemind", type: "task", body: "Can you suggest a fix and write the corrected code?", at: "12:04:45"},
-      %{sender: "claude-code-1", type: "partial", body: "Here is the fix: add a handle_info clause for {:DOWN, ref, :process, _pid, _reason} that cleans up the pending receive state.", at: "12:05:02"},
-      %{sender: "claude-code-1", type: "result", body: "Full review complete. 1 blocking issue (race condition, fix provided), 2 suggestions (optional). Recommend merge after fix.", at: "12:05:28"},
-      %{sender: "geth-hivemind", type: "ack", body: "Perfect. Sending fix to the team. Thanks.", at: "12:05:30"}
-    ]
+  def handle_info(%Phoenix.Socket.Broadcast{event: "agent_joined", payload: payload}, socket) do
+    Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{payload.id}")
+    {:noreply, load_inboxes(socket)}
   end
 
-  defp mock_messages(_), do: [%{sender: "system", type: "ack", body: "Session data loading...", at: ""}]
+  def handle_info(%Phoenix.Socket.Broadcast{event: "agent_left"}, socket) do
+    {:noreply, load_inboxes(socket)}
+  end
+
+  def handle_info(%Phoenix.Socket.Broadcast{event: "new_message"}, socket) do
+    {:noreply,
+     socket
+     |> update(:messages_today, &(&1 + 1))
+     |> load_inboxes()}
+  end
+
+  # Catch-all for other broadcasts
+  def handle_info(%Phoenix.Socket.Broadcast{}, socket), do: {:noreply, socket}
+
+  # -- Private --
+
+  defp load_inboxes(socket) do
+    agents = Viche.Agents.list_agents()
+
+    inbox_agents =
+      agents
+      |> Enum.map(fn agent ->
+        case Viche.Agents.inspect_inbox(agent.id) do
+          {:ok, messages} when messages != [] ->
+            %{agent: agent, messages: messages, count: length(messages)}
+
+          _ ->
+            nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.sort_by(
+        fn %{messages: msgs} ->
+          last = List.last(msgs)
+          last && DateTime.to_unix(last.sent_at)
+        end,
+        :desc
+      )
+
+    online =
+      Enum.count(agents, fn a ->
+        statuses = [:idle, :idle, :idle, :busy, :offline]
+        Enum.at(statuses, :erlang.phash2(a.name, 5)) in [:idle, :busy]
+      end)
+
+    selected_messages =
+      case socket.assigns[:selected_agent_id] do
+        nil ->
+          []
+
+        id ->
+          case Enum.find(inbox_agents, &(&1.agent.id == id)) do
+            nil -> []
+            entry -> entry.messages
+          end
+      end
+
+    socket
+    |> assign(:inbox_agents, inbox_agents)
+    |> assign(:all_agents, agents)
+    |> assign(:agent_count, length(agents))
+    |> assign(:online_count, online)
+    |> assign(:session_count, length(inbox_agents))
+    |> assign(:selected_messages, selected_messages)
+  end
+
+  defp subscribe_to_all_agents do
+    Viche.Agents.list_agents()
+    |> Enum.each(fn agent ->
+      Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{agent.id}")
+    end)
+  end
 end

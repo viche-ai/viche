@@ -17,46 +17,7 @@
     </div>
 
     <%!-- Nav --%>
-    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
-      <.link navigate="/dashboard" class="nav-item">
-        <.icon name="hero-squares-2x2-micro" class="size-4" />
-        <span>Dashboard</span>
-      </.link>
-
-      <.link navigate="/network" class="nav-item">
-        <.icon name="hero-signal-micro" class="size-4" />
-        <span>Network</span>
-      </.link>
-
-      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <.link
-        navigate="/agents"
-        class="nav-item active"
-        style="border-left:2px solid var(--color-ef-green);margin-left:-2px"
-      >
-        <.icon name="hero-users-micro" class="size-4" />
-        <span class="flex-1">All Agents</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:var(--bg-2);color:var(--fg-dim)"
-        >
-          {@agent_count}
-        </span>
-      </.link>
-
-      <.link navigate="/agents?status=online" class="nav-item">
-        <.icon name="hero-bolt-micro" class="size-4" />
-        <span class="flex-1">Online</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
-        >
-          {@online_count}
-        </span>
-      </.link>
-
-      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1"><div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
 
       <.link navigate="/sessions" class="nav-item">
         <.icon name="hero-clock-micro" class="size-4" />

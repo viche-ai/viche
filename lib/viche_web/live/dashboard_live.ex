@@ -3,18 +3,20 @@ defmodule VicheWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = socket |> load_and_assign_agents()
+
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
       Phoenix.PubSub.subscribe(Viche.PubSub, "dashboard:feed")
+      subscribe_to_all_agents(socket.assigns.agents)
       Process.send_after(self(), :tick, 10_000)
     end
 
     socket =
       socket
-      |> load_and_assign_agents()
-      |> assign(:feed, seed_feed())
-      |> assign(:session_count, 3)
-      |> assign(:messages_today, 1247)
+      |> assign(:feed, [])
+      |> assign(:messages_today, 0)
+      |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
       |> assign(:paused, false)
 
     {:ok, socket}
@@ -23,7 +25,13 @@ defmodule VicheWeb.DashboardLive do
   @impl true
   def handle_info(:tick, socket) do
     Process.send_after(self(), :tick, 10_000)
-    {:noreply, load_and_assign_agents(socket)}
+
+    socket =
+      socket
+      |> load_and_assign_agents()
+      |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
+
+    {:noreply, socket}
   end
 
   def handle_info(
@@ -42,6 +50,8 @@ defmodule VicheWeb.DashboardLive do
       at: "just now"
     }
 
+    Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{payload.id}")
+
     socket =
       socket
       |> load_and_assign_agents()
@@ -59,7 +69,7 @@ defmodule VicheWeb.DashboardLive do
         socket
       ) do
     event = %{
-      type: "join",
+      type: "leave",
       from: payload.id,
       to: "registry",
       body: "Agent disconnected",
@@ -69,6 +79,30 @@ defmodule VicheWeb.DashboardLive do
     socket =
       socket
       |> load_and_assign_agents()
+      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+
+    {:noreply, socket}
+  end
+
+  def handle_info(
+        %Phoenix.Socket.Broadcast{
+          topic: "agent:" <> _agent_id,
+          event: "new_message",
+          payload: message
+        },
+        socket
+      ) do
+    event = %{
+      type: message.type,
+      from: message.from,
+      to: message[:to] || "unknown",
+      body: message.body,
+      at: "just now"
+    }
+
+    socket =
+      socket
+      |> update(:messages_today, &(&1 + 1))
       |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
 
     {:noreply, socket}
@@ -119,29 +153,18 @@ defmodule VicheWeb.DashboardLive do
   defp last_seen_mock(:busy), do: "#{:rand.uniform(30)}s ago"
   defp last_seen_mock(:offline), do: "#{:rand.uniform(60)}m ago"
 
-  defp seed_feed do
-    [
-      %{
-        type: "task",
-        from: "geth-hivemind",
-        to: "claude-code-1",
-        body: "Review PR #47: refactor agent discovery module",
-        at: "just now"
-      },
-      %{
-        type: "ack",
-        from: "claude-code-1",
-        to: "geth-hivemind",
-        body: "Task received. Starting review now.",
-        at: "4s ago"
-      },
-      %{
-        type: "join",
-        from: "demo-agent-joel",
-        to: "registry",
-        body: "New agent registered. Capabilities: general",
-        at: "2m ago"
-      }
-    ]
+  defp subscribe_to_all_agents(agents) do
+    Enum.each(agents, fn agent ->
+      Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{agent.id}")
+    end)
+  end
+
+  defp total_queued_messages(agents) do
+    Enum.reduce(agents, 0, fn agent, acc ->
+      case Viche.Agents.inspect_inbox(agent.id) do
+        {:ok, msgs} -> acc + length(msgs)
+        _ -> acc
+      end
+    end)
   end
 end
