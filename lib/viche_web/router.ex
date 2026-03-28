@@ -20,6 +20,12 @@ defmodule VicheWeb.Router do
     get "/", PageController, :home
   end
 
+  scope "/.well-known", VicheWeb do
+    pipe_through :api
+
+    get "/agent-registry", WellKnownController, :agent_registry
+  end
+
   scope "/registry", VicheWeb do
     pipe_through :api
 
