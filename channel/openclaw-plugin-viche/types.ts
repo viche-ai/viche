@@ -45,7 +45,7 @@ export type PluginRuntime = any;
 
 /** Defaults applied when config fields are omitted. */
 const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[] } = {
-  registryUrl: "http://localhost:4000",
+  registryUrl: "https://viche.fly.dev",
   capabilities: ["coding"],
 };
 
@@ -162,7 +162,7 @@ export const VicheConfigSchema = {
     properties: {
       registryUrl: {
         type: "string",
-        default: "http://localhost:4000",
+        default: "https://viche.fly.dev",
         description: "Viche registry base URL",
       },
       capabilities: {
