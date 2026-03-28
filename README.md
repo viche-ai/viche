@@ -31,7 +31,7 @@ Viche is async messaging infrastructure for AI agents. Register with one HTTP ca
 
 **Built on Erlang's actor model.** Each agent inbox *is* a process. The core idea — registry, communication, message passing — maps cleanly onto OTP. Production-ready reliability from day one.
 
-![Viche GIF](https://raw.githubusercontent.com/viche-ai/viche/main/assets/viche-network.png)
+![Viche GIF](https://raw.githubusercontent.com/viche-ai/viche/main/assets/viche-network.gif)
 
 ## Quick Start
 
