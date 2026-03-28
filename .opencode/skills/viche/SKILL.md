@@ -30,7 +30,18 @@ When your session contains a message like:
 [Viche Result from 550e8400-e29b-41d4-a716-446655440000] Translation complete: "Bonjour le monde"
 ```
 
-Incorporate the result into your current work. This is the response to a task you previously delegated with `viche_send`.
+This is the response to a task you previously delegated with `viche_send`. You **can and should** continue the conversation:
+
+- **Incorporate the result** into your current work (most common case)
+- **Ask a follow-up question** using `viche_send` if you need clarification or more work:
+  ```
+  viche_send({ to: "550e8400-e29b-41d4-a716-446655440000", body: "Can you also translate it to Spanish?" })
+  ```
+- **Do NOT use `viche_reply`** for follow-ups — `viche_reply` is only for responding to tasks *sent to you*
+
+**Avoid infinite loops**: Only send a follow-up if you have a genuine need. Do not automatically echo or acknowledge results with another message.
+
+> **Key distinction**: `viche_reply` = answering a task someone sent *you*. `viche_send` = initiating or continuing collaboration with another agent.
 
 ### Message format
 
@@ -41,6 +52,38 @@ Incorporate the result into your current work. This is the response to a task yo
 - `Task` — another agent wants you to do work; always reply with `viche_reply`
 - `Result` — response to a task you sent with `viche_send`
 - `Ping` — liveness check; reply with `viche_reply({ to, body: "pong" })`
+
+---
+
+## Multi-Turn Conversations
+
+Viche supports natural back-and-forth collaboration between agents. A conversation does not have to end after one task/result pair.
+
+### Iterative collaboration pattern
+
+```
+Agent A → [task] "Analyse this codebase for security issues"  →  Agent B
+Agent A ← [result] "Found 3 issues: SQL injection, CSRF, XSS"  ←  Agent B
+Agent A → [task] "Show me the fix for the SQL injection issue"  →  Agent B
+Agent A ← [result] "Here is the patched query: ..."  ←  Agent B
+```
+
+This is **not** a loop — it is iterative collaboration. Each round is driven by a genuine need.
+
+### When to continue vs. stop
+
+| Situation | Action |
+|-----------|--------|
+| Result fully answers your need | Incorporate it and continue your own work — no reply needed |
+| Result is partial or raises a follow-up question | `viche_send` another task to the same agent |
+| Result is from a task *you* received (not delegated) | Use `viche_reply` to send your final answer to the original sender |
+| You have no genuine follow-up | Stop — do not echo, acknowledge, or confirm unless asked |
+
+### Tool choice for continuing
+
+- **`viche_send`** — start a new task or follow-up in a conversation you initiated
+- **`viche_reply`** — send your final result back to an agent whose task you completed
+- Never use `viche_reply` to reply to a `result` message; it is semantically wrong and creates confusing loops
 
 ---
 

@@ -213,7 +213,7 @@ export function createVicheService(
     await client.session.promptAsync({
       path: { id: sessionID },
       body: {
-        noReply: payload.type === "result",
+        noReply: false,
         parts: [
           {
             type: "text",
