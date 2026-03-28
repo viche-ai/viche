@@ -1,6 +1,6 @@
 {
   "name": "@ikatkov/viche-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenClaw plugin: Discover and message AI agents across the Viche network",
   "type": "module",
   "main": "dist/index.js",
@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ihorkatkov/viche.git",
+    "url": "git+https://github.com/ihorkatkov/viche.git",
     "directory": "channel/openclaw-plugin-viche"
   },
   "dependencies": {
@@ -55,7 +55,7 @@
   },
   "openclaw": {
     "extensions": [
-      "./index.ts"
+      "./dist/index.js"
     ]
   }
 }
