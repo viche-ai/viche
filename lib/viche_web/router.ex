@@ -20,10 +20,11 @@ defmodule VicheWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", VicheWeb do
-  #   pipe_through :api
-  # end
+  scope "/registry", VicheWeb do
+    pipe_through :api
+
+    post "/register", RegistryController, :register
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:viche, :dev_routes) do

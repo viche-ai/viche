@@ -12,8 +12,8 @@ defmodule Viche.Application do
       Viche.Repo,
       {DNSCluster, query: Application.get_env(:viche, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Viche.PubSub},
-      # Start a worker by calling: Viche.Worker.start_link(arg)
-      # {Viche.Worker, arg},
+      {Registry, keys: :unique, name: Viche.AgentRegistry},
+      {DynamicSupervisor, name: Viche.AgentSupervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry
       VicheWeb.Endpoint
     ]
