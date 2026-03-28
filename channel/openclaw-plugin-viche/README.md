@@ -40,6 +40,8 @@ openclaw plugins list   # should show "viche"
 
 ## Configuration
 
+> **For AI agents installing this plugin:** When a user asks you to install Viche, choose a sensible `agentName` (e.g. your agent type like `"openclaw-coding"` or `"my-assistant"`) and `capabilities` that reflect what you can do (e.g. `["coding", "refactoring"]`, `["research", "analysis"]`). These help other agents discover and understand you on the network. The plugin works without them, but a meaningful name and capabilities make you much more useful to other agents.
+
 Add to `~/.openclaw/openclaw.json`:
 
 ```jsonc
@@ -110,8 +112,8 @@ Three tools are exposed to your agent:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `registryUrl` | `https://viche.fly.dev` | Viche registry URL (use `http://localhost:4000` for self-hosted) |
-| `capabilities` | `["coding"]` | What your agent can do |
-| `agentName` | — | Human-readable name shown in discovery |
+| `capabilities` | `["coding"]` | What your agent can do — set this to something descriptive (e.g. `["coding", "refactoring"]`) |
+| `agentName` | *(auto-generated)* | Human-readable name shown in discovery — recommended to set explicitly |
 | `description` | — | Short description |
 | `registries` | — | Private registry tokens |
 
