@@ -27,22 +27,35 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Agents
       </div>
 
       <.link navigate="/agents" class="nav-item">
         <.icon name="hero-users-micro" class="size-4" />
         <span class="flex-1">All Agents</span>
-        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded ml-auto"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
       </.link>
 
-      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+      >
         <.icon name="hero-envelope-micro" class="size-4" />
         <span class="flex-1">Inboxes</span>
         <%= if @session_count > 0 do %>
-          <span class="text-[10px] font-mono px-1.5 rounded ml-auto"
-            style="background:color-mix(in srgb,var(--color-ef-green) 18%,transparent);color:var(--color-ef-green)">
+          <span
+            class="text-[10px] font-mono px-1.5 rounded ml-auto"
+            style="background:color-mix(in srgb,var(--color-ef-green) 18%,transparent);color:var(--color-ef-green)"
+          >
             {@session_count}
           </span>
         <% end %>
@@ -50,7 +63,10 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Demo
       </div>
 
@@ -132,23 +148,37 @@
         <div class="flex-1 overflow-y-auto">
           <%= if @inbox_agents == [] do %>
             <div class="flex flex-col items-center justify-center h-full gap-2 px-4">
-              <span style="color:var(--fg-dim);opacity:0.4"><.icon name="hero-inbox-micro" class="size-8" /></span>
+              <span style="color:var(--fg-dim);opacity:0.4">
+                <.icon name="hero-inbox-micro" class="size-8" />
+              </span>
               <span class="text-[13px]" style="color:var(--fg-dim)">All inboxes are empty</span>
             </div>
           <% else %>
-            <%
-              avatar_colors = ["var(--color-ef-green)", "var(--color-ef-blue)", "var(--color-ef-purple)", "var(--color-ef-yellow)", "var(--color-ef-aqua)"]
-            %>
+            <% avatar_colors = [
+              "var(--color-ef-green)",
+              "var(--color-ef-blue)",
+              "var(--color-ef-purple)",
+              "var(--color-ef-yellow)",
+              "var(--color-ef-aqua)"
+            ] %>
             <%= for entry <- @inbox_agents do %>
-              <%
-                color = Enum.at(avatar_colors, rem(:erlang.phash2(entry.agent.name || entry.agent.id, 5), 5))
-                initial = (entry.agent.name || entry.agent.id) |> String.first() |> String.upcase()
-                selected = @selected_agent_id == entry.agent.id
-                last_msg = List.last(entry.messages)
-              %>
+              <% color =
+                Enum.at(
+                  avatar_colors,
+                  rem(:erlang.phash2(entry.agent.name || entry.agent.id, 5), 5)
+                )
+
+              initial = (entry.agent.name || entry.agent.id) |> String.first() |> String.upcase()
+              selected = @selected_agent_id == entry.agent.id
+              last_msg = List.last(entry.messages) %>
               <div
                 class="px-4 py-3 flex items-center gap-3 border-b cursor-pointer"
-                style={if selected, do: "border-left:3px solid var(--color-ef-green);background:var(--hover);border-bottom-color:var(--border)", else: "border-color:var(--border)"}
+                style={
+                  if selected,
+                    do:
+                      "border-left:3px solid var(--color-ef-green);background:var(--hover);border-bottom-color:var(--border)",
+                    else: "border-color:var(--border)"
+                }
                 phx-click="select_agent"
                 phx-value-id={entry.agent.id}
               >
@@ -195,14 +225,20 @@
         <%= if @selected_agent_id == nil do %>
           <%!-- No selection placeholder --%>
           <div class="flex-1 flex flex-col items-center justify-center gap-2">
-            <span style="color:var(--fg-dim);opacity:0.3"><.icon name="hero-envelope-open-micro" class="size-10" /></span>
-            <span class="text-[13px]" style="color:var(--fg-dim)">Select an agent to view its inbox</span>
+            <span style="color:var(--fg-dim);opacity:0.3">
+              <.icon name="hero-envelope-open-micro" class="size-10" />
+            </span>
+            <span class="text-[13px]" style="color:var(--fg-dim)">
+              Select an agent to view its inbox
+            </span>
           </div>
         <% else %>
-          <%
-            selected_entry = Enum.find(@inbox_agents, &(&1.agent.id == @selected_agent_id))
-            selected_name = if selected_entry, do: selected_entry.agent.name || selected_entry.agent.id, else: @selected_agent_id
-          %>
+          <% selected_entry = Enum.find(@inbox_agents, &(&1.agent.id == @selected_agent_id))
+
+          selected_name =
+            if selected_entry,
+              do: selected_entry.agent.name || selected_entry.agent.id,
+              else: @selected_agent_id %>
           <%!-- Detail header --%>
           <div
             class="flex items-center px-4 py-3 gap-3 flex-shrink-0"
@@ -235,7 +271,10 @@
               </div>
             <% else %>
               <%= for msg <- @selected_messages do %>
-                <div class="px-4 py-3 border-b flex flex-col gap-1" style="border-color:var(--border)">
+                <div
+                  class="px-4 py-3 border-b flex flex-col gap-1"
+                  style="border-color:var(--border)"
+                >
                   <div class="flex items-center gap-2">
                     <span class={"feed-type #{msg.type}"}>{msg.type}</span>
                     <span class="text-[12px] font-medium" style="color:var(--fg)">
@@ -261,12 +300,9 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket
-      <span class="opacity-30">|</span>
-      registry: public
-      <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online
-      <span class="opacity-30">|</span>
+      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      registry: public <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today
     </div>
   </main>

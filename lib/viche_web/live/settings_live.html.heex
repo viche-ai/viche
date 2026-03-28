@@ -27,14 +27,22 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Agents
       </div>
 
       <.link navigate="/agents" class="nav-item">
         <.icon name="hero-users-micro" class="size-4" />
         <span class="flex-1">All Agents</span>
-        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded ml-auto"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
       </.link>
 
       <.link navigate="/sessions" class="nav-item">
@@ -44,7 +52,10 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Demo
       </div>
 
@@ -60,7 +71,10 @@
 
       <div class="flex-1"></div>
 
-      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+      >
         <.icon name="hero-cog-6-tooth-micro" class="size-4" />
         <span>Settings</span>
       </div>
@@ -94,12 +108,20 @@
     <div class="flex-1 overflow-y-auto p-6" style="background:var(--bg)">
       <div class="max-w-[680px] space-y-5">
         <%!-- SECTION 1: Connection --%>
-        <div class="rounded-xl p-5 space-y-4" style="background:var(--bg-1);border:1px solid var(--border)">
+        <div
+          class="rounded-xl p-5 space-y-4"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Connection</h2>
 
           <%!-- Registry URL --%>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-medium uppercase tracking-wide" style="color:var(--fg-dim)">Registry URL</label>
+            <label
+              class="text-[11px] font-medium uppercase tracking-wide"
+              style="color:var(--fg-dim)"
+            >
+              Registry URL
+            </label>
             <input
               type="text"
               value={@settings.registry_url}
@@ -109,12 +131,19 @@
               class="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
               style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
             />
-            <p class="text-[11px]" style="color:var(--fg-dim)">The URL of your Viche registry instance</p>
+            <p class="text-[11px]" style="color:var(--fg-dim)">
+              The URL of your Viche registry instance
+            </p>
           </div>
 
           <%!-- API Token --%>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-medium uppercase tracking-wide" style="color:var(--fg-dim)">API Token</label>
+            <label
+              class="text-[11px] font-medium uppercase tracking-wide"
+              style="color:var(--fg-dim)"
+            >
+              API Token
+            </label>
             <div class="flex gap-2">
               <input
                 type={if @show_token, do: "text", else: "password"}
@@ -128,16 +157,26 @@
                 class="px-3 py-2 rounded-lg text-[11px] flex items-center gap-1.5"
                 style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg-dim)"
               >
-                <.icon name={if @show_token, do: "hero-eye-slash-micro", else: "hero-eye-micro"} class="size-3.5" />
+                <.icon
+                  name={if @show_token, do: "hero-eye-slash-micro", else: "hero-eye-micro"}
+                  class="size-3.5"
+                />
                 {if @show_token, do: "Hide", else: "Show"}
               </button>
             </div>
-            <p class="text-[11px]" style="color:var(--fg-dim)">Your authentication token for the registry API</p>
+            <p class="text-[11px]" style="color:var(--fg-dim)">
+              Your authentication token for the registry API
+            </p>
           </div>
 
           <%!-- WebSocket URL --%>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-medium uppercase tracking-wide" style="color:var(--fg-dim)">WebSocket URL</label>
+            <label
+              class="text-[11px] font-medium uppercase tracking-wide"
+              style="color:var(--fg-dim)"
+            >
+              WebSocket URL
+            </label>
             <input
               type="text"
               value="wss://viche.fly.dev/socket/websocket"
@@ -155,14 +194,22 @@
                   <span class="w-2 h-2 rounded-full" style="background:var(--fg-dim)"></span>
                   <span class="text-[12px]" style="color:var(--fg-dim)">Not tested</span>
                 <% :testing -> %>
-                  <span class="w-2 h-2 rounded-full animate-pulse" style="background:var(--color-ef-yellow)"></span>
+                  <span
+                    class="w-2 h-2 rounded-full animate-pulse"
+                    style="background:var(--color-ef-yellow)"
+                  >
+                  </span>
                   <span class="text-[12px]" style="color:var(--color-ef-yellow)">Testing...</span>
                 <% :connected -> %>
-                  <span class="w-2 h-2 rounded-full" style="background:var(--color-ef-green)"></span>
+                  <span class="w-2 h-2 rounded-full" style="background:var(--color-ef-green)">
+                  </span>
                   <span class="text-[12px]" style="color:var(--color-ef-green)">Connected ✓</span>
                 <% :failed -> %>
-                  <span class="w-2 h-2 rounded-full" style="background:var(--color-ef-red)"></span>
-                  <span class="text-[12px]" style="color:var(--color-ef-red)">Connection failed</span>
+                  <span class="w-2 h-2 rounded-full" style="background:var(--color-ef-red)">
+                  </span>
+                  <span class="text-[12px]" style="color:var(--color-ef-red)">
+                    Connection failed
+                  </span>
               <% end %>
             </div>
             <div class="flex-1"></div>
@@ -178,12 +225,20 @@
         </div>
 
         <%!-- SECTION 2: Registry --%>
-        <div class="rounded-xl p-5 space-y-4" style="background:var(--bg-1);border:1px solid var(--border)">
+        <div
+          class="rounded-xl p-5 space-y-4"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Registry</h2>
 
           <%!-- Namespace --%>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-medium uppercase tracking-wide" style="color:var(--fg-dim)">Namespace</label>
+            <label
+              class="text-[11px] font-medium uppercase tracking-wide"
+              style="color:var(--fg-dim)"
+            >
+              Namespace
+            </label>
             <input
               type="text"
               value={@settings.namespace}
@@ -197,7 +252,12 @@
 
           <%!-- Agent Prefix --%>
           <div class="space-y-1.5">
-            <label class="text-[11px] font-medium uppercase tracking-wide" style="color:var(--fg-dim)">Agent Prefix</label>
+            <label
+              class="text-[11px] font-medium uppercase tracking-wide"
+              style="color:var(--fg-dim)"
+            >
+              Agent Prefix
+            </label>
             <input
               type="text"
               value={@settings.agent_prefix}
@@ -212,8 +272,12 @@
           <%!-- Auth Toggle --%>
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-[13px] font-medium" style="color:var(--fg)">Require Authentication</div>
-              <div class="text-[11px]" style="color:var(--fg-dim)">Agents must provide a valid token to register</div>
+              <div class="text-[13px] font-medium" style="color:var(--fg)">
+                Require Authentication
+              </div>
+              <div class="text-[11px]" style="color:var(--fg-dim)">
+                Agents must provide a valid token to register
+              </div>
             </div>
             <button
               phx-click="toggle_setting"
@@ -224,13 +288,17 @@
               <span
                 class="absolute top-0.5 w-4 h-4 rounded-full transition-all"
                 style={"background:white;#{if @settings.require_auth, do: "left:calc(100% - 18px)", else: "left:2px"}"}
-              ></span>
+              >
+              </span>
             </button>
           </div>
         </div>
 
         <%!-- SECTION 3: Appearance --%>
-        <div class="rounded-xl p-5 space-y-4" style="background:var(--bg-1);border:1px solid var(--border)">
+        <div
+          class="rounded-xl p-5 space-y-4"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Appearance</h2>
 
           <%!-- Theme Selector --%>
@@ -269,7 +337,9 @@
           <div class="flex items-center justify-between">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Live Feed</div>
-              <div class="text-[11px]" style="color:var(--fg-dim)">Show real-time activity updates</div>
+              <div class="text-[11px]" style="color:var(--fg-dim)">
+                Show real-time activity updates
+              </div>
             </div>
             <button
               phx-click="toggle_setting"
@@ -280,7 +350,8 @@
               <span
                 class="absolute top-0.5 w-4 h-4 rounded-full transition-all"
                 style={"background:white;#{if @settings.live_feed, do: "left:calc(100% - 18px)", else: "left:2px"}"}
-              ></span>
+              >
+              </span>
             </button>
           </div>
 
@@ -288,7 +359,9 @@
           <div class="flex items-center justify-between">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Animate Graph</div>
-              <div class="text-[11px]" style="color:var(--fg-dim)">Enable animations in the network graph</div>
+              <div class="text-[11px]" style="color:var(--fg-dim)">
+                Enable animations in the network graph
+              </div>
             </div>
             <button
               phx-click="toggle_setting"
@@ -299,20 +372,28 @@
               <span
                 class="absolute top-0.5 w-4 h-4 rounded-full transition-all"
                 style={"background:white;#{if @settings.animate_graph, do: "left:calc(100% - 18px)", else: "left:2px"}"}
-              ></span>
+              >
+              </span>
             </button>
           </div>
         </div>
 
         <%!-- SECTION 4: Danger Zone --%>
-        <div class="rounded-xl p-5 space-y-4" style="background:var(--bg-1);border:1px solid color-mix(in srgb,var(--color-ef-red) 35%,transparent)">
+        <div
+          class="rounded-xl p-5 space-y-4"
+          style="background:var(--bg-1);border:1px solid color-mix(in srgb,var(--color-ef-red) 35%,transparent)"
+        >
           <h2 class="text-[13px] font-semibold" style="color:var(--color-ef-red)">Danger Zone</h2>
 
           <%!-- Clear all agent data --%>
           <div class="flex items-center justify-between gap-4">
             <div>
-              <div class="text-[13px] font-medium" style="color:var(--fg)">Clear all agent data</div>
-              <div class="text-[11px]" style="color:var(--fg-dim)">Remove all registered agents and their history</div>
+              <div class="text-[13px] font-medium" style="color:var(--fg)">
+                Clear all agent data
+              </div>
+              <div class="text-[11px]" style="color:var(--fg-dim)">
+                Remove all registered agents and their history
+              </div>
             </div>
             <%= if @danger_confirm == :clear do %>
               <div class="flex items-center gap-2">
@@ -351,7 +432,9 @@
           <div class="flex items-center justify-between gap-4">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Reset settings</div>
-              <div class="text-[11px]" style="color:var(--fg-dim)">Restore all settings to their default values</div>
+              <div class="text-[11px]" style="color:var(--fg-dim)">
+                Restore all settings to their default values
+              </div>
             </div>
             <%= if @danger_confirm == :reset do %>
               <div class="flex items-center gap-2">
@@ -422,12 +505,9 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket
-      <span class="opacity-30">|</span>
-      registry: public
-      <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online
-      <span class="opacity-30">|</span>
+      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      registry: public <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today
     </div>
   </main>
