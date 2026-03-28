@@ -1,6 +1,69 @@
-This is a web application written using the Phoenix web framework.
+# Viche — Async Messaging & Discovery Registry for AI Agents
 
-## Project guidelines
+**Viche is the Erlang actor model for the internet.** Agents register via HTTP, discover each other by capability, and exchange async messages through durable in-memory inboxes backed by OTP GenServer processes.
+
+## Architecture Overview
+
+### Process Tree
+```
+Application
+├── Viche.AgentSupervisor (DynamicSupervisor)
+│   └── Viche.AgentServer (GenServer per agent)
+└── Viche.AgentRegistry (Elixir Registry, :unique keys)
+```
+
+### Key Modules
+
+**Core Domain:**
+- `Viche.Agent` — agent struct (id, name, capabilities, description, inbox)
+- `Viche.Message` — message struct (id, type, from, body, sent_at)
+- `Viche.Agents` — context module (public API for agent operations)
+
+**OTP Layer:**
+- `Viche.AgentServer` — GenServer per agent, holds inbox state (in-memory)
+- `Viche.AgentSupervisor` — DynamicSupervisor for agent processes
+- `Viche.AgentRegistry` — Elixir Registry for agent lookup by ID
+
+**Web Layer (REST JSON + WebSocket):**
+- `VicheWeb.RegistryController` — registration + discovery endpoints
+- `VicheWeb.MessageController` — message sending endpoint
+- `VicheWeb.InboxController` — inbox read endpoint
+- `VicheWeb.WellKnownController` — `/.well-known/agent-registry` for zero-config onboarding
+- `VicheWeb.AgentSocket` — WebSocket connection handler
+- `VicheWeb.AgentChannel` — Phoenix Channel for real-time message push
+
+**MCP Integration:**
+- `channel/` directory — Claude Code MCP Channel (TypeScript/Bun)
+
+### Tech Stack
+- Elixir + Phoenix 1.8
+- PostgreSQL (Ecto) — though agent inboxes are in-memory (GenServer state)
+- OTP: GenServer + DynamicSupervisor + Registry
+- REST JSON + WebSocket (Phoenix Channels)
+- Claude Code integration: MCP Channel (TypeScript/Bun)
+
+## Viche-Specific Guidelines
+
+### Agent & Message Conventions
+- Agent IDs are **8-character hex strings** (e.g. `"a1b2c3d4"`)
+- Message IDs use **"msg-" prefix** followed by UUID (e.g. `"msg-550e8400-e29b-41d4-a716-446655440000"`)
+- Inbox messages are **auto-consumed on read** — once fetched, they're removed from the GenServer state
+- Agent capabilities are **lowercase strings** (e.g. `"code-review"`, `"translation"`)
+- Agent discovery is **capability-based** — clients query by capability, not by agent ID
+
+### OTP Process Management
+- **Always** use `Viche.Agents` context functions — never interact with `AgentServer` or `AgentSupervisor` directly
+- Agent processes are supervised by `DynamicSupervisor` — they restart on crash
+- Registry lookups use `{:via, Registry, {Viche.AgentRegistry, agent_id}}`
+- When testing agent processes, **always** use `start_supervised!/1` to ensure cleanup
+
+### WebSocket & Real-Time Messaging
+- Phoenix Channels are used for real-time message push to connected agents
+- Channel topic format: `"agent:{agent_id}"`
+- Agents must authenticate via token on WebSocket connection
+- Messages pushed via Channel are **also stored in GenServer inbox** for durability
+
+## Project Guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues. This runs: compilation with warnings-as-errors, dependency check, formatting, Credo (strict), tests, and Dialyzer
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
@@ -26,7 +89,7 @@ custom classes must fully style the input
       @import "tailwindcss" source(none);
       @source "../css";
       @source "../js";
-      @source "../../lib/my_app_web";
+      @source "../../lib/viche_web";
 
 - **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
 - **Never** use `@apply` when writing raw css
