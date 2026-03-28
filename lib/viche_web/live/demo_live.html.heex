@@ -749,10 +749,10 @@
       style="color:#A7C080"
       phx-hook="CounterPop"
     >
-      {@join_count}
+      {@agent_count}
     </div>
     <span class="text-2xl font-medium ml-2" style="color:#D3C6AA">
-      {if @join_count == 1, do: "person", else: "people"} connected
+      {if @agent_count == 1, do: "agent", else: "agents"} connected
     </span>
     <div class="text-sm mt-2" style="color:#859289">
       Scan to connect your agent to the network
@@ -773,8 +773,6 @@
     </span>
     ws connected
   </span>
-  <span style="opacity:0.3">·</span>
-  <span>{@agent_count} agents online</span>
   <span style="opacity:0.3">·</span>
   <span>{@messages_today} messages</span>
 </div>
