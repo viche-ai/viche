@@ -10,7 +10,10 @@ defmodule Viche.JoinTokens do
     token = "viche_tk_#{hash}_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
     expires_at = DateTime.add(DateTime.utc_now(), 48 * 3600, :second)
 
-    :ets.insert(@table, {hash, %{token: token, created_at: DateTime.utc_now(), expires_at: expires_at}})
+    :ets.insert(
+      @table,
+      {hash, %{token: token, created_at: DateTime.utc_now(), expires_at: expires_at}}
+    )
 
     token
   end

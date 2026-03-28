@@ -33,14 +33,14 @@
 </div>
 
 <%!-- Main content --%>
-<div class="relative z-10 flex flex-col items-center justify-center gap-9"
-     style="min-height:100vh;color:#D3C6AA">
-
+<div
+  class="relative z-10 flex flex-col items-center justify-center gap-9"
+  style="min-height:100vh;color:#D3C6AA"
+>
   <%!-- Logo + tagline --%>
   <div class="flex flex-col items-center gap-2">
     <div class="flex items-center gap-4">
-      <img src="/images/viche-logo.png" alt="Viche"
-           class="w-12 h-12 rounded-xl object-cover" />
+      <img src="/images/viche-logo.png" alt="Viche" class="w-12 h-12 rounded-xl object-cover" />
       <span style="font-size:42px;font-weight:700;letter-spacing:-1px;color:#D3C6AA">Viche</span>
     </div>
     <div style="color:#859289;font-size:16px;letter-spacing:0.3px">
@@ -49,53 +49,691 @@
   </div>
 
   <%!-- QR card --%>
-  <div class="flex flex-col items-center gap-3 rounded-2xl p-7"
-       style="background:#343F44;border:1px solid rgba(255,255,255,0.07)">
+  <div
+    class="flex flex-col items-center gap-3 rounded-2xl p-7"
+    style="background:#343F44;border:1px solid rgba(255,255,255,0.07)"
+  >
     <div class="rounded-xl p-4" style="background:white">
-      <svg width="250" height="250" viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-        <rect width="250" height="250" fill="white"/>
+      <svg
+        width="250"
+        height="250"
+        viewBox="0 0 250 250"
+        xmlns="http://www.w3.org/2000/svg"
+        shape-rendering="crispEdges"
+      >
+        <rect width="250" height="250" fill="white" />
         <%!-- Row 0 --%>
-        <rect x="20" y="20" width="10" height="10" fill="black"/><rect x="30" y="20" width="10" height="10" fill="black"/><rect x="40" y="20" width="10" height="10" fill="black"/><rect x="50" y="20" width="10" height="10" fill="black"/><rect x="60" y="20" width="10" height="10" fill="black"/><rect x="70" y="20" width="10" height="10" fill="black"/><rect x="80" y="20" width="10" height="10" fill="black"/><rect x="100" y="20" width="10" height="10" fill="black"/><rect x="110" y="20" width="10" height="10" fill="black"/><rect x="140" y="20" width="10" height="10" fill="black"/><rect x="150" y="20" width="10" height="10" fill="black"/><rect x="160" y="20" width="10" height="10" fill="black"/><rect x="170" y="20" width="10" height="10" fill="black"/><rect x="180" y="20" width="10" height="10" fill="black"/><rect x="190" y="20" width="10" height="10" fill="black"/><rect x="200" y="20" width="10" height="10" fill="black"/>
+        <rect x="20" y="20" width="10" height="10" fill="black" /><rect
+          x="30"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="40" y="20" width="10" height="10" fill="black" /><rect
+          x="50"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="60" y="20" width="10" height="10" fill="black" /><rect
+          x="70"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="20" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="110" y="20" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="20" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="170" y="20" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="20" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="20"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 1 --%>
-        <rect x="20" y="30" width="10" height="10" fill="black"/><rect x="80" y="30" width="10" height="10" fill="black"/><rect x="100" y="30" width="10" height="10" fill="black"/><rect x="130" y="30" width="10" height="10" fill="black"/><rect x="140" y="30" width="10" height="10" fill="black"/><rect x="160" y="30" width="10" height="10" fill="black"/><rect x="200" y="30" width="10" height="10" fill="black"/>
+        <rect x="20" y="30" width="10" height="10" fill="black" /><rect
+          x="80"
+          y="30"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="30" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="30"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="140" y="30" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="30"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="200" y="30" width="10" height="10" fill="black" />
         <%!-- Row 2 --%>
-        <rect x="20" y="40" width="10" height="10" fill="black"/><rect x="40" y="40" width="10" height="10" fill="black"/><rect x="50" y="40" width="10" height="10" fill="black"/><rect x="60" y="40" width="10" height="10" fill="black"/><rect x="80" y="40" width="10" height="10" fill="black"/><rect x="100" y="40" width="10" height="10" fill="black"/><rect x="110" y="40" width="10" height="10" fill="black"/><rect x="140" y="40" width="10" height="10" fill="black"/><rect x="160" y="40" width="10" height="10" fill="black"/><rect x="170" y="40" width="10" height="10" fill="black"/><rect x="180" y="40" width="10" height="10" fill="black"/><rect x="200" y="40" width="10" height="10" fill="black"/>
+        <rect x="20" y="40" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="40" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="40" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="110" y="40" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="40" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="180" y="40" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="40"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 3 --%>
-        <rect x="20" y="50" width="10" height="10" fill="black"/><rect x="40" y="50" width="10" height="10" fill="black"/><rect x="50" y="50" width="10" height="10" fill="black"/><rect x="60" y="50" width="10" height="10" fill="black"/><rect x="80" y="50" width="10" height="10" fill="black"/><rect x="110" y="50" width="10" height="10" fill="black"/><rect x="130" y="50" width="10" height="10" fill="black"/><rect x="140" y="50" width="10" height="10" fill="black"/><rect x="160" y="50" width="10" height="10" fill="black"/><rect x="170" y="50" width="10" height="10" fill="black"/><rect x="180" y="50" width="10" height="10" fill="black"/><rect x="200" y="50" width="10" height="10" fill="black"/>
+        <rect x="20" y="50" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="50" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="50" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="130" y="50" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="50" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="180" y="50" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="50"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 4 --%>
-        <rect x="20" y="60" width="10" height="10" fill="black"/><rect x="40" y="60" width="10" height="10" fill="black"/><rect x="50" y="60" width="10" height="10" fill="black"/><rect x="60" y="60" width="10" height="10" fill="black"/><rect x="80" y="60" width="10" height="10" fill="black"/><rect x="100" y="60" width="10" height="10" fill="black"/><rect x="110" y="60" width="10" height="10" fill="black"/><rect x="140" y="60" width="10" height="10" fill="black"/><rect x="160" y="60" width="10" height="10" fill="black"/><rect x="170" y="60" width="10" height="10" fill="black"/><rect x="180" y="60" width="10" height="10" fill="black"/><rect x="200" y="60" width="10" height="10" fill="black"/>
+        <rect x="20" y="60" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="60" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="60" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="110" y="60" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="60" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="180" y="60" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="60"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 5 --%>
-        <rect x="20" y="70" width="10" height="10" fill="black"/><rect x="80" y="70" width="10" height="10" fill="black"/><rect x="110" y="70" width="10" height="10" fill="black"/><rect x="130" y="70" width="10" height="10" fill="black"/><rect x="140" y="70" width="10" height="10" fill="black"/><rect x="160" y="70" width="10" height="10" fill="black"/><rect x="200" y="70" width="10" height="10" fill="black"/>
+        <rect x="20" y="70" width="10" height="10" fill="black" /><rect
+          x="80"
+          y="70"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="110" y="70" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="70"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="140" y="70" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="70"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="200" y="70" width="10" height="10" fill="black" />
         <%!-- Row 6 --%>
-        <rect x="20" y="80" width="10" height="10" fill="black"/><rect x="30" y="80" width="10" height="10" fill="black"/><rect x="40" y="80" width="10" height="10" fill="black"/><rect x="50" y="80" width="10" height="10" fill="black"/><rect x="60" y="80" width="10" height="10" fill="black"/><rect x="70" y="80" width="10" height="10" fill="black"/><rect x="80" y="80" width="10" height="10" fill="black"/><rect x="100" y="80" width="10" height="10" fill="black"/><rect x="120" y="80" width="10" height="10" fill="black"/><rect x="140" y="80" width="10" height="10" fill="black"/><rect x="150" y="80" width="10" height="10" fill="black"/><rect x="160" y="80" width="10" height="10" fill="black"/><rect x="170" y="80" width="10" height="10" fill="black"/><rect x="180" y="80" width="10" height="10" fill="black"/><rect x="190" y="80" width="10" height="10" fill="black"/><rect x="200" y="80" width="10" height="10" fill="black"/>
+        <rect x="20" y="80" width="10" height="10" fill="black" /><rect
+          x="30"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="40" y="80" width="10" height="10" fill="black" /><rect
+          x="50"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="60" y="80" width="10" height="10" fill="black" /><rect
+          x="70"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="80" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="80" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="80" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="170" y="80" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="80" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="80"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 7 --%>
-        <rect x="100" y="90" width="10" height="10" fill="black"/><rect x="110" y="90" width="10" height="10" fill="black"/><rect x="130" y="90" width="10" height="10" fill="black"/>
+        <rect x="100" y="90" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="90"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="130" y="90" width="10" height="10" fill="black" />
         <%!-- Row 8 --%>
-        <rect x="20" y="100" width="10" height="10" fill="black"/><rect x="40" y="100" width="10" height="10" fill="black"/><rect x="50" y="100" width="10" height="10" fill="black"/><rect x="70" y="100" width="10" height="10" fill="black"/><rect x="80" y="100" width="10" height="10" fill="black"/><rect x="90" y="100" width="10" height="10" fill="black"/><rect x="120" y="100" width="10" height="10" fill="black"/><rect x="140" y="100" width="10" height="10" fill="black"/><rect x="150" y="100" width="10" height="10" fill="black"/><rect x="170" y="100" width="10" height="10" fill="black"/><rect x="190" y="100" width="10" height="10" fill="black"/><rect x="200" y="100" width="10" height="10" fill="black"/><rect x="220" y="100" width="10" height="10" fill="black"/>
+        <rect x="20" y="100" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="100" width="10" height="10" fill="black" /><rect
+          x="70"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="100" width="10" height="10" fill="black" /><rect
+          x="90"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="100" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="100" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="100" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="100"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="220" y="100" width="10" height="10" fill="black" />
         <%!-- Row 9 --%>
-        <rect x="30" y="110" width="10" height="10" fill="black"/><rect x="60" y="110" width="10" height="10" fill="black"/><rect x="100" y="110" width="10" height="10" fill="black"/><rect x="130" y="110" width="10" height="10" fill="black"/><rect x="160" y="110" width="10" height="10" fill="black"/><rect x="180" y="110" width="10" height="10" fill="black"/><rect x="210" y="110" width="10" height="10" fill="black"/>
+        <rect x="30" y="110" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="110"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="110" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="110"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="110" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="110"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="210" y="110" width="10" height="10" fill="black" />
         <%!-- Row 10 --%>
-        <rect x="20" y="120" width="10" height="10" fill="black"/><rect x="40" y="120" width="10" height="10" fill="black"/><rect x="60" y="120" width="10" height="10" fill="black"/><rect x="80" y="120" width="10" height="10" fill="black"/><rect x="100" y="120" width="10" height="10" fill="black"/><rect x="120" y="120" width="10" height="10" fill="black"/><rect x="140" y="120" width="10" height="10" fill="black"/><rect x="160" y="120" width="10" height="10" fill="black"/><rect x="180" y="120" width="10" height="10" fill="black"/><rect x="200" y="120" width="10" height="10" fill="black"/><rect x="220" y="120" width="10" height="10" fill="black"/>
+        <rect x="20" y="120" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="120"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="60" y="120" width="10" height="10" fill="black" /><rect
+          x="80"
+          y="120"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="120" width="10" height="10" fill="black" /><rect
+          x="120"
+          y="120"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="140" y="120" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="120"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="180" y="120" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="120"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="220" y="120" width="10" height="10" fill="black" />
         <%!-- Row 11 --%>
-        <rect x="30" y="130" width="10" height="10" fill="black"/><rect x="40" y="130" width="10" height="10" fill="black"/><rect x="70" y="130" width="10" height="10" fill="black"/><rect x="90" y="130" width="10" height="10" fill="black"/><rect x="100" y="130" width="10" height="10" fill="black"/><rect x="110" y="130" width="10" height="10" fill="black"/><rect x="150" y="130" width="10" height="10" fill="black"/><rect x="170" y="130" width="10" height="10" fill="black"/><rect x="180" y="130" width="10" height="10" fill="black"/><rect x="210" y="130" width="10" height="10" fill="black"/>
+        <rect x="30" y="130" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="130"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="70" y="130" width="10" height="10" fill="black" /><rect
+          x="90"
+          y="130"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="130" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="130"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="130" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="130"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="180" y="130" width="10" height="10" fill="black" /><rect
+          x="210"
+          y="130"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 12 --%>
-        <rect x="20" y="140" width="10" height="10" fill="black"/><rect x="50" y="140" width="10" height="10" fill="black"/><rect x="80" y="140" width="10" height="10" fill="black"/><rect x="100" y="140" width="10" height="10" fill="black"/><rect x="120" y="140" width="10" height="10" fill="black"/><rect x="130" y="140" width="10" height="10" fill="black"/><rect x="140" y="140" width="10" height="10" fill="black"/><rect x="160" y="140" width="10" height="10" fill="black"/><rect x="190" y="140" width="10" height="10" fill="black"/><rect x="200" y="140" width="10" height="10" fill="black"/><rect x="220" y="140" width="10" height="10" fill="black"/>
+        <rect x="20" y="140" width="10" height="10" fill="black" /><rect
+          x="50"
+          y="140"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="140" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="140"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="140" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="140"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="140" y="140" width="10" height="10" fill="black" /><rect
+          x="160"
+          y="140"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="140" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="140"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="220" y="140" width="10" height="10" fill="black" />
         <%!-- Row 13 --%>
-        <rect x="100" y="150" width="10" height="10" fill="black"/><rect x="110" y="150" width="10" height="10" fill="black"/><rect x="140" y="150" width="10" height="10" fill="black"/><rect x="170" y="150" width="10" height="10" fill="black"/><rect x="200" y="150" width="10" height="10" fill="black"/><rect x="220" y="150" width="10" height="10" fill="black"/>
+        <rect x="100" y="150" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="150"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="140" y="150" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="150"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="200" y="150" width="10" height="10" fill="black" /><rect
+          x="220"
+          y="150"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 14 --%>
-        <rect x="20" y="160" width="10" height="10" fill="black"/><rect x="30" y="160" width="10" height="10" fill="black"/><rect x="40" y="160" width="10" height="10" fill="black"/><rect x="50" y="160" width="10" height="10" fill="black"/><rect x="60" y="160" width="10" height="10" fill="black"/><rect x="70" y="160" width="10" height="10" fill="black"/><rect x="80" y="160" width="10" height="10" fill="black"/><rect x="110" y="160" width="10" height="10" fill="black"/><rect x="120" y="160" width="10" height="10" fill="black"/><rect x="140" y="160" width="10" height="10" fill="black"/><rect x="160" y="160" width="10" height="10" fill="black"/><rect x="190" y="160" width="10" height="10" fill="black"/><rect x="220" y="160" width="10" height="10" fill="black"/>
+        <rect x="20" y="160" width="10" height="10" fill="black" /><rect
+          x="30"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="40" y="160" width="10" height="10" fill="black" /><rect
+          x="50"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="60" y="160" width="10" height="10" fill="black" /><rect
+          x="70"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="160" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="160" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="160" width="10" height="10" fill="black" /><rect
+          x="190"
+          y="160"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="220" y="160" width="10" height="10" fill="black" />
         <%!-- Row 15 --%>
-        <rect x="20" y="170" width="10" height="10" fill="black"/><rect x="80" y="170" width="10" height="10" fill="black"/><rect x="100" y="170" width="10" height="10" fill="black"/><rect x="130" y="170" width="10" height="10" fill="black"/><rect x="150" y="170" width="10" height="10" fill="black"/><rect x="170" y="170" width="10" height="10" fill="black"/><rect x="200" y="170" width="10" height="10" fill="black"/>
+        <rect x="20" y="170" width="10" height="10" fill="black" /><rect
+          x="80"
+          y="170"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="170" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="170"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="170" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="170"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="200" y="170" width="10" height="10" fill="black" />
         <%!-- Row 16 --%>
-        <rect x="20" y="180" width="10" height="10" fill="black"/><rect x="40" y="180" width="10" height="10" fill="black"/><rect x="50" y="180" width="10" height="10" fill="black"/><rect x="60" y="180" width="10" height="10" fill="black"/><rect x="80" y="180" width="10" height="10" fill="black"/><rect x="110" y="180" width="10" height="10" fill="black"/><rect x="120" y="180" width="10" height="10" fill="black"/><rect x="140" y="180" width="10" height="10" fill="black"/><rect x="160" y="180" width="10" height="10" fill="black"/><rect x="180" y="180" width="10" height="10" fill="black"/><rect x="190" y="180" width="10" height="10" fill="black"/><rect x="210" y="180" width="10" height="10" fill="black"/>
+        <rect x="20" y="180" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="180" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="180" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="180" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="180" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="180" width="10" height="10" fill="black" /><rect
+          x="210"
+          y="180"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 17 --%>
-        <rect x="20" y="190" width="10" height="10" fill="black"/><rect x="40" y="190" width="10" height="10" fill="black"/><rect x="50" y="190" width="10" height="10" fill="black"/><rect x="60" y="190" width="10" height="10" fill="black"/><rect x="80" y="190" width="10" height="10" fill="black"/><rect x="100" y="190" width="10" height="10" fill="black"/><rect x="130" y="190" width="10" height="10" fill="black"/><rect x="150" y="190" width="10" height="10" fill="black"/><rect x="160" y="190" width="10" height="10" fill="black"/><rect x="200" y="190" width="10" height="10" fill="black"/><rect x="220" y="190" width="10" height="10" fill="black"/>
+        <rect x="20" y="190" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="190"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="190" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="190"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="190" width="10" height="10" fill="black" /><rect
+          x="100"
+          y="190"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="130" y="190" width="10" height="10" fill="black" /><rect
+          x="150"
+          y="190"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="190" width="10" height="10" fill="black" /><rect
+          x="200"
+          y="190"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="220" y="190" width="10" height="10" fill="black" />
         <%!-- Row 18 --%>
-        <rect x="20" y="200" width="10" height="10" fill="black"/><rect x="40" y="200" width="10" height="10" fill="black"/><rect x="50" y="200" width="10" height="10" fill="black"/><rect x="60" y="200" width="10" height="10" fill="black"/><rect x="80" y="200" width="10" height="10" fill="black"/><rect x="110" y="200" width="10" height="10" fill="black"/><rect x="120" y="200" width="10" height="10" fill="black"/><rect x="140" y="200" width="10" height="10" fill="black"/><rect x="170" y="200" width="10" height="10" fill="black"/><rect x="180" y="200" width="10" height="10" fill="black"/><rect x="190" y="200" width="10" height="10" fill="black"/><rect x="210" y="200" width="10" height="10" fill="black"/>
+        <rect x="20" y="200" width="10" height="10" fill="black" /><rect
+          x="40"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="50" y="200" width="10" height="10" fill="black" /><rect
+          x="60"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="200" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="200" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="170" y="200" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="200" width="10" height="10" fill="black" /><rect
+          x="210"
+          y="200"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 19 --%>
-        <rect x="20" y="210" width="10" height="10" fill="black"/><rect x="80" y="210" width="10" height="10" fill="black"/><rect x="100" y="210" width="10" height="10" fill="black"/><rect x="130" y="210" width="10" height="10" fill="black"/><rect x="150" y="210" width="10" height="10" fill="black"/><rect x="180" y="210" width="10" height="10" fill="black"/><rect x="200" y="210" width="10" height="10" fill="black"/><rect x="220" y="210" width="10" height="10" fill="black"/>
+        <rect x="20" y="210" width="10" height="10" fill="black" /><rect
+          x="80"
+          y="210"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="100" y="210" width="10" height="10" fill="black" /><rect
+          x="130"
+          y="210"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="150" y="210" width="10" height="10" fill="black" /><rect
+          x="180"
+          y="210"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="200" y="210" width="10" height="10" fill="black" /><rect
+          x="220"
+          y="210"
+          width="10"
+          height="10"
+          fill="black"
+        />
         <%!-- Row 20 --%>
-        <rect x="20" y="220" width="10" height="10" fill="black"/><rect x="30" y="220" width="10" height="10" fill="black"/><rect x="40" y="220" width="10" height="10" fill="black"/><rect x="50" y="220" width="10" height="10" fill="black"/><rect x="60" y="220" width="10" height="10" fill="black"/><rect x="70" y="220" width="10" height="10" fill="black"/><rect x="80" y="220" width="10" height="10" fill="black"/><rect x="110" y="220" width="10" height="10" fill="black"/><rect x="120" y="220" width="10" height="10" fill="black"/><rect x="140" y="220" width="10" height="10" fill="black"/><rect x="160" y="220" width="10" height="10" fill="black"/><rect x="170" y="220" width="10" height="10" fill="black"/><rect x="190" y="220" width="10" height="10" fill="black"/><rect x="210" y="220" width="10" height="10" fill="black"/>
+        <rect x="20" y="220" width="10" height="10" fill="black" /><rect
+          x="30"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="40" y="220" width="10" height="10" fill="black" /><rect
+          x="50"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="60" y="220" width="10" height="10" fill="black" /><rect
+          x="70"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="80" y="220" width="10" height="10" fill="black" /><rect
+          x="110"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="120" y="220" width="10" height="10" fill="black" /><rect
+          x="140"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="160" y="220" width="10" height="10" fill="black" /><rect
+          x="170"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        /><rect x="190" y="220" width="10" height="10" fill="black" /><rect
+          x="210"
+          y="220"
+          width="10"
+          height="10"
+          fill="black"
+        />
       </svg>
     </div>
     <div class="font-mono text-sm" style="color:#859289">
@@ -105,27 +743,34 @@
 
   <%!-- Join counter — LiveView pushes CSS class on increment via phx-update --%>
   <div class="text-center">
-    <div id="join-counter"
-         class="text-6xl font-black tabular-nums inline-block"
-         style="color:#A7C080"
-         phx-hook="CounterPop">
+    <div
+      id="join-counter"
+      class="text-6xl font-black tabular-nums inline-block"
+      style="color:#A7C080"
+      phx-hook="CounterPop"
+    >
       {@join_count}
     </div>
     <span class="text-2xl font-medium ml-2" style="color:#D3C6AA">
-      <%= if @join_count == 1, do: "person", else: "people" %> connected
+      {if @join_count == 1, do: "person", else: "people"} connected
     </span>
     <div class="text-sm mt-2" style="color:#859289">
       Scan to connect your agent to the network
     </div>
   </div>
-
 </div>
 
 <%!-- Fixed status bar --%>
-<div class="status-fade fixed bottom-0 left-0 right-0 flex items-center justify-center gap-4 pb-4 pt-8"
-     style="font-size:12px;color:#859289">
+<div
+  class="status-fade fixed bottom-0 left-0 right-0 flex items-center justify-center gap-4 pb-4 pt-8"
+  style="font-size:12px;color:#859289"
+>
   <span>
-    <span class="w-1.5 h-1.5 rounded-full inline-block mr-1.5 animate-pulse" style="background:#A7C080"></span>
+    <span
+      class="w-1.5 h-1.5 rounded-full inline-block mr-1.5 animate-pulse"
+      style="background:#A7C080"
+    >
+    </span>
     ws connected
   </span>
   <span style="opacity:0.3">·</span>

@@ -20,21 +20,32 @@
         <span>Dashboard</span>
       </.link>
 
-      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+      >
         <.icon name="hero-signal-micro" class="size-4" />
         <span>Network</span>
       </div>
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Agents
       </div>
 
       <.link navigate="/agents" class="nav-item">
         <.icon name="hero-users-micro" class="size-4" />
         <span class="flex-1">All Agents</span>
-        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded ml-auto"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
       </.link>
 
       <.link navigate="/sessions" class="nav-item">
@@ -44,7 +55,10 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Demo
       </div>
 
@@ -103,8 +117,14 @@
     <%!-- CONTENT: 3-column --%>
     <div class="flex-1 flex overflow-hidden">
       <%!-- LEFT: Agent Roster --%>
-      <div class="w-[220px] border-r overflow-y-auto flex-shrink-0" style="background:var(--bg-1);border-color:var(--border)">
-        <div class="flex items-center px-3 py-2.5 gap-2" style="border-bottom:1px solid var(--border)">
+      <div
+        class="w-[220px] border-r overflow-y-auto flex-shrink-0"
+        style="background:var(--bg-1);border-color:var(--border)"
+      >
+        <div
+          class="flex items-center px-3 py-2.5 gap-2"
+          style="border-bottom:1px solid var(--border)"
+        >
           <span class="text-[12px] font-semibold" style="color:var(--fg)">Agents</span>
           <span
             class="text-[10px] font-mono px-1.5 rounded"
@@ -122,10 +142,14 @@
           >
             <span class="w-2 h-2 rounded-full" style={"background:#{agent.color}"}></span>
             <div class="flex-1 min-w-0">
-              <div class="text-[12.5px] font-medium truncate" style="color:var(--fg)">{agent.name}</div>
+              <div class="text-[12.5px] font-medium truncate" style="color:var(--fg)">
+                {agent.name}
+              </div>
               <div class="text-[10px]" style="color:var(--fg-dim)">{agent.status}</div>
             </div>
-            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"} text-[9px] px-1.5"}>{agent.status}</span>
+            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"} text-[9px] px-1.5"}>
+              {agent.status}
+            </span>
           </div>
         <% end %>
       </div>
@@ -136,20 +160,34 @@
           id="network-graph"
           phx-hook="NetworkGraph"
           phx-update="ignore"
-          data-agents={Jason.encode!(Enum.map(@agents, fn a -> %{id: a.id, name: a.name, color: a.color, status: to_string(a.status)} end))}
+          data-agents={
+            Jason.encode!(
+              Enum.map(@agents, fn a ->
+                %{id: a.id, name: a.name, color: a.color, status: to_string(a.status)}
+              end)
+            )
+          }
           data-links={Jason.encode!(@links)}
           class="w-full h-full absolute inset-0"
         >
         </div>
-        <div class="absolute top-3 left-3 flex items-center gap-1.5 text-[11px] pointer-events-none" style="color:var(--color-ef-green)">
-          <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
-          LIVE MESH
+        <div
+          class="absolute top-3 left-3 flex items-center gap-1.5 text-[11px] pointer-events-none"
+          style="color:var(--color-ef-green)"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span> LIVE MESH
         </div>
       </div>
 
       <%!-- RIGHT: Events Feed --%>
-      <div class="w-[260px] border-l flex flex-col overflow-hidden" style="background:var(--bg-1);border-color:var(--border)">
-        <div class="flex items-center px-3 py-2.5 gap-2 flex-shrink-0" style="border-bottom:1px solid var(--border)">
+      <div
+        class="w-[260px] border-l flex flex-col overflow-hidden"
+        style="background:var(--bg-1);border-color:var(--border)"
+      >
+        <div
+          class="flex items-center px-3 py-2.5 gap-2 flex-shrink-0"
+          style="border-bottom:1px solid var(--border)"
+        >
           <span class="text-[12px] font-semibold" style="color:var(--fg)">Events</span>
           <div class="flex-1"></div>
           <button
@@ -157,16 +195,24 @@
             class="text-[11px] px-2 py-1 rounded flex items-center gap-1"
             style={"background:var(--bg-2);color:#{if @paused, do: "var(--color-ef-yellow)", else: "var(--fg-dim)"}"}
           >
-            <.icon name={if @paused, do: "hero-play-micro", else: "hero-pause-micro"} class="size-3" />
+            <.icon
+              name={if @paused, do: "hero-play-micro", else: "hero-pause-micro"}
+              class="size-3"
+            />
             {if @paused, do: "Resume", else: "Pause"}
           </button>
         </div>
         <div class="overflow-y-auto flex-1">
           <%= for item <- @feed do %>
-            <div class="px-3 py-2.5 border-b flex gap-2 items-start" style="border-color:var(--border)">
+            <div
+              class="px-3 py-2.5 border-b flex gap-2 items-start"
+              style="border-color:var(--border)"
+            >
               <span class={"feed-type #{item.type} mt-0.5"}>{item.type}</span>
               <div class="flex-1 min-w-0">
-                <div class="text-[11px] font-medium truncate" style="color:var(--fg)">{item.from} &rarr; {item.to}</div>
+                <div class="text-[11px] font-medium truncate" style="color:var(--fg)">
+                  {item.from} &rarr; {item.to}
+                </div>
                 <div class="text-[10px]" style="color:var(--fg-dim)">{item.at}</div>
               </div>
             </div>
@@ -182,12 +228,9 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket
-      <span class="opacity-30">|</span>
-      registry: public
-      <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online
-      <span class="opacity-30">|</span>
+      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      registry: public <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today
     </div>
   </main>

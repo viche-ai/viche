@@ -27,14 +27,25 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Agents
       </div>
 
-      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+      >
         <.icon name="hero-users-micro" class="size-4" />
         <span class="flex-1">All Agents</span>
-        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded ml-auto"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
       </div>
 
       <.link navigate="/sessions" class="nav-item">
@@ -44,7 +55,10 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Demo
       </div>
 
@@ -114,7 +128,12 @@
           phx-click="filter"
           phx-value-status={value}
           class="text-[11px] px-3 py-1 rounded-full font-medium transition-colors"
-          style={if @filter == String.to_atom(value), do: "background:color-mix(in srgb,var(--color-ef-green) 20%,transparent);color:var(--color-ef-green);border:1px solid var(--color-ef-green)", else: "background:var(--bg-2);color:var(--fg-dim);border:1px solid var(--border)"}
+          style={
+            if @filter == String.to_atom(value),
+              do:
+                "background:color-mix(in srgb,var(--color-ef-green) 20%,transparent);color:var(--color-ef-green);border:1px solid var(--color-ef-green)",
+              else: "background:var(--bg-2);color:var(--fg-dim);border:1px solid var(--border)"
+          }
         >
           {label}
         </button>
@@ -144,16 +163,21 @@
         </div>
       <% else %>
         <%= for agent <- @agents do %>
-          <%
-            avatar_colors = ["var(--color-ef-green)", "var(--color-ef-blue)", "var(--color-ef-purple)", "var(--color-ef-yellow)", "var(--color-ef-aqua)"]
-            avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
-            initial = agent.name |> String.first() |> String.upcase()
-          %>
+          <% avatar_colors = [
+            "var(--color-ef-green)",
+            "var(--color-ef-blue)",
+            "var(--color-ef-purple)",
+            "var(--color-ef-yellow)",
+            "var(--color-ef-aqua)"
+          ]
+
+          avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
+          initial = agent.name |> String.first() |> String.upcase() %>
           <div
             phx-click="select_agent"
             phx-value-id={agent.id}
             class="grid grid-cols-[28px_1fr_auto_90px_52px_80px_70px] gap-3 items-center px-4 py-2.5 cursor-pointer transition-colors"
-            style={"border-top:1px solid var(--border)"}
+            style="border-top:1px solid var(--border)"
           >
             <%!-- Avatar --%>
             <div
@@ -181,7 +205,9 @@
             </div>
 
             <%!-- Status --%>
-            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>{agent.status}</span>
+            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>
+              {agent.status}
+            </span>
 
             <%!-- Queue --%>
             <span class="text-[12px] font-mono" style="color:var(--fg-dim)">
@@ -189,7 +215,9 @@
             </span>
 
             <%!-- Last seen --%>
-            <span class="text-[11px]" style="color:var(--fg-dim)">{VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}</span>
+            <span class="text-[11px]" style="color:var(--fg-dim)">
+              {VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}
+            </span>
 
             <%!-- Registry --%>
             <span class="text-[11px]" style="color:var(--fg-dim)">global</span>
@@ -198,7 +226,10 @@
       <% end %>
 
       <%!-- Footer --%>
-      <div class="px-3 py-3 text-[11px]" style="color:var(--fg-dim);border-top:1px solid var(--border)">
+      <div
+        class="px-3 py-3 text-[11px]"
+        style="color:var(--fg-dim);border-top:1px solid var(--border)"
+      >
         Showing {length(@agents)} of {@agent_count} agents
       </div>
     </div>
@@ -210,12 +241,9 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket
-      <span class="opacity-30">|</span>
-      registry: public
-      <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online
-      <span class="opacity-30">|</span>
+      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      registry: public <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today
     </div>
   </main>

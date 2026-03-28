@@ -15,7 +15,10 @@
 
     <%!-- Nav --%>
     <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
-      <div class="nav-item active" style="border-left:2px solid var(--color-ef-green);padding-left:6px">
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+      >
         <.icon name="hero-squares-2x2-micro" class="size-4" />
         <span>Dashboard</span>
       </div>
@@ -27,14 +30,22 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Agents
       </div>
 
       <.link navigate="/agents" class="nav-item">
         <.icon name="hero-users-micro" class="size-4" />
         <span class="flex-1">All Agents</span>
-        <span class="text-[10px] font-mono px-1.5 rounded ml-auto" style="background:var(--bg-2);color:var(--fg-dim)">{@agent_count}</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded ml-auto"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
       </.link>
 
       <.link navigate="/sessions" class="nav-item">
@@ -44,7 +55,10 @@
 
       <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
 
-      <div class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider" style="color:var(--fg-dim)">
+      <div
+        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+        style="color:var(--fg-dim)"
+      >
         Demo
       </div>
 
@@ -98,13 +112,11 @@
     <%!-- CONTENT --%>
     <div class="flex-1 overflow-y-auto p-5 space-y-4" style="background:var(--bg)">
       <%!-- STAT CARDS --%>
-      <%
-        total = max(@agent_count, 1)
-        online_count = Enum.count(@agents, &(&1.status == :online))
-        offline_count = @agent_count - online_count
-        online_pct = trunc(online_count / total * 100)
-        offline_pct = 100 - online_pct
-      %>
+      <% total = max(@agent_count, 1)
+      online_count = Enum.count(@agents, &(&1.status == :online))
+      offline_count = @agent_count - online_count
+      online_pct = trunc(online_count / total * 100)
+      offline_pct = 100 - online_pct %>
       <div class="grid grid-cols-4 gap-3">
         <%!-- Total Agents --%>
         <div
@@ -191,9 +203,17 @@
       <%!-- LOWER GRID: Agents Table | Activity Feed --%>
       <div class="grid grid-cols-[1fr_380px] gap-3">
         <%!-- Agents Table --%>
-        <div class="rounded-xl overflow-hidden" style="background:var(--bg-1);border:1px solid var(--border)">
-          <div class="flex items-center px-4 py-3 gap-2" style="border-bottom:1px solid var(--border)">
-            <span class="text-[13px] font-semibold" style="color:var(--fg)">Connected Agents</span>
+        <div
+          class="rounded-xl overflow-hidden"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <div
+            class="flex items-center px-4 py-3 gap-2"
+            style="border-bottom:1px solid var(--border)"
+          >
+            <span class="text-[13px] font-semibold" style="color:var(--fg)">
+              Connected Agents
+            </span>
             <span
               class="text-[10px] font-mono px-1.5 rounded"
               style="background:var(--bg-2);color:var(--fg-dim)"
@@ -240,11 +260,16 @@
             </div>
           <% else %>
             <%= for agent <- @agents do %>
-              <%
-                avatar_colors = ["var(--color-ef-green)", "var(--color-ef-blue)", "var(--color-ef-purple)", "var(--color-ef-yellow)", "var(--color-ef-aqua)"]
-                avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
-                initial = agent.name |> String.first() |> String.upcase()
-              %>
+              <% avatar_colors = [
+                "var(--color-ef-green)",
+                "var(--color-ef-blue)",
+                "var(--color-ef-purple)",
+                "var(--color-ef-yellow)",
+                "var(--color-ef-aqua)"
+              ]
+
+              avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
+              initial = agent.name |> String.first() |> String.upcase() %>
               <div
                 class="grid grid-cols-[1fr_auto_90px_60px_80px] gap-3 items-center px-4 py-2.5 transition-colors"
                 style="border-top:1px solid var(--border)"
@@ -268,20 +293,27 @@
                   <% end %>
                 </div>
                 <%!-- Status --%>
-                <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>{agent.status}</span>
+                <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>
+                  {agent.status}
+                </span>
                 <%!-- Queue --%>
                 <span class="text-[12px] font-mono" style="color:var(--fg-dim)">
                   {agent.queue_depth}
                 </span>
                 <%!-- Last seen --%>
-                <span class="text-[11px]" style="color:var(--fg-dim)">{VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}</span>
+                <span class="text-[11px]" style="color:var(--fg-dim)">
+                  {VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}
+                </span>
               </div>
             <% end %>
           <% end %>
         </div>
 
         <%!-- Activity Feed --%>
-        <div class="rounded-xl overflow-hidden flex flex-col" style="background:var(--bg-1);border:1px solid var(--border)">
+        <div
+          class="rounded-xl overflow-hidden flex flex-col"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
           <div
             class="flex items-center px-4 py-3 gap-2 flex-shrink-0"
             style="border-bottom:1px solid var(--border)"
@@ -301,14 +333,19 @@
 
           <div class="flex-1 overflow-y-auto">
             <%= for item <- @feed do %>
-              <div class="px-4 py-2.5 flex gap-2.5 items-start" style="border-top:1px solid var(--border)">
+              <div
+                class="px-4 py-2.5 flex gap-2.5 items-start"
+                style="border-top:1px solid var(--border)"
+              >
                 <span class={"feed-type #{item.type} mt-0.5"}>{item.type}</span>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-1 text-[11px]">
                     <span class="font-medium" style="color:var(--fg)">{item.from}</span>
                     <span style="color:var(--fg-dim)">&rarr;</span>
                     <span style="color:var(--fg-dim)">{item.to}</span>
-                    <span class="ml-auto flex-shrink-0" style="color:var(--fg-dim)">{item.at}</span>
+                    <span class="ml-auto flex-shrink-0" style="color:var(--fg-dim)">
+                      {item.at}
+                    </span>
                   </div>
                   <div class="text-[12px] mt-0.5 truncate" style="color:var(--fg-dim)">
                     {item.body}
@@ -328,12 +365,9 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket
-      <span class="opacity-30">|</span>
-      registry: public
-      <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online
-      <span class="opacity-30">|</span>
+      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      registry: public <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today
     </div>
   </main>
