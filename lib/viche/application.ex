@@ -24,7 +24,16 @@ defmodule Viche.Application do
     opts = [strategy: :one_for_one, name: Viche.Supervisor]
     Viche.JoinTokens.init()
     Viche.SettingsStore.init()
-    Supervisor.start_link(children, opts)
+
+    result = Supervisor.start_link(children, opts)
+
+    # Restore persisted agents after the supervision tree is fully up
+    case result do
+      {:ok, _pid} -> Viche.Agents.restore_from_db()
+      _ -> :ok
+    end
+
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration

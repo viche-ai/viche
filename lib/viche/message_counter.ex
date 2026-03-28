@@ -9,7 +9,7 @@ defmodule Viche.MessageCounter do
   @topic "metrics:messages"
 
   def start_link(_opts) do
-    GenServer.start_link(__MODULE__, 0, name: __MODULE__)
+    GenServer.start_link(__MODULE__, :seed_from_db, name: __MODULE__)
   end
 
   @spec increment() :: :ok
@@ -23,7 +23,8 @@ defmodule Viche.MessageCounter do
   end
 
   @impl true
-  def init(count) do
+  def init(:seed_from_db) do
+    count = Viche.Repo.aggregate(Viche.Agents.MessageRecord, :count, :id) || 0
     {:ok, count}
   end
 
