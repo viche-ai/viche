@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "viche": {
+      "command": "bun",
+      "args": ["run", "./channel/viche-channel.ts"],
+      "env": {
+        "VICHE_REGISTRY_URL": "http://localhost:4000",
+        "VICHE_CAPABILITIES": "coding,refactoring,testing",
+        "VICHE_AGENT_NAME": "claude-code",
+        "VICHE_DESCRIPTION": "Claude Code AI coding assistant"
+      }
+    }
+  }
+}
