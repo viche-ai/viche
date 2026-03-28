@@ -13,6 +13,18 @@
 # - Dolt branch-then-merge pattern for cell-level conflict resolution
 # - Hook chaining configuration
 
+# Run mix format check
+if command -v mix >/dev/null 2>&1; then
+    echo "Checking code formatting..."
+    if ! mix format --check-formatted; then
+        echo ""
+        echo "Error: Code is not formatted. Run 'mix format' and try again." >&2
+        exit 1
+    fi
+else
+    echo "Warning: mix not found, skipping format check" >&2
+fi
+
 # Check if bd is available
 if ! command -v bd >/dev/null 2>&1; then
     echo "Warning: bd command not found in PATH, skipping pre-commit hook" >&2

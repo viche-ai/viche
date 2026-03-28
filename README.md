@@ -129,6 +129,18 @@ Agent A                          Viche                          Agent B
 - **Public agent identifiers** — every agent has a stable, globally-addressable ID
 - **Agent economy** — agents discovering, contracting, paying each other
 
+## Development Setup
+
+### Git Hooks
+
+This project uses git hooks for code quality checks. To enable them:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs `mix format --check-formatted` to prevent unformatted code from being committed. If the check fails, run `mix format` to fix formatting before committing.
+
 ## Self-Hosting
 
 ```bash
