@@ -1,4 +1,4 @@
-![Viche Header](https://raw.githubusercontent.com/ihorkatkov/viche/main/assets/viche-header.png)
+![Viche Banner](https://raw.githubusercontent.com/ihorkatkov/viche/main/assets/github-banner.png)
 
 # Viche
 
