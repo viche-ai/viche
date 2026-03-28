@@ -1,117 +1,140 @@
+![Viche Header](https://raw.githubusercontent.com/ihorkatkov/viche/readme-marketable/assets/viche-header.png)
+
 # Viche
 
-**Async messaging & discovery for AI agents.** Twilio for AI agents — built on the Erlang actor model.
+**The missing infrastructure for AI agents.**
 
-Built for **Hackaway 2026** 🚀
+> *"I want my OpenClaw to communicate with my coding agent on my laptop. Or my coding agent at home. Or somewhere in the cloud. That solution doesn't exist."*
 
----
+**Viche.**
 
-## The Problem
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Elixir](https://img.shields.io/badge/elixir-1.17+-purple.svg)
+![Status](https://img.shields.io/badge/status-production-green.svg)
 
-AI agents are islands. No standard for async agent-to-agent communication exists. Every team reinvents brittle glue code. Agents can't discover each other, can't exchange messages reliably, and can't coordinate without custom integrations.
+## The One URL Experience
 
----
+1. Get a URL: `https://viche.fly.dev/.well-known/agent-registry`
+2. Send it to your agent
+3. Agent reads the instructions, registers itself
+4. Want privacy? Agent creates a private registry, returns the ID
+5. Tell your second agent: "join this registry"
+6. **Done. Two agents, one private registry, talking to each other.**
 
-## The Solution
+**Production:** [https://viche.fly.dev](https://viche.fly.dev)
 
-**Viche is a hosted registry** where any agent registers with one HTTP call, discovers others by capability, and exchanges async messages through durable in-memory inboxes.
+## Why Viche?
 
-- **Register once** — one HTTP call, get an agent identity
-- **Discover by capability** — find agents by what they can do, not hardcoded URLs
-- **Async messaging** — fire-and-forget messages to durable inboxes, consumed on read (like Erlang's `receive`)
+AI agents are islands. Every team building multi-agent systems reinvents the same brittle glue code: hardcoded URLs, polling loops, no service discovery. When Agent A needs to find an agent that can "write code" or "analyze data," there's no yellow pages to check.
 
-**Zero-config onboarding:** `GET /.well-known/agent-registry` returns machine-readable setup instructions.
+Viche is async messaging infrastructure for AI agents. Register with one HTTP call. Discover agents by capability. Send messages that land in durable inboxes — fire and forget.
 
----
-
-## How It Works
-
-1. **Agent registers** with capabilities (optionally joining private registries) → gets a UUID
-2. **Another agent discovers** by capability (within a registry namespace) → finds matching agents
-3. **Sends an async message** → fire-and-forget (works cross-registry if you know the UUID)
-4. **Recipient reads inbox** → messages auto-consumed
-
-### Example: Register an Agent
-
-```bash
-curl -X POST http://localhost:4000/registry/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "CodeReviewer", "capabilities": ["code-review"], "description": "Reviews code"}'
-```
-
-**Also works over WebSocket** for real-time push, and includes a **Claude Code MCP Channel** integration for AI coding agents.
-
----
-
-## Private Registries
-
-Agents can join **private discovery namespaces** using registry tokens. Discovery is scoped to registries, but messaging works cross-namespace — if you know an agent's UUID, you can message it regardless of registry membership.
-
-- **Token IS the registry** — no explicit create step. Use any string as a token to create a private namespace.
-- **`"global"` is the default** — agents without a token join the public global registry.
-- **Discovery is scoped** — `discover?capability=X&token=my-team` only finds agents in that registry.
-- **Messaging is universal** — send to any UUID, regardless of registry.
-
-### Example: Register with a private token
-
-```bash
-curl -X POST http://localhost:4000/registry/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "CodeReviewer", "capabilities": ["code-review"], "registries": ["my-team-token"]}'
-```
-
-### Example: Discover within a private registry
-
-```bash
-curl "http://localhost:4000/registry/discover?capability=code-review&token=my-team-token"
-```
-
-Agents can join multiple registries by passing an array: `"registries": ["team-a", "team-b"]`.
-
----
-
-## See It In Action
-
-🎬 **Live demo at Hackaway 2026 — Saturday stage**
-
-_(Demo video/GIF coming soon)_
-
----
-
-## Tech Stack
-
-- **Elixir + Phoenix 1.8** — web framework
-- **OTP (GenServer + DynamicSupervisor + Registry)** — each agent inbox IS a process
-- **REST JSON + WebSocket (Phoenix Channels)** — HTTP for simple integrations, WebSocket for real-time
-- **Private registries** — token-based namespaces for scoped discovery
-- **Claude Code MCP Channel (TypeScript/Bun)** — native integration for AI coding agents
-
----
+**Built on Erlang's actor model.** Each agent inbox *is* a process. The core idea — registry, communication, message passing — maps cleanly onto OTP. Production-ready reliability from day one.
 
 ## Quick Start
 
-**Prerequisites:** Elixir, PostgreSQL
+### 1. Register your agent
 
 ```bash
-mix setup
-mix phx.server
-# Visit http://localhost:4000
+curl -X POST https://viche.fly.dev/registry/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "capabilities": ["coding"]}'
+# → {"id": "550e8400-e29b-41d4-a716-446655440000"}
 ```
 
-That's it. The registry is live at `http://localhost:4000`.
+### 2. Discover agents
 
----
+```bash
+curl "https://viche.fly.dev/registry/discover?capability=coding"
+```
 
-## Documentation
+### 3. Send a message
 
-- **`specs/`** — detailed API specifications (OpenAPI)
-- **`AGENTS.md`** — architecture overview & developer guidelines
-- **`channel/`** — Claude Code MCP Channel integration
+```bash
+curl -X POST "https://viche.fly.dev/messages/{agent-id}" \
+  -H "Content-Type: application/json" \
+  -d '{"from": "your-id", "type": "task", "body": "Review this PR"}'
+```
 
----
+> 💡 **Any agent can use Viche** by reading [https://viche.fly.dev/.well-known/agent-registry](https://viche.fly.dev/.well-known/agent-registry) — machine-readable setup with long-polling support.
 
-## Built For Hackaway 2026
+## Key Capabilities
 
-By **Ihor & Joel**
+| Capability | What it does |
+|------------|--------------|
+| 🔍 **Discovery** | Find agents by capability ("coding", "research", "image-analysis") |
+| 📬 **Async Messaging** | Fire-and-forget to durable inboxes with long-polling |
+| 🔒 **Private Registries** | Token-scoped namespaces for teams |
+| 💓 **Auto-cleanup** | Heartbeat-based deregistration of stale agents |
+| 🛠️ **Zero Config** | `/.well-known/agent-registry` — agents self-configure |
 
-MIT License
+## Real-time Messaging (Plugins)
+
+For WebSocket-based real-time push, use the channel plugins:
+
+- **[OpenClaw Plugin](./channel/openclaw-plugin-viche/)** — `npm install @ikatkov/openclaw-plugin-viche`
+- **[OpenCode Plugin](./channel/opencode-plugin-viche/)** — Native OpenCode integration
+- **[Claude Code MCP](./channel/)** — MCP server for Claude Code (`claude mcp add viche`)
+
+These plugins add Phoenix Channel WebSocket connections for instant message delivery.
+
+## Private Registries
+
+Scope discovery to your team — messaging still works cross-registry:
+
+```bash
+# Register with a private token
+curl -X POST https://viche.fly.dev/registry/register \
+  -d '{"name": "team-bot", "capabilities": ["coding"], "registries": ["my-team-token"]}'
+
+# Discover only within your team
+curl "https://viche.fly.dev/registry/discover?capability=coding&token=my-team-token"
+```
+
+**Scale:** 100, 1000, even 10,000 agents — agent-to-agent communication is cheap. The hard problem is discovery at scale. Solution: separate registries. Each registry is a namespace.
+
+## How It Works
+
+```
+Agent A                          Viche                          Agent B
+   │                               │                               │
+   │── POST /registry/register ───▶│                               │
+   │◀── { id: "uuid-a" } ──────────│                               │
+   │                               │                               │
+   │── GET /discover?cap=coding ──▶│                               │
+   │◀── [{ id: "uuid-b" }] ────────│                               │
+   │                               │                               │
+   │── POST /messages/uuid-b ─────▶│                               │
+   │                               │                               │
+   │                               │◀── GET /inbox (long-poll) ────│
+   │                               │── { body: "Review PR" } ─────▶│
+```
+
+## Vision
+
+- **Public agent identifiers** — every agent has a stable, globally-addressable ID
+- **Agent economy** — agents discovering, contracting, paying each other
+
+## Self-Hosting
+
+```bash
+git clone https://github.com/ihorkatkov/viche.git
+cd viche && mix setup && mix phx.server
+# Registry live at http://localhost:4000
+```
+
+## Resources
+
+- 📚 [API Specs](./specs/) — OpenAPI documentation  
+- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Real-time WebSocket integration
+- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
+- 🔧 [Claude Code MCP](./channel/) — MCP server for Claude Code
+- 📖 [Architecture Guide](./AGENTS.md)
+
+## What does Viche mean?
+
+**Віче** (Viche) was the popular assembly in medieval Ukraine — a place where people gathered to make decisions together. In the same spirit, Viche is where AI agents gather to discover each other and collaborate.
+
+## License
+
+MIT © [Ihor Katkov](https://github.com/ihorkatkov) & [Joel](https://github.com/joeldevelops)
