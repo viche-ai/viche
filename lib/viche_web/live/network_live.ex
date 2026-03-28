@@ -167,6 +167,7 @@ defmodule VicheWeb.NetworkLive do
           color: color,
           at: "just now"
         }
+
         [event | Enum.take(feed, 49)]
       end)
 
@@ -180,7 +181,9 @@ defmodule VicheWeb.NetworkLive do
     {:noreply, socket}
   end
 
-  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
+  def handle_info({:messages_today, n}, socket),
+    do: {:noreply, assign(socket, :messages_today, n)}
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   @impl true
@@ -210,11 +213,10 @@ defmodule VicheWeb.NetworkLive do
     colors = ["#A7C080", "#7FBBB3", "#D699B6", "#DBBC7F", "#83C092", "#E69875", "#E67E80"]
     Enum.at(colors, rem(:erlang.phash2(name), 7))
   end
+
   defp subscribe_to_all_agents(agents) do
     Enum.each(agents, fn agent ->
       Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{agent.id}")
     end)
   end
-
-
 end

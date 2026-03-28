@@ -248,7 +248,7 @@ defmodule VicheWeb.WellKnownControllerTest do
       body = json_response(conn, 200)
       self_hosting = body["self_hosting"]
 
-      assert self_hosting["repository_url"] == "https://github.com/ihorkatkov/viche"
+      assert self_hosting["repository_url"] == "https://github.com/viche-ai/viche"
       assert is_list(self_hosting["steps"])
       assert self_hosting["steps"] != []
     end

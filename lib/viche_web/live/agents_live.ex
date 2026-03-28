@@ -53,7 +53,8 @@ defmodule VicheWeb.AgentsLive do
     {:noreply, load_agents(socket)}
   end
 
-  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
+  def handle_info({:messages_today, n}, socket),
+    do: {:noreply, assign(socket, :messages_today, n)}
 
   # -- Helpers --
 
