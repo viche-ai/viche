@@ -101,8 +101,53 @@ export const NetworkGraph = {
   },
 
   updateGraph(agents, links) {
+    const w = this.el.clientWidth || 600
+    const h = this.el.clientHeight || 400
+
+    // Preserve positions from previous nodes
+    const oldNodes = new Map(this.simulation.nodes().map(n => [n.id, n]))
+    agents.forEach(a => {
+      const old = oldNodes.get(a.id)
+      if (old) { a.x = old.x; a.y = old.y; a.vx = old.vx; a.vy = old.vy }
+    })
+
     this.simulation.nodes(agents)
-    this.simulation.force("link").links(links)
+    this.simulation.force("link", d3.forceLink(links).id(d => d.id).distance(150))
+    this.simulation.force("center", d3.forceCenter(w / 2, h / 2))
+
+    // Re-bindlinks
+    this.linkSel = this.linkGroup.selectAll("line").data(links).join("line")
+      .attr("stroke", "rgba(255,255,255,0.12)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "6,4")
+
+    // Re-bind nodes
+    const node = this.nodeGroup.selectAll("g").data(agents, d => d.id).join(
+      enter => {
+        const g = enter.append("g").attr("class", "cursor-pointer")
+        g.append("circle").attr("r", 18).attr("fill", "none")
+          .attr("stroke", d => d.color).attr("stroke-width", 1.5).attr("opacity", 0.6)
+          .attr("class", "animate-pulse")
+        g.append("circle").attr("r", 6).attr("fill", d => d.color)
+        g.append("text").text(d => d.name).attr("text-anchor", "middle").attr("dy", 30)
+          .attr("fill", "var(--fg-dim, #859289)").attr("font-size", "11px")
+        return g
+      },
+      update => {
+        update.select("circle").attr("stroke", d => d.color)
+        update.select("circle:nth-child(2)").attr("fill", d => d.color)
+        update.select("text").text(d => d.name)
+        return update
+      },
+      exit => exit.remove()
+    ).call(d3.drag()
+      .on("start", (e, d) => { if (!e.active) this.simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
+      .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y })
+      .on("end", (e, d) => { if (!e.active) this.simulation.alphaTarget(0); d.fx = null; d.fy = null }))
+
+    this.nodeSel = node
+    this.agents = agents
+
     this.simulation.alpha(0.3).restart()
   },
 
