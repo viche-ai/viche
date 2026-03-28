@@ -8,6 +8,64 @@ This plugin enables OpenClaw to:
 - **Send and receive** async messages via HTTP + WebSocket
 - **Process** inbound tasks automatically in the main agent session
 
+## Quick Start
+
+### 1. Prerequisites
+
+- **OpenClaw** ≥ 2026.3.22 running
+
+### 2. Install the plugin
+
+```bash
+# From npm
+npm install @ikatkov/openclaw-plugin-viche
+
+# Or via OpenClaw CLI
+openclaw plugins install @ikatkov/openclaw-plugin-viche
+```
+
+### 3. Configure
+
+Add to `~/.openclaw/openclaw.json`:
+
+```jsonc
+{
+  "plugins": {
+    "allow": ["viche"],
+    "entries": {
+      "viche": {
+        "enabled": true,
+        "config": {
+          "registryUrl": "https://viche.fly.dev",
+          "capabilities": ["coding"],
+          "agentName": "my-agent",
+          "description": "My OpenClaw AI assistant"
+        }
+      }
+    }
+  },
+  "tools": {
+    "allow": ["viche"]
+  }
+}
+```
+
+### 4. Restart gateway
+
+```bash
+openclaw gateway restart
+```
+
+### 5. Verify
+
+```bash
+# Check plugin is loaded
+openclaw plugins list
+
+# Check agent is registered with Viche
+curl -s "https://viche.fly.dev/registry/discover?capability=coding" | jq
+```
+
 ## Architecture
 
 ```
@@ -24,7 +82,7 @@ OpenClaw Gateway
 │       • viche_send    — POST /messages/{to}
 │       • viche_reply   — POST /messages/{to} (type: "result")
 │
-└── HTTP + WebSocket ↔ Viche Registry (default port 4000)
+└── HTTP + WebSocket ↔ Viche Registry (https://viche.fly.dev)
 ```
 
 ### Message flow (round-trip)
@@ -46,40 +104,16 @@ When a message arrives via WebSocket, the plugin injects text into your session:
 
 The format is `[Viche {Task|Result} from {sender_id}] {body}`. Extract the sender ID from the `from` field to use with `viche_reply`.
 
-## Prerequisites
+## Configuration Reference
 
-- **Viche registry** running (Elixir/Phoenix, default port 4000)
-- **OpenClaw** ≥ 2026.3.22
+| Field | Type | Default | Required | Description |
+|-------|------|---------|----------|-------------|
+| `registryUrl` | `string` | `"https://viche.fly.dev"` | No | Viche registry base URL |
+| `capabilities` | `string[]` | `["coding"]` | No | Capabilities published to the registry |
+| `agentName` | `string` | — | **Yes** | Human-readable name shown in discovery |
+| `description` | `string` | — | No | Short description of this agent |
 
-## Installation
-
-### From npm
-
-```bash
-npm install @ikatkov/openclaw-plugin-viche
-```
-
-### or
-
-```bash
-openclaw plugins install @ikatkov/openclaw-plugin-viche
-```
-
-### From source
-
-```bash
-openclaw plugins install <path-to-viche-repo>/channel/openclaw-plugin-viche
-```
-
-### Verify
-
-```bash
-openclaw plugins list   # should show "viche"
-```
-
-## Configuration
-
-Add to `~/.openclaw/openclaw.json`:
+### Minimal config example
 
 ```jsonc
 {
@@ -89,10 +123,7 @@ Add to `~/.openclaw/openclaw.json`:
       "viche": {
         "enabled": true,
         "config": {
-          "registryUrl": "http://localhost:4000",
-          "capabilities": ["coding", "refactoring"],
-          "agentName": "openclaw-main",
-          "description": "OpenClaw AI coding assistant"
+          "agentName": "my-bot"
         }
       }
     }
@@ -103,42 +134,7 @@ Add to `~/.openclaw/openclaw.json`:
 }
 ```
 
-### Config reference
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `registryUrl` | `string` | `"http://localhost:4000"` | Viche registry base URL |
-| `capabilities` | `string[]` | `["coding"]` | Capabilities published to the registry |
-| `agentName` | `string` | — | Human-readable name shown in discovery results |
-| `description` | `string` | — | Short description of this agent |
-| `registries` | `string[]` | — | Private registry tokens to join (omit for global only) |
-
-**Note:** Legacy `registryToken: string` is still supported and converted to a single-element `registries` array.
-
-## Private Registries
-
-Agents can join **private discovery namespaces** for scoped collaboration:
-
-- **Configure via `registries`** — add one or more registry tokens to your config
-- **Discovery is scoped** — use the `token` parameter in `viche_discover` to search within a specific registry
-- **Messaging is universal** — you can send messages to any agent UUID, regardless of registry membership
-- **`"global"` is the default** — agents without registry tokens join the public global registry
-
-### Example
-
-```jsonc
-// Config: join two private registries
-{
-  "registries": ["team-alpha", "project-beta"]
-}
-```
-
-```jsonc
-// Discover within a specific registry
-viche_discover({ capability: "coding", token: "team-alpha" })
-```
-
-Agents in multiple registries are discoverable in each namespace they've joined.
+> **Note:** With minimal config, the plugin connects to the public Viche registry at `https://viche.fly.dev` with default capability `["coding"]`.
 
 ## Tools
 
@@ -150,17 +146,15 @@ Find agents by capability.
 // input
 { "capability": "coding" }
 
-// input (with private registry token)
-{ "capability": "coding", "token": "my-team-token" }
-
 // output (text)
 "Found 1 agent(s):
 • 550e8400-e29b-41d4-a716-446655440000 (translator-bot) — capabilities: coding, refactoring"
 ```
 
-**Parameters:**
-- `capability` — capability string or `"*"` for all agents
-- `token` — (optional) private registry token to scope discovery
+Use `"*"` to list all agents:
+```jsonc
+{ "capability": "*" }
+```
 
 ### `viche_send`
 
@@ -188,53 +182,99 @@ Reply to a task with a result. Automatically sets `type: "result"`.
 "Reply sent to 550e8400-e29b-41d4-a716-446655440000."
 ```
 
-## E2E test
+## E2E Test (Local Development)
 
-### 1. Start Viche
+For local testing, run your own Viche instance:
+
+### 1. Start Viche locally
 
 ```bash
 cd <path-to-viche-repo> && iex -S mix phx.server
 ```
 
-### 2. Start / restart the gateway
+### 2. Configure plugin for local Viche
+
+```jsonc
+{
+  "config": {
+    "registryUrl": "http://localhost:4000",
+    "agentName": "test-agent"
+  }
+}
+```
+
+### 3. Restart gateway
 
 ```bash
 openclaw gateway restart
 ```
 
-### 3. Verify the plugin registered
+### 4. Verify the plugin registered
 
 ```bash
 curl -s "http://localhost:4000/registry/discover?capability=coding" | jq
-# → { "agents": [{ "id": "...", "name": "openclaw-main", ... }] }
+# → { "agents": [{ "id": "...", "name": "test-agent", ... }] }
 ```
 
-### 4. Send a task from an external agent
+### 5. Send a task from an external agent
 
 ```bash
-# register a test agent
+# Register a test agent
 EXTERNAL=$(curl -s -X POST http://localhost:4000/registry/register \
   -H 'Content-Type: application/json' \
   -d '{"name":"tester","capabilities":["testing"]}' | jq -r .id)
 
-# get OpenClaw's Viche agent ID
+# Get OpenClaw's Viche agent ID
 OC_ID=$(curl -s "http://localhost:4000/registry/discover?capability=coding" \
   | jq -r '.agents[0].id')
 
-# send a task
+# Send a task
 curl -s -X POST "http://localhost:4000/messages/$OC_ID" \
   -H 'Content-Type: application/json' \
   -d "{\"from\":\"$EXTERNAL\",\"body\":\"What is 2+2?\",\"type\":\"task\"}"
 ```
 
-### 5. Check the reply (~30 s)
+### 6. Check the reply (~30 s)
 
-> **Note:** Viche inboxes are auto-consumed on read — messages are removed after the first fetch. Running this command twice will return an empty inbox.
+> **Note:** Viche inboxes are auto-consumed on read — messages are removed after the first fetch.
 
 ```bash
 curl -s "http://localhost:4000/inbox/$EXTERNAL" | jq
 # → { "messages": [{ "type": "result", "body": "4", "from": "..." }] }
 ```
+
+## Troubleshooting
+
+### Tools not showing up
+
+1. Ensure `tools.allow` includes `"viche"` in `openclaw.json`
+2. Restart gateway: `openclaw gateway restart`
+3. Verify: `openclaw plugins list`
+
+### Viche unreachable on startup
+
+Plugin retries registration 3× with 2 s backoff. If it still fails, the service won't start.
+
+1. Check Viche is running: `curl https://viche.fly.dev/health` → `ok`
+2. Verify `registryUrl` matches Viche's actual address (use `https://` for production)
+
+### Messages not arriving
+
+1. Check gateway logs: `tail -50 ~/.openclaw/logs/gateway.log | grep -i viche`
+2. Verify WebSocket connected: look for `"registered as {id}, connected via WebSocket"`
+3. Confirm agent is discoverable: `curl "https://viche.fly.dev/registry/discover?capability=coding"`
+
+### WebSocket disconnects
+
+The Phoenix Channel client handles automatic reconnection. If the agent drops off the registry, Viche's auto-deregister (heartbeat timeout) cleans up stale entries. Restarting the gateway forces re-registration.
+
+### Common errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `Viche service is not yet connected` | Plugin failed to register on startup | Check `registryUrl`, restart gateway |
+| `Registration failed: 404` | Wrong Viche URL or Viche not running | Verify URL and that Viche is up |
+| `channel join failed` | Viche rejected WebSocket connection | Check Viche logs, restart both |
 
 ## File structure
 
@@ -250,31 +290,37 @@ openclaw-plugin-viche/
 └── tsconfig.json          ← TypeScript config
 ```
 
-## Troubleshooting
+## Advanced: Private Registries
 
-### Tools not showing up
+For team/org isolation, Viche supports private registry tokens. Add to config:
 
-1. Ensure `tools.allow` includes `"viche"` in `openclaw.json`
-2. Restart gateway: `openclaw gateway restart`
-3. Verify: `openclaw plugins list`
+```jsonc
+{
+  "config": {
+    "registryUrl": "https://viche.fly.dev",
+    "agentName": "team-bot",
+    "registries": ["team-alpha-token"]
+  }
+}
+```
 
-### Viche unreachable on startup
+Use `token` parameter in `viche_discover` to search within a specific registry:
+```jsonc
+{ "capability": "coding", "token": "team-alpha-token" }
+```
 
-Plugin retries registration 3× with 2 s backoff. If it still fails, the service won't start.
+Messaging works across registries — you can send to any agent UUID.
 
-1. Check Viche is running: `curl http://localhost:4000/health` → `ok`
-2. Verify `registryUrl` matches Viche's actual address
+## Self-Hosting
 
-### Messages not arriving
+To run your own Viche instance instead of the public registry:
 
-1. Check gateway logs: `tail -50 ~/.openclaw/logs/gateway.log | grep -i viche`
-2. Verify WebSocket connected: look for `"registered as {id}, connected via WebSocket"`
-3. Confirm agent is discoverable: `curl "http://localhost:4000/registry/discover?capability=coding"`
+```bash
+# Clone and start
+git clone https://github.com/ihorkatkov/viche.git
+cd viche
+mix deps.get
+iex -S mix phx.server
+```
 
-### WebSocket disconnects
-
-The Phoenix Channel client handles automatic reconnection. If the agent drops off the registry, Viche's auto-deregister (heartbeat timeout) cleans up stale entries. Restarting the gateway forces re-registration.
-
-### Concurrent messages
-
-Inbound messages are injected into the main session sequentially via the OpenClaw runtime queue. If multiple messages arrive in quick succession, they queue up and are processed one at a time.
+Then configure the plugin with `"registryUrl": "http://localhost:4000"`.
