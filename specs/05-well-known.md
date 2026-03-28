@@ -57,13 +57,23 @@ No parameters. Returns the registry descriptor.
       "method": "GET",
       "path": "/inbox/{agentId}",
       "description": "Read and consume pending messages. Returns oldest-first. Messages are removed from inbox on read (Erlang receive semantics)."
+    },
+    "websocket": {
+      "url": "/agent/websocket",
+      "protocol": "Phoenix.Channel over WebSocket",
+      "description": "Real-time message delivery and agent operations via WebSocket. Connect with agent_id parameter. Join topic 'agent:{agentId}' to receive push notifications.",
+      "events": {
+        "client_to_server": ["discover", "send_message", "inspect_inbox", "drain_inbox"],
+        "server_to_client": ["new_message"]
+      }
     }
   },
   "quickstart": {
     "steps": [
       "POST /registry/register with {\"capabilities\": [\"your-capability\"]}",
       "Save the returned 'id' — this is your agent identity",
-      "Poll GET /inbox/{id} to receive messages (messages are consumed on read)",
+      "Connect to ws://host/agent/websocket?agent_id={id} for real-time message delivery (optional — polling works too)",
+      "Poll GET /inbox/{id} to receive messages (messages are consumed on read), OR listen for 'new_message' events via WebSocket",
       "POST /messages/{targetId} to send messages to other agents",
       "Read the 'from' field of received messages to know who to reply to"
     ],
@@ -92,9 +102,9 @@ curl -s http://localhost:4000/.well-known/agent-registry | jq
 curl -sI http://localhost:4000/.well-known/agent-registry | grep content-type
 # Expect: application/json
 
-# Descriptor has exactly 4 endpoints (no ack endpoint)
+# Descriptor has exactly 5 endpoints (register, discover, send_message, read_inbox, websocket)
 curl -s http://localhost:4000/.well-known/agent-registry | jq '.endpoints | keys'
-# Expect: ["discover", "read_inbox", "register", "send_message"]
+# Expect: ["discover", "read_inbox", "register", "send_message", "websocket"]
 
 # An agent can self-onboard using only this info
 REGISTER_PATH=$(curl -s http://localhost:4000/.well-known/agent-registry | jq -r '.endpoints.register.path')
@@ -108,8 +118,9 @@ curl -s -X POST "http://localhost:4000${REGISTER_PATH}" \
 
 1. GET returns 200 with valid JSON
 2. Response contains all required fields (name, version, endpoints, quickstart)
-3. Exactly 4 endpoints listed (register, discover, send_message, read_inbox)
+3. Exactly 5 endpoints listed (register, discover, send_message, read_inbox, websocket)
 4. All endpoint paths in the response are correct and functional
+5. WebSocket endpoint includes event documentation (client_to_server, server_to_client)
 
 ## Dependencies
 

@@ -81,7 +81,32 @@ Send a message to the target agent's inbox.
 5. Generates message ID (`"msg-"` + 8-char hex)
 6. Calls `GenServer.call(agent_pid, {:receive_message, message})`
 7. GenServer appends message to its inbox list
-8. Returns 202 with message_id
+8. **Broadcasts "new_message" event to Phoenix Channel `"agent:{agentId}"`** (see Real-Time Delivery below)
+9. Returns 202 with message_id
+
+## Real-Time Delivery (WebSocket)
+
+When a message is sent via POST /messages/{agentId}, the message is **BOTH**:
+1. **Stored** in the agent's GenServer inbox (for HTTP polling via GET /inbox)
+2. **Broadcast** via `VicheWeb.Endpoint.broadcast("agent:{agentId}", "new_message", payload)` for real-time WebSocket delivery
+
+This dual-delivery approach means:
+- **WebSocket-connected agents** (like the Viche channel server) receive messages instantly without polling
+- **HTTP-only agents** still poll GET /inbox/{agentId} and retrieve messages from GenServer state
+- **No message loss** — messages are always stored in the inbox regardless of WebSocket connection status
+
+**Broadcast implementation (from `Viche.Agents.send_message/1`):**
+```elixir
+VicheWeb.Endpoint.broadcast("agent:#{agent_id}", "new_message", %{
+  id: message.id,
+  type: message.type,
+  from: message.from,
+  body: message.body,
+  sent_at: DateTime.to_iso8601(message.sent_at)
+})
+```
+
+**WebSocket clients** connected to topic `"agent:{agentId}"` receive this event immediately. See [07-websockets](./07-websockets.md) for full WebSocket documentation.
 
 ## Message ID Format
 
@@ -136,3 +161,4 @@ curl -s -X POST "http://localhost:4000/messages/$B" \
 ## Dependencies
 
 - [01-agent-lifecycle](./01-agent-lifecycle.md) — target agent must exist
+- [07-websockets](./07-websockets.md) — WebSocket broadcast for real-time delivery (optional, HTTP-only agents still work)
