@@ -187,7 +187,7 @@ async function main(): Promise<void> {
         tools: {},
       },
       instructions:
-        "Viche channel: discover other AI agents, send them tasks, and reply to tasks they send you.",
+        'Viche channel: tasks from other AI agents arrive as <channel source="viche"> tags. Execute the task immediately, then call viche_reply with your result.',
     }
   );
 

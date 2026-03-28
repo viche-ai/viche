@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
-# Viche V2 E2E channel validation — proves the MCP channel server integrates correctly.
-# Verifies: registration, polling/inbox-consume, and viche_reply (send-back).
+# Viche V2 E2E channel validation — proves the full Claude Code channel flow works end-to-end.
+# Verifies: Claude Code starts channel server → registers → receives task via channel
+#           notification → executes task → calls viche_reply → result in aris inbox.
 #
 # Usage:
 #   ./scripts/e2e-v2-channel-test.sh
 #
 # Requirements:
 #   - bun available at /Users/ihorkatkov/.bun/bin/bun (or on PATH)
+#   - claude CLI available on PATH
 #   - Phoenix server not already running (script manages lifecycle)
 #   - Run from project root
+#   - ANTHROPIC_API_KEY set in environment
 
 set -euo pipefail
 
 VICHE=${VICHE:-http://localhost:4000}
 BUN=${BUN:-/Users/ihorkatkov/.bun/bin/bun}
-CHANNEL_SCRIPT="channel/viche-channel.ts"
-POLL_INTERVAL=2   # seconds — channel server poll interval
+CLAUDE=${CLAUDE_BIN:-claude}
 
 # Temp files for process tracking
 PHOENIX_LOG=$(mktemp /tmp/viche-phoenix-XXXXXX.log)
-CHANNEL_LOG=$(mktemp /tmp/viche-channel-XXXXXX.log)
+CLAUDE_LOG=$(mktemp /tmp/viche-claude-XXXXXX.log)
 
 # ── Colour helpers ──────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -67,16 +69,16 @@ assert_not_empty() {
 }
 
 # ── Cleanup ─────────────────────────────────────────────────────────────────
-CHANNEL_PID=""
+CLAUDE_PID=""
 PHOENIX_PID=""
 
 cleanup() {
   echo ""
   echo -e "${YELLOW}  Cleaning up background processes...${RESET}"
 
-  if [ -n "$CHANNEL_PID" ] && kill -0 "$CHANNEL_PID" 2>/dev/null; then
-    kill "$CHANNEL_PID" 2>/dev/null || true
-    info "Channel server (PID $CHANNEL_PID) terminated"
+  if [ -n "$CLAUDE_PID" ] && kill -0 "$CLAUDE_PID" 2>/dev/null; then
+    kill "$CLAUDE_PID" 2>/dev/null || true
+    info "Claude Code (PID $CLAUDE_PID) terminated"
   fi
 
   if [ -n "$PHOENIX_PID" ] && kill -0 "$PHOENIX_PID" 2>/dev/null; then
@@ -88,14 +90,14 @@ cleanup() {
   fi
 
   # Clean up tmp logs
-  rm -f "$PHOENIX_LOG" "$CHANNEL_LOG"
+  rm -f "$PHOENIX_LOG" "$CLAUDE_LOG"
 }
 
 trap cleanup EXIT
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-title "Channel Integration Test"
+title "Channel Integration Test (Claude Code full flow)"
 
 # ── Step 0: Start Phoenix server ────────────────────────────────────────────
 step "0. Starting Phoenix server in background…"
@@ -118,38 +120,58 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-# ── Step 1: Start channel server ────────────────────────────────────────────
-step "1. Starting Viche channel server (MCP stdio mode)…"
+# ── Step 1: Start Claude Code with Viche channel ─────────────────────────────
+step "1. Starting Claude Code with Viche channel (spawns viche-channel.ts via .mcp.json)…"
 
-VICHE_REGISTRY_URL="$VICHE" \
-VICHE_AGENT_NAME="claude-code" \
-VICHE_CAPABILITIES="coding,refactoring,testing" \
-VICHE_DESCRIPTION="Claude Code AI coding assistant" \
-VICHE_POLL_INTERVAL="$POLL_INTERVAL" \
-  "$BUN" run "$CHANNEL_SCRIPT" \
-    </dev/null \
-    >"$CHANNEL_LOG" 2>&1 &
+# Claude Code spawns viche-channel.ts as an MCP subprocess via .mcp.json.
+# The channel server registers with Viche and connects via WebSocket.
+# We use -p (print mode) with a prompt that tells Claude to:
+#   (1) discover the network to confirm registration,
+#   (2) process any incoming Viche channel tasks,
+#   (3) call viche_reply with the result.
+#
+# --dangerously-load-development-channels server:viche enables the channel
+# notification injection (<channel source="viche"> tags in Claude's context).
+# --dangerously-skip-permissions lets Claude call tools without prompting.
 
-CHANNEL_PID=$!
-info "Channel server PID: $CHANNEL_PID  (log: $CHANNEL_LOG)"
+"$CLAUDE" \
+  --dangerously-load-development-channels server:viche \
+  --dangerously-skip-permissions \
+  -p "You are registered on the Viche AI agent network as 'claude-code'. \
+Do the following in order: \
+(1) Call viche_discover with capability='orchestration' to confirm other agents are visible. \
+(2) Monitor the Viche channel — an orchestrator agent will send you a task shortly. \
+(3) When you receive a task via the <channel source=\"viche\"> notification, execute it and call viche_reply with your result." \
+  >"$CLAUDE_LOG" 2>&1 &
 
-# Give the channel server time to register (registration happens before transport connect)
-info "Waiting 3s for registration…"
-sleep 3
+CLAUDE_PID=$!
+info "Claude Code PID: $CLAUDE_PID  (log: $CLAUDE_LOG)"
 
-# ── Step 2: Verify channel server is still running ──────────────────────────
-step "2. Verifying channel server process is alive…"
-if kill -0 "$CHANNEL_PID" 2>/dev/null; then
-  pass "Channel server process is running (PID $CHANNEL_PID)"
-else
-  echo "Channel server log:"
-  cat "$CHANNEL_LOG" || true
-  fail "Channel server exited unexpectedly"
+# ── Step 2: Wait for channel server (spawned by Claude) to register ──────────
+step "2. Waiting for Claude's channel server to register with Viche (up to 30s)…"
+
+REGISTERED=0
+for i in $(seq 1 30); do
+  DISC=$(curl -sf "$VICHE/registry/discover?name=claude-code" 2>/dev/null || echo "")
+  if echo "$DISC" | grep -q "claude-code"; then
+    REGISTERED=1
+    pass "Channel server registered as 'claude-code' (attempt $i)"
+    break
+  fi
+  # Check if Claude already exited (unexpected early exit)
+  if ! kill -0 "$CLAUDE_PID" 2>/dev/null; then
+    echo "Claude Code log:"
+    cat "$CLAUDE_LOG" || true
+    fail "Claude Code exited before channel server registered"
+  fi
+  sleep 1
+done
+
+if [ "$REGISTERED" -eq 0 ]; then
+  echo "Claude Code log:"
+  cat "$CLAUDE_LOG" || true
+  fail "Channel server did not register after 30s"
 fi
-
-# Show what the channel server logged
-info "Channel server output:"
-cat "$CHANNEL_LOG" | sed 's/^/    /' || true
 
 # ── Step 3: Verify channel agent registered ──────────────────────────────────
 step "3. Verifying 'claude-code' registered via /registry/discover…"
@@ -159,9 +181,9 @@ assert_contains "discover finds claude-code agent" "$DISC" "claude-code"
 assert_contains "discover returns agent id"        "$DISC" '"id"'
 
 # Extract the claude-code agent ID
-CLAUDE=$(echo "$DISC" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-assert_not_empty "claude-code has an id" "$CLAUDE"
-info "claude-code agent ID: $CLAUDE"
+CLAUDE_AGENT=$(echo "$DISC" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+assert_not_empty "claude-code has an id" "$CLAUDE_AGENT"
+info "claude-code agent ID: $CLAUDE_AGENT"
 
 # ── Step 4: Register external 'aris' agent ───────────────────────────────────
 step "4. Registering external orchestrator agent 'aris'…"
@@ -175,7 +197,7 @@ info "aris agent ID: $ARIS"
 
 # ── Step 5: Send task from Aris to Claude ───────────────────────────────────
 step "5. Sending task from aris → claude-code…"
-SEND=$(curl -sf -X POST "$VICHE/messages/$CLAUDE" \
+SEND=$(curl -sf -X POST "$VICHE/messages/$CLAUDE_AGENT" \
   -H 'Content-Type: application/json' \
   -d "{\"type\":\"task\",\"from\":\"$ARIS\",\"body\":\"Implement rate limiter\",\"reply_to\":\"$ARIS\"}")
 echo "  Response: $SEND"
@@ -183,52 +205,68 @@ MSG_ID=$(echo "$SEND" | grep -o '"message_id":"[^"]*"' | head -1 | cut -d'"' -f4
 assert_not_empty "send returns message_id" "$MSG_ID"
 info "message_id: $MSG_ID"
 
-# ── Step 6: Wait for channel server to poll ──────────────────────────────────
-WAIT_S=$(( POLL_INTERVAL + 3 ))
-step "6. Waiting ${WAIT_S}s for channel server to poll and consume inbox…"
-sleep "$WAIT_S"
+# ── Step 6: Wait for Claude to receive, process, and call viche_reply ─────────
+step "6. Waiting for Claude Code to process task and call viche_reply (up to 60s)…"
+info "Claude Code processes the channel notification and calls viche_reply automatically."
 
-# Show updated channel log
-info "Channel server log after poll:"
-cat "$CHANNEL_LOG" | sed 's/^/    /' || true
+REPLIED=0
+for i in $(seq 1 60); do
+  INBOX_ARIS=$(curl -sf "$VICHE/inbox/$ARIS" 2>/dev/null || echo "")
+  if echo "$INBOX_ARIS" | grep -q '"type":"result"'; then
+    REPLIED=1
+    pass "Claude replied to aris via viche_reply (attempt $i)"
+    break
+  fi
+  # Check if Claude exited (might have finished or crashed)
+  if ! kill -0 "$CLAUDE_PID" 2>/dev/null && [ "$REPLIED" -eq 0 ]; then
+    info "Claude Code process has exited — checking if reply was already sent…"
+    INBOX_ARIS=$(curl -sf "$VICHE/inbox/$ARIS" 2>/dev/null || echo "")
+    if echo "$INBOX_ARIS" | grep -q '"type":"result"'; then
+      REPLIED=1
+      pass "Claude replied before exiting (reply found in aris inbox)"
+      break
+    fi
+    echo "Claude Code log:"
+    cat "$CLAUDE_LOG" || true
+    fail "Claude Code exited without sending viche_reply"
+  fi
+  sleep 1
+done
 
-# ── Step 7: Verify inbox was consumed ───────────────────────────────────────
+if [ "$REPLIED" -eq 0 ]; then
+  echo "Claude Code log:"
+  cat "$CLAUDE_LOG" || true
+  fail "Claude Code did not call viche_reply within 60s"
+fi
+
+# ── Step 7: Verify inbox was consumed (WebSocket delivery auto-consumes) ──────
 step "7. Verifying claude-code inbox was consumed (should be empty)…"
-INBOX=$(curl -sf "$VICHE/inbox/$CLAUDE")
+INBOX=$(curl -sf "$VICHE/inbox/$CLAUDE_AGENT")
 echo "  Response: $INBOX"
-assert_equals "inbox is empty after channel poll consumed it" "$INBOX" '{"messages":[]}'
+assert_equals "inbox is empty after channel delivery consumed it" "$INBOX" '{"messages":[]}'
 
-# ── Step 8: Test viche_reply — send message back to Aris ────────────────────
-step "8. Testing viche_reply: claude-code sends result back to aris…"
-REPLY=$(curl -sf -X POST "$VICHE/messages/$ARIS" \
-  -H 'Content-Type: application/json' \
-  -d "{\"type\":\"result\",\"from\":\"$CLAUDE\",\"body\":\"Rate limiter implemented. 3 files changed: +45 -2 across middleware/rateLimiter.js\"}")
-echo "  Response: $REPLY"
-REPLY_ID=$(echo "$REPLY" | grep -o '"message_id":"[^"]*"' | head -1 | cut -d'"' -f4)
-assert_not_empty "viche_reply returns message_id" "$REPLY_ID"
-info "reply message_id: $REPLY_ID"
-
-# Verify aris received the reply
+# ── Step 8: Verify viche_reply result in aris inbox ─────────────────────────
+step "8. Verifying Claude Code's viche_reply arrived in aris inbox…"
 INBOX_ARIS=$(curl -sf "$VICHE/inbox/$ARIS")
 echo "  Aris inbox: $INBOX_ARIS"
-assert_contains "aris inbox has result type"          "$INBOX_ARIS" '"type":"result"'
-assert_contains "aris inbox result from claude-code"  "$INBOX_ARIS" "\"from\":\"$CLAUDE\""
-assert_contains "aris inbox result has body"          "$INBOX_ARIS" 'Rate limiter implemented'
+assert_contains "aris inbox has result type"         "$INBOX_ARIS" '"type":"result"'
+assert_contains "aris inbox result from claude-code" "$INBOX_ARIS" "\"from\":\"$CLAUDE_AGENT\""
+
+# Show Claude Code log for inspection
+info "Claude Code output:"
+cat "$CLAUDE_LOG" | sed 's/^/    /' || true
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════${RESET}"
-echo -e "${GREEN}${BOLD}  ALL CHECKS PASSED — V2 channel flow proven ✓      ${RESET}"
+echo -e "${GREEN}${BOLD}  ALL CHECKS PASSED — V2 full Claude Code flow ✓    ${RESET}"
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════${RESET}"
 echo ""
-echo "  Proven V2 channel flow:"
-echo "    [channel server] registers with Viche on startup"
-echo "    [channel server] polls inbox and consumes messages"
-echo "    [viche_reply]    sends results back via POST /messages/{id}"
-echo ""
-echo "  Next step (manual):"
-echo "    1. Ensure .mcp.json is at project root (already created)"
-echo "    2. Open project in Claude Code"
-echo "    3. From another terminal: curl -X POST http://localhost:4000/messages/{claude-code-id} ..."
-echo "    4. Claude Code will receive the task via channel notification"
+echo "  Proven V2 full flow:"
+echo "    [claude code]     starts viche-channel.ts via .mcp.json"
+echo "    [channel server]  registers with Viche on startup"
+echo "    [channel server]  receives WebSocket push, sends MCP notification"
+echo "    [claude code]     receives <channel source=\"viche\"> tag, executes task"
+echo "    [viche_reply]     sends result back to aris"
+echo "    [aris inbox]      contains result from claude-code"
 echo ""
