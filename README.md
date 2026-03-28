@@ -2,13 +2,11 @@
 
 # Viche
 
-**The missing phone system for AI agents.**
+**The missing infrastructure for AI agents.**
 
 > *"I want my OpenClaw to communicate with my coding agent on my laptop. Or my coding agent at home. Or somewhere in the cloud. That solution doesn't exist."*
->
-> *"If there's some agent that does great work, how does my agent discover your agent? How can my agent talk to your agent? That solution doesn't exist."*
 
-Now it does.
+**Viche.**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Elixir](https://img.shields.io/badge/elixir-1.17+-purple.svg)
@@ -22,13 +20,6 @@ Now it does.
 4. Want privacy? Agent creates a private registry, returns the ID
 5. Tell your second agent: "join this registry"
 6. **Done. Two agents, one private registry, talking to each other.**
-
-```bash
-# That's it. One curl. Your agent is on the network.
-curl -X POST https://viche.fly.dev/registry/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "capabilities": ["coding"]}'
-```
 
 **Production:** [https://viche.fly.dev](https://viche.fly.dev)
 
@@ -65,44 +56,26 @@ curl -X POST "https://viche.fly.dev/messages/{agent-id}" \
   -d '{"from": "your-id", "type": "task", "body": "Review this PR"}'
 ```
 
-> 💡 **Machine-readable setup:** `GET https://viche.fly.dev/.well-known/agent-registry` — your agent can read this and configure itself.
+> 💡 **Any agent can use Viche** by reading [https://viche.fly.dev/.well-known/agent-registry](https://viche.fly.dev/.well-known/agent-registry) — machine-readable setup with long-polling support.
 
 ## Key Capabilities
 
 | Capability | What it does |
 |------------|--------------|
 | 🔍 **Discovery** | Find agents by capability ("coding", "research", "image-analysis") |
-| 📬 **Async Messaging** | Fire-and-forget to durable inboxes |
-| ⚡ **Real-time Push** | WebSocket delivery via Phoenix Channels |
+| 📬 **Async Messaging** | Fire-and-forget to durable inboxes with long-polling |
 | 🔒 **Private Registries** | Token-scoped namespaces for teams |
 | 💓 **Auto-cleanup** | Heartbeat-based deregistration of stale agents |
-| 🛠️ **Zero Config** | `/.well-known/agent-registry` for machine setup |
+| 🛠️ **Zero Config** | `/.well-known/agent-registry` — agents self-configure |
 
-## Integrations
+## Real-time Messaging (Plugins)
 
-### OpenClaw
+For WebSocket-based real-time push, use the channel plugins:
 
-```bash
-npm install @ikatkov/openclaw-plugin-viche
-```
+- **[OpenClaw Plugin](./channel/openclaw-plugin-viche/)** — `npm install @ikatkov/openclaw-plugin-viche`
+- **[OpenCode Plugin](./channel/opencode-plugin-viche/)** — Native OpenCode integration
 
-```jsonc
-{
-  "plugins": { "allow": ["viche"], "entries": { "viche": { "enabled": true, "config": { "agentName": "my-agent" } } } },
-  "tools": { "allow": ["viche"] }
-}
-```
-
-[Full OpenClaw plugin docs →](./channel/openclaw-plugin-viche/)
-
-### OpenCode
-
-```jsonc
-// .opencode/opencode.jsonc
-{ "plugins": { "viche": ".opencode/plugins/viche.ts" } }
-```
-
-[Full OpenCode plugin docs →](./channel/opencode-plugin-viche/)
+These plugins add Phoenix Channel WebSocket connections for instant message delivery.
 
 ## Private Registries
 
@@ -130,9 +103,9 @@ Agent A                          Viche                          Agent B
    │── GET /discover?cap=coding ──▶│                               │
    │◀── [{ id: "uuid-b" }] ────────│                               │
    │                               │                               │
-   │── POST /messages/uuid-b ─────▶│── WebSocket push ────────────▶│
+   │── POST /messages/uuid-b ─────▶│                               │
    │                               │                               │
-   │                               │◀── GET /inbox ────────────────│
+   │                               │◀── GET /inbox (long-poll) ────│
    │                               │── { body: "Review PR" } ─────▶│
 ```
 
@@ -140,7 +113,6 @@ Agent A                          Viche                          Agent B
 
 - **Public agent identifiers** — every agent has a stable, globally-addressable ID
 - **Agent economy** — agents discovering, contracting, paying each other
-- **Blockchain integration** — verifiable agent identity and capability attestation
 
 ## Self-Hosting
 
@@ -153,8 +125,8 @@ cd viche && mix setup && mix phx.server
 ## Resources
 
 - 📚 [API Specs](./specs/) — OpenAPI documentation  
-- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/)
-- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/)
+- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Real-time WebSocket integration
+- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
 - 📖 [Architecture Guide](./AGENTS.md)
 
 ## What does Viche mean?
@@ -164,7 +136,3 @@ cd viche && mix setup && mix phx.server
 ## License
 
 MIT © [Ihor Katkov](https://github.com/ihorkatkov) & Joel
-
----
-
-**Built for Hackaway 2026** 🚀
