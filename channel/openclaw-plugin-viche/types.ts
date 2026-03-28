@@ -7,6 +7,82 @@
  */
 
 // ---------------------------------------------------------------------------
+// OpenClaw Plugin SDK types (local declarations for backward compatibility)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal subset of OpenClawPluginApi used by the Viche plugin.
+ * Declared locally to avoid importing from openclaw/plugin-sdk.
+ */
+export interface OpenClawPluginApi {
+  /** Raw plugin config from openclaw.json (before schema validation). */
+  pluginConfig?: Record<string, unknown>;
+  /** Register a background service (lifecycle: start/stop). */
+  registerService(service: OpenClawPluginService): void;
+  /** Register an agent tool (factory pattern: (ctx) => tool). */
+  registerTool(factory: (ctx: OpenClawPluginToolContext) => AnyAgentTool): void;
+  /** OpenClaw runtime APIs (subagent spawning, etc). */
+  runtime: PluginRuntime;
+  /** Full OpenClaw config object. */
+  config: unknown;
+}
+
+/**
+ * Background service interface for OpenClaw plugins.
+ * Services run for the lifetime of the Gateway and manage long-lived resources.
+ */
+export interface OpenClawPluginService {
+  /** Unique service ID (used in logs). */
+  id: string;
+  /** Called when the Gateway starts. Throw to prevent startup. */
+  start(ctx: OpenClawPluginServiceContext): Promise<void>;
+  /** Called when the Gateway stops. Clean up resources here. */
+  stop(ctx: OpenClawPluginServiceContext): Promise<void>;
+}
+
+/**
+ * Context passed to service start/stop methods.
+ */
+export interface OpenClawPluginServiceContext {
+  /** Logger instance for this service. */
+  logger: PluginLogger;
+}
+
+/**
+ * Logger interface provided to plugin services.
+ */
+export interface PluginLogger {
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+}
+
+/**
+ * Context passed to tool factory functions.
+ * Contains the session key of the agent invoking the tool.
+ */
+export interface OpenClawPluginToolContext {
+  /** Session key (e.g. "agent:main:main") of the invoking agent. */
+  sessionKey?: string;
+}
+
+/**
+ * Agent tool type (opaque — cast through `unknown` to avoid deep type dependencies).
+ * The actual shape is defined by @mariozechner/pi-agent-core's AgentTool<T, R>.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyAgentTool = any;
+
+/**
+ * Config schema interface required by OpenClaw plugins.
+ * Must provide `safeParse` for validation and `jsonSchema` for UI generation.
+ */
+export interface OpenClawPluginConfigSchema<T = unknown> {
+  safeParse(value: unknown): { success: true; data: T } | { success: false; error: { issues: Array<{ path: Array<string | number>; message: string }> } };
+  jsonSchema: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
@@ -37,11 +113,19 @@ export interface VicheConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * Alias for the OpenClaw PluginRuntime object passed to the service.
- * Typed as `any` to avoid importing the full SDK runtime type.
+ * OpenClaw PluginRuntime object passed to services.
+ * Provides access to subagent spawning via `subagent.run`.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type PluginRuntime = any;
+export interface PluginRuntime {
+  subagent: {
+    run(params: {
+      sessionKey: string;
+      message: string;
+      deliver: boolean;
+      idempotencyKey: string;
+    }): Promise<{ runId: string }>;
+  };
+}
 
 /** Defaults applied when config fields are omitted. */
 const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[] } = {
@@ -62,7 +146,7 @@ function issue(path: Array<string | number>, message: string): SafeParseResult {
  * OpenClawPluginConfigSchema implementation for VicheConfig.
  * Validates, normalises, and applies defaults to raw plugin config values.
  */
-export const VicheConfigSchema = {
+export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
   safeParse(value: unknown): SafeParseResult {
     // Allow undefined / null → full defaults
     if (value === undefined || value === null) {
@@ -199,7 +283,7 @@ export const VicheConfigSchema = {
       },
     },
   },
-} as const;
+};
 
 // ---------------------------------------------------------------------------
 // Shared runtime state

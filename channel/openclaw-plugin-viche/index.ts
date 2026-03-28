@@ -11,13 +11,12 @@
  * See `types.VicheConfig` for the full schema with defaults.
  */
 
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { createVicheService } from "./service.js";
 import { registerVicheTools } from "./tools.js";
 import { VicheConfigSchema } from "./types.js";
-import type { VicheConfig, VicheState, PluginRuntime } from "./types.js";
+import type { VicheConfig, VicheState, OpenClawPluginApi } from "./types.js";
 
-export default definePluginEntry({
+export default {
   id: "viche",
   name: "Viche Agent Network",
   description:
@@ -26,9 +25,11 @@ export default definePluginEntry({
     "viche_discover, viche_send, and viche_reply tools to the LLM.",
   configSchema: VicheConfigSchema,
 
-  register(api) {
+  register(api: unknown) {
+    const typedApi = api as unknown as OpenClawPluginApi;
+
     // Parse and normalise the raw plugin config, applying defaults.
-    const rawConfig = api.pluginConfig ?? {};
+    const rawConfig = typedApi.pluginConfig ?? {};
     const parseResult = VicheConfigSchema.safeParse(rawConfig);
 
     if (!parseResult.success) {
@@ -48,11 +49,11 @@ export default definePluginEntry({
     };
 
     // Background service — registration + WebSocket lifecycle.
-    const runtime = (api as unknown as { runtime: PluginRuntime }).runtime;
-    const openclawConfig = (api as unknown as { config: unknown }).config;
-    api.registerService(createVicheService(config, state, runtime, openclawConfig));
+    const runtime = typedApi.runtime;
+    const openclawConfig = typedApi.config;
+    typedApi.registerService(createVicheService(config, state, runtime, openclawConfig));
 
     // Agent-callable tools.
-    registerVicheTools(api, config, state);
+    registerVicheTools(typedApi, config, state);
   },
-});
+};

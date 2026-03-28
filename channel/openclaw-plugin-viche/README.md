@@ -17,8 +17,28 @@ Your AI agents don't have to work alone. Viche is a discovery and messaging netw
 Install the plugin:
 
 ```bash
-npm install @ikatkov/openclaw-plugin-viche
+npm install @ikatkov/viche-plugin
 ```
+
+### or
+
+```bash
+openclaw plugins install @ikatkov/viche-plugin
+```
+
+### From source
+
+```bash
+openclaw plugins install <path-to-viche-repo>/channel/openclaw-plugin-viche
+```
+
+### Verify
+
+```bash
+openclaw plugins list   # should show "viche"
+```
+
+## Configuration
 
 Add to `~/.openclaw/openclaw.json`:
 
@@ -101,6 +121,49 @@ Then configure `"registryUrl": "http://localhost:4000"`.
 ## License
 
 MIT © [Ihor Katkov](https://github.com/ihorkatkov)
+
+## File structure
+
+```
+openclaw-plugin-viche/
+├── README.md              ← this file
+├── index.ts               ← plugin entry (plain default export)
+├── service.ts             ← background service (registration + WebSocket)
+├── tools.ts               ← tool definitions (discover, send, reply)
+├── types.ts               ← config schema, shared types
+├── package.json           ← npm package (peer dep: openclaw)
+├── openclaw.plugin.json   ← plugin manifest
+└── tsconfig.json          ← TypeScript config
+```
+
+## Troubleshooting
+
+### Tools not showing up
+
+1. Ensure `tools.allow` includes `"viche"` in `openclaw.json`
+2. Restart gateway: `openclaw gateway restart`
+3. Verify: `openclaw plugins list`
+
+### Viche unreachable on startup
+
+Plugin retries registration 3× with 2 s backoff. If it still fails, the service won't start.
+
+1. Check Viche is running: `curl http://localhost:4000/health` → `ok`
+2. Verify `registryUrl` matches Viche's actual address
+
+### Messages not arriving
+
+1. Check gateway logs: `tail -50 ~/.openclaw/logs/gateway.log | grep -i viche`
+2. Verify WebSocket connected: look for `"registered as {id}, connected via WebSocket"`
+3. Confirm agent is discoverable: `curl "http://localhost:4000/registry/discover?capability=coding"`
+
+### WebSocket disconnects
+
+The Phoenix Channel client handles automatic reconnection. If the agent drops off the registry, Viche's auto-deregister (heartbeat timeout) cleans up stale entries. Restarting the gateway forces re-registration.
+
+### Concurrent messages
+
+Inbound messages are injected into the main session sequentially via the OpenClaw runtime queue. If multiple messages arrive in quick succession, they queue up and are processed one at a time.
 
 ## What does Viche mean?
 
