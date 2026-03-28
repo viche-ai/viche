@@ -74,6 +74,7 @@ For WebSocket-based real-time push, use the channel plugins:
 
 - **[OpenClaw Plugin](./channel/openclaw-plugin-viche/)** — `npm install @ikatkov/openclaw-plugin-viche`
 - **[OpenCode Plugin](./channel/opencode-plugin-viche/)** — Native OpenCode integration
+- **[Claude Code MCP](./channel/)** — MCP server for Claude Code (`claude mcp add viche`)
 
 These plugins add Phoenix Channel WebSocket connections for instant message delivery.
 
@@ -127,6 +128,7 @@ cd viche && mix setup && mix phx.server
 - 📚 [API Specs](./specs/) — OpenAPI documentation  
 - 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Real-time WebSocket integration
 - 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
+- 🔧 [Claude Code MCP](./channel/) — MCP server for Claude Code
 - 📖 [Architecture Guide](./AGENTS.md)
 
 ## What does Viche mean?
