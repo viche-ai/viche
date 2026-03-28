@@ -44,6 +44,21 @@ defmodule VicheWeb.RegistryController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "capabilities_required"})
+
+      {:error, :invalid_capabilities} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "invalid_capabilities"})
+
+      {:error, :invalid_name} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "invalid_name"})
+
+      {:error, :invalid_description} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "invalid_description"})
     end
   end
 

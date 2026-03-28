@@ -148,42 +148,63 @@ export function createVicheService(
       // 1. Register with Viche (with retry)
       state.agentId = await registerWithRetry(config, logger);
 
-      // 2. Connect Phoenix WebSocket
-      const wsBase = config.registryUrl.replace(/^http/, "ws");
-      socket = new Socket(`${wsBase}/agent/websocket`, {
-        params: { agent_id: state.agentId },
-      });
-      socket.connect();
+      // Helper: create socket+channel and attempt a single join.
+      // Returns the reason string on error, or null on timeout.
+      const connectAndJoin = (agentId: string): Promise<void> => {
+        const wsBase = config.registryUrl.replace(/^http/, "ws");
+        socket = new Socket(`${wsBase}/agent/websocket`, {
+          params: { agent_id: agentId },
+        });
+        socket.connect();
 
-      // 3. Join agent channel
-      channel = socket.channel(`agent:${state.agentId}`, {});
+        channel = socket.channel(`agent:${agentId}`, {});
 
-      // 4. Subscribe to inbound messages before joining to avoid missing events
-      channel.on("new_message", (payload: InboundMessagePayload) => {
-        void handleInboundMessage(payload, runtime, logger);
-      });
+        channel.on("new_message", (payload: InboundMessagePayload) => {
+          void handleInboundMessage(payload, runtime, logger);
+        });
 
-      // 5. Join and wait for confirmation
-      await new Promise<void>((resolve, reject) => {
-        channel!
-          .join()
-          .receive("ok", () => {
-            logger.info(
-              `Viche: registered as ${state.agentId}, connected via WebSocket`,
-            );
-            resolve();
-          })
-          .receive("error", (resp: unknown) => {
-            reject(
-              new Error(
-                `Viche: channel join failed: ${JSON.stringify(resp)}`,
-              ),
-            );
-          })
-          .receive("timeout", () => {
-            reject(new Error("Viche: channel join timed out"));
-          });
-      });
+        return new Promise<void>((resolve, reject) => {
+          channel!
+            .join()
+            .receive("ok", () => {
+              logger.info(
+                `Viche: registered as ${agentId}, connected via WebSocket`,
+              );
+              resolve();
+            })
+            .receive("error", (resp: unknown) => {
+              reject(
+                new Error(
+                  `Viche: channel join failed: ${JSON.stringify(resp)}`,
+                  { cause: resp },
+                ),
+              );
+            })
+            .receive("timeout", () => {
+              reject(new Error("Viche: channel join timed out"));
+            });
+        });
+      };
+
+      // 2. Connect and join; on agent_not_found re-register once and retry.
+      try {
+        await connectAndJoin(state.agentId);
+      } catch (err) {
+        const cause = err instanceof Error ? (err.cause as Record<string, unknown> | undefined) : undefined;
+        if (cause && cause.reason === "agent_not_found") {
+          logger.warn("Viche: agent_not_found on channel join — re-registering");
+
+          // Disconnect stale socket before creating a new one.
+          try { socket?.disconnect(); } catch { /* ignore */ }
+          socket = null;
+          channel = null;
+
+          state.agentId = await registerWithRetry(config, logger);
+          await connectAndJoin(state.agentId);
+        } else {
+          throw err;
+        }
+      }
     },
 
     async stop(ctx: OpenClawPluginServiceContext): Promise<void> {

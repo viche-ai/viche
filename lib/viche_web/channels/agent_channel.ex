@@ -47,12 +47,17 @@ defmodule VicheWeb.AgentChannel do
   end
 
   def terminate(_reason, socket) do
-    agent_id = socket.assigns.agent_id
-    Logger.info("Agent #{agent_id} channel terminated")
+    agent_id = Map.get(socket.assigns, :agent_id)
 
-    case Registry.lookup(Viche.AgentRegistry, agent_id) do
-      [{pid, _meta}] -> send(pid, :websocket_disconnected)
-      [] -> :ok
+    if is_nil(agent_id) do
+      :ok
+    else
+      Logger.info("Agent #{agent_id} channel terminated")
+
+      case Registry.lookup(Viche.AgentRegistry, agent_id) do
+        [{pid, _meta}] -> send(pid, :websocket_disconnected)
+        [] -> :ok
+      end
     end
   end
 
