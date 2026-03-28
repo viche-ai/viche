@@ -39,6 +39,22 @@ type RawFileConfig = {
 };
 
 // ---------------------------------------------------------------------------
+// Token validation
+// ---------------------------------------------------------------------------
+
+const TOKEN_REGEX = /^[a-zA-Z0-9._-]+$/;
+
+/**
+ * Returns `true` if `token` satisfies the server's registry token format rules:
+ * 4–256 characters, alphanumeric with `.`, `_`, and `-` only.
+ *
+ * Mirrors the server-side `Viche.Agents.valid_token?/1` rule.
+ */
+export function isValidToken(token: string): boolean {
+  return token.length >= 4 && token.length <= 256 && TOKEN_REGEX.test(token);
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
@@ -106,17 +122,33 @@ function pickCapabilities(
 }
 
 /**
+ * Warn to stderr about tokens that fail server-side format validation.
+ */
+function warnInvalidTokens(tokens: string[], source: string): void {
+  for (const token of tokens) {
+    if (!isValidToken(token)) {
+      process.stderr.write(
+        `Viche: ignoring invalid registry token from ${source} — token must be 4-256 chars, alphanumeric with . _ - (got: ${JSON.stringify(token)})\n`
+      );
+    }
+  }
+}
+
+/**
  * Resolve a registries array from env var → file (registries array) → file (legacy registryToken).
+ * Invalid tokens (not matching server format rules) are filtered out with a warning.
  */
 function pickRegistries(
   envVal: string | undefined,
   fileConfig: RawFileConfig
 ): string[] | undefined {
   if (typeof envVal === "string" && envVal.trim().length > 0) {
-    const parsed = envVal
+    const candidates = envVal
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
+    warnInvalidTokens(candidates, "VICHE_REGISTRY_TOKEN env var");
+    const parsed = candidates.filter(isValidToken);
     if (parsed.length > 0) return parsed;
   }
 
@@ -124,9 +156,11 @@ function pickRegistries(
     Array.isArray(fileConfig.registries) &&
     (fileConfig.registries as unknown[]).every((r) => typeof r === "string")
   ) {
-    const filtered = (fileConfig.registries as string[]).filter(
+    const candidates = (fileConfig.registries as string[]).filter(
       (r) => r.trim().length > 0
     );
+    warnInvalidTokens(candidates, "viche.json registries");
+    const filtered = candidates.filter(isValidToken);
     if (filtered.length > 0) return filtered;
   }
 
@@ -134,7 +168,14 @@ function pickRegistries(
     typeof fileConfig.registryToken === "string" &&
     fileConfig.registryToken.trim().length > 0
   ) {
-    return [fileConfig.registryToken.trim()];
+    const candidate = fileConfig.registryToken.trim();
+    if (!isValidToken(candidate)) {
+      process.stderr.write(
+        `Viche: ignoring invalid registry token from viche.json registryToken — token must be 4-256 chars, alphanumeric with . _ - (got: ${JSON.stringify(candidate)})\n`
+      );
+      return undefined;
+    }
+    return [candidate];
   }
 
   return undefined;

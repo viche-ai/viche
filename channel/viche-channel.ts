@@ -155,7 +155,13 @@ function connectWebSocket(agentId: string, server: Server): void {
 
       for (const token of REGISTRY_TOKENS) {
         const registryChannel = socket.channel(`registry:${token}`, {});
-        registryChannel.join();
+        registryChannel
+          .join()
+          .receive("error", (resp: unknown) => {
+            process.stderr.write(
+              `Viche: registry channel join failed for ${token}: ${JSON.stringify(resp)}\n`
+            );
+          });
       }
     })
     .receive("error", (resp: unknown) => {
@@ -238,7 +244,8 @@ async function main(): Promise<void> {
           properties: {
             to: {
               type: "string",
-              description: "Target agent ID",
+              pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              description: "Target agent ID (UUID format)",
             },
             body: {
               type: "string",

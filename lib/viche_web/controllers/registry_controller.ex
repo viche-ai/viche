@@ -72,19 +72,32 @@ defmodule VicheWeb.RegistryController do
 
   @spec discover(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def discover(conn, params) do
-    query = build_discover_query(params)
+    token = params["registry"] || params["token"]
 
-    case Agents.discover(query) do
-      {:ok, agents} ->
-        json(conn, %{agents: agents})
-
-      {:error, :query_required} ->
+    case validate_discover_token(token) do
+      {:error, :invalid_token} ->
         conn
-        |> put_status(:bad_request)
+        |> put_status(:unprocessable_entity)
         |> json(%{
-          error: "query_required",
-          message: "Provide ?capability= or ?name= parameter"
+          error: "invalid_token",
+          details: "Token must be 4-256 characters, alphanumeric with . _ -"
         })
+
+      :ok ->
+        query = build_discover_query(params)
+
+        case Agents.discover(query) do
+          {:ok, agents} ->
+            json(conn, %{agents: agents})
+
+          {:error, :query_required} ->
+            conn
+            |> put_status(:bad_request)
+            |> json(%{
+              error: "query_required",
+              message: "Provide ?capability= or ?name= parameter"
+            })
+        end
     end
   end
 
@@ -100,6 +113,18 @@ defmodule VicheWeb.RegistryController do
     do: :ok
 
   defp validate_polling_timeout(_), do: {:error, :invalid_polling_timeout}
+
+  @spec validate_discover_token(nil | String.t()) ::
+          :ok | {:error, :invalid_token}
+  defp validate_discover_token(nil), do: :ok
+
+  defp validate_discover_token(token) do
+    if Agents.valid_token?(token) do
+      :ok
+    else
+      {:error, :invalid_token}
+    end
+  end
 
   @spec build_discover_query(map()) :: map()
   defp build_discover_query(params) do

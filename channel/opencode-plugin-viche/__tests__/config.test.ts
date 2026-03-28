@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadConfig } from "../config.js";
+import { loadConfig, isValidToken } from "../config.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -291,5 +291,127 @@ describe("loadConfig", () => {
     // Subsequent call should reuse the same token.
     const cfg2 = loadConfig(tempDir);
     expect(cfg2.registries).toEqual([token]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isValidToken
+// ---------------------------------------------------------------------------
+
+describe("isValidToken", () => {
+  it("accepts valid alphanumeric tokens of at least 4 chars", () => {
+    expect(isValidToken("abcd")).toBe(true);
+    expect(isValidToken("ABCD")).toBe(true);
+    expect(isValidToken("1234")).toBe(true);
+    expect(isValidToken("team-x")).toBe(true);
+    expect(isValidToken("my.token")).toBe(true);
+    expect(isValidToken("my_token_123")).toBe(true);
+  });
+
+  it("accepts a UUID (auto-generated tokens are always valid)", () => {
+    expect(isValidToken("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+  });
+
+  it("accepts a token exactly at the minimum length (4 chars)", () => {
+    expect(isValidToken("abcd")).toBe(true);
+  });
+
+  it("accepts a token exactly at the maximum length (256 chars)", () => {
+    expect(isValidToken("a".repeat(256))).toBe(true);
+  });
+
+  it("rejects a token that is too short (< 4 chars)", () => {
+    expect(isValidToken("abc")).toBe(false);
+    expect(isValidToken("")).toBe(false);
+  });
+
+  it("rejects a token that is too long (> 256 chars)", () => {
+    expect(isValidToken("a".repeat(257))).toBe(false);
+  });
+
+  it("rejects tokens with spaces", () => {
+    expect(isValidToken("bad token")).toBe(false);
+    expect(isValidToken("bad token!")).toBe(false);
+  });
+
+  it("rejects tokens with special characters not in the allowed set", () => {
+    expect(isValidToken("bad!token")).toBe(false);
+    expect(isValidToken("bad@token")).toBe(false);
+    expect(isValidToken("bad#token")).toBe(false);
+    expect(isValidToken("bad/token")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Invalid token filtering in loadConfig
+// ---------------------------------------------------------------------------
+
+describe("loadConfig — invalid token filtering", () => {
+  let savedEnv: Record<string, string | undefined>;
+  let tempDir: string | undefined;
+
+  const ENV_KEYS_FILTER = ["VICHE_REGISTRY_TOKEN"] as const;
+
+  beforeEach(() => {
+    savedEnv = {};
+    for (const key of ENV_KEYS_FILTER) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+    tempDir = undefined;
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS_FILTER) {
+      if (savedEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = savedEnv[key];
+      }
+    }
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("filters out invalid tokens from VICHE_REGISTRY_TOKEN env var and falls back to auto-generate", () => {
+    tempDir = makeTempDir();
+    // "bad token!" contains a space — invalid
+    process.env.VICHE_REGISTRY_TOKEN = "bad token!";
+
+    const cfg = loadConfig(tempDir);
+
+    // Invalid token filtered → falls through to auto-generate
+    expect(cfg.registries).toHaveLength(1);
+    // Auto-generated UUID is always valid
+    expect(isValidToken(cfg.registries![0]!)).toBe(true);
+  });
+
+  it("keeps only valid tokens from a comma-separated VICHE_REGISTRY_TOKEN", () => {
+    tempDir = makeTempDir();
+    process.env.VICHE_REGISTRY_TOKEN = "valid-token,bad token!,another-valid";
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["valid-token", "another-valid"]);
+  });
+
+  it("filters out invalid tokens from file registries array", () => {
+    tempDir = makeTempDir({ registries: ["good-token", "bad token!", "another-good"] });
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["good-token", "another-good"]);
+  });
+
+  it("filters out invalid legacy registryToken from file and falls back to auto-generate", () => {
+    tempDir = makeTempDir({ registryToken: "bad token!" });
+
+    const cfg = loadConfig(tempDir);
+
+    // Falls through to auto-generate
+    expect(cfg.registries).toHaveLength(1);
+    expect(isValidToken(cfg.registries![0]!)).toBe(true);
   });
 });

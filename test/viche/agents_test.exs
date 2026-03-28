@@ -29,7 +29,7 @@ defmodule Viche.AgentsTest do
       assert Agents.list_agents() == []
     end
 
-    test "returns all registered agents as maps with id/name/capabilities/description/registries" do
+    test "returns all registered agents as maps with id/name/capabilities/description (no registries)" do
       {:ok, _} = Agents.register_agent(%{capabilities: ["coding"], name: "agent-a"})
       {:ok, _} = Agents.register_agent(%{capabilities: ["testing"], name: "agent-b"})
 
@@ -45,7 +45,7 @@ defmodule Viche.AgentsTest do
         assert Map.has_key?(agent, :name)
         assert Map.has_key?(agent, :capabilities)
         assert Map.has_key?(agent, :description)
-        assert Map.has_key?(agent, :registries)
+        refute Map.has_key?(agent, :registries), "list_agents must not expose registry tokens"
       end
     end
   end
@@ -266,7 +266,7 @@ defmodule Viche.AgentsTest do
       assert {:ok, []} = Agents.discover(%{capability: "*"})
     end
 
-    test "wildcard returns agents with expected keys", %{id_a: _id_a} do
+    test "wildcard returns agents with expected keys (no registries exposed)", %{id_a: _id_a} do
       {:ok, agents} = Agents.discover(%{capability: "*"})
 
       for agent <- agents do
@@ -274,7 +274,7 @@ defmodule Viche.AgentsTest do
         assert Map.has_key?(agent, :name)
         assert Map.has_key?(agent, :capabilities)
         assert Map.has_key?(agent, :description)
-        assert Map.has_key?(agent, :registries)
+        refute Map.has_key?(agent, :registries), "discover must not expose registry tokens"
         refute Map.has_key?(agent, :inbox)
         refute Map.has_key?(agent, :registered_at)
       end

@@ -174,7 +174,13 @@ export function createVicheService(
 
               for (const token of config.registries ?? []) {
                 const registryChannel = socket!.channel(`registry:${token}`, {});
-                registryChannel.join();
+                registryChannel
+                  .join()
+                  .receive("error", (resp: unknown) => {
+                    logger.warn(
+                      `Viche: registry channel join failed for ${token}: ${JSON.stringify(resp)}`
+                    );
+                  });
               }
 
               resolve();

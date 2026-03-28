@@ -19,13 +19,12 @@ defmodule Viche.Agents do
   alias Viche.AgentServer
   alias Viche.Message
 
-  @typedoc "Lightweight agent map returned by list/discover functions."
+  @typedoc "Lightweight agent map returned by list/discover functions (no private registry tokens)."
   @type agent_info :: %{
           id: String.t(),
           name: String.t() | nil,
           capabilities: [String.t()],
-          description: String.t() | nil,
-          registries: [String.t()]
+          description: String.t() | nil
         }
 
   # ---------------------------------------------------------------------------
@@ -39,7 +38,7 @@ defmodule Viche.Agents do
   def list_agents do
     Viche.AgentRegistry
     |> all_agents()
-    |> Enum.map(&format_agent/1)
+    |> Enum.map(&format_agent_public/1)
   end
 
   @doc """
@@ -221,6 +220,19 @@ defmodule Viche.Agents do
     end
   end
 
+  @token_regex ~r/^[a-zA-Z0-9._-]+$/
+
+  @doc """
+  Returns `true` if `token` is a valid registry token: 4–256 characters,
+  alphanumeric with `.`, `_`, and `-` only.
+  """
+  @spec valid_token?(String.t()) :: boolean()
+  def valid_token?(token) when is_binary(token) do
+    byte_size(token) >= 4 and byte_size(token) <= 256 and Regex.match?(@token_regex, token)
+  end
+
+  def valid_token?(_), do: false
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
@@ -245,7 +257,7 @@ defmodule Viche.Agents do
   defp agents_in_registry(registry) do
     for {id, meta} <- all_agents(Viche.AgentRegistry),
         registry in (meta.registries || []) do
-      format_agent({id, meta})
+      format_agent_public({id, meta})
     end
   end
 
@@ -254,7 +266,7 @@ defmodule Viche.Agents do
     for {id, meta} <- all_agents(Viche.AgentRegistry),
         registry in (meta.registries || []),
         capability in meta.capabilities do
-      format_agent({id, meta})
+      format_agent_public({id, meta})
     end
   end
 
@@ -263,18 +275,17 @@ defmodule Viche.Agents do
     for {id, meta} <- all_agents(Viche.AgentRegistry),
         registry in (meta.registries || []),
         meta.name == name do
-      format_agent({id, meta})
+      format_agent_public({id, meta})
     end
   end
 
-  @spec format_agent({String.t(), map()}) :: agent_info()
-  defp format_agent({id, meta}) do
+  @spec format_agent_public({String.t(), map()}) :: agent_info()
+  defp format_agent_public({id, meta}) do
     %{
       id: id,
       name: meta.name,
       capabilities: meta.capabilities,
-      description: meta.description,
-      registries: meta.registries
+      description: meta.description
     }
   end
 
@@ -356,15 +367,6 @@ defmodule Viche.Agents do
 
     {:ok, agent}
   end
-
-  @token_regex ~r/^[a-zA-Z0-9._-]+$/
-
-  @spec valid_token?(String.t()) :: boolean()
-  defp valid_token?(token) when is_binary(token) do
-    byte_size(token) >= 4 and byte_size(token) <= 256 and Regex.match?(@token_regex, token)
-  end
-
-  defp valid_token?(_), do: false
 
   @spec broadcast_agent_joined(Agent.t()) :: :ok
   defp broadcast_agent_joined(agent) do

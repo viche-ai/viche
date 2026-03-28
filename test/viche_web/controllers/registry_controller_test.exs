@@ -408,14 +408,28 @@ defmodule VicheWeb.RegistryControllerTest do
       assert length(agents) == 2
     end
 
-    test "response agents include registries field", %{conn: conn} do
+    test "response agents do NOT expose registries field (privacy fix)", %{conn: conn} do
       conn = get(conn, ~p"/registry/discover", %{"capability" => "*", "token" => "team-x"})
 
       assert %{"agents" => agents} = json_response(conn, 200)
 
       for agent <- agents do
-        assert Map.has_key?(agent, "registries")
+        refute Map.has_key?(agent, "registries"),
+               "discover response must not leak registry tokens — got #{inspect(agent)}"
       end
+    end
+
+    test "returns 422 for invalid token query param", %{conn: conn} do
+      conn =
+        get(conn, ~p"/registry/discover", %{"capability" => "coding", "token" => "bad token!"})
+
+      assert %{"error" => "invalid_token", "details" => _} = json_response(conn, 422)
+    end
+
+    test "returns 422 for token that is too short", %{conn: conn} do
+      conn = get(conn, ~p"/registry/discover", %{"capability" => "coding", "token" => "abc"})
+
+      assert %{"error" => "invalid_token"} = json_response(conn, 422)
     end
   end
 end

@@ -169,7 +169,10 @@ export function createVicheTools(
       "Use this to delegate tasks, ask questions, or ping other agents. " +
       "You must know the target agent ID (use viche_discover first if needed).",
     args: {
-      to: z.string().describe("Target agent ID (UUID, e.g. '550e8400-e29b-41d4-a716-446655440000')"),
+      to: z
+        .string()
+        .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+        .describe("Target agent ID (UUID, e.g. '550e8400-e29b-41d4-a716-446655440000')"),
       body: z.string().describe("Message content to send to the target agent"),
       type: z
         .string()
