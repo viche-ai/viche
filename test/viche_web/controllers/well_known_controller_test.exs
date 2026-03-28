@@ -41,7 +41,7 @@ defmodule VicheWeb.WellKnownControllerTest do
 
       assert service["name"] == "Viche"
       assert is_binary(service["description"])
-      assert service["production_url"] == "https://viche.fly.dev"
+      assert service["production_url"] == "https://viche.ai"
       assert is_binary(service["repository_url"])
       assert service["well_known_path"] == "/.well-known/agent-registry"
     end

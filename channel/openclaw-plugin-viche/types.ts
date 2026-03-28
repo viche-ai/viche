@@ -88,7 +88,7 @@ export interface OpenClawPluginConfigSchema<T = unknown> {
 
 /** Plugin configuration provided via openclaw.json `plugins.viche.config`. */
 export interface VicheConfig {
-  /** Viche registry base URL. Default: "https://viche.fly.dev" */
+  /** Viche registry base URL. Default: "https://viche.ai" */
   registryUrl: string;
   /** Agent capabilities to register. Default: ["coding"] */
   capabilities: string[];
@@ -129,7 +129,7 @@ export interface PluginRuntime {
 
 /** Defaults applied when config fields are omitted. */
 const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[] } = {
-  registryUrl: "https://viche.fly.dev",
+  registryUrl: "https://viche.ai",
   capabilities: ["coding"],
 };
 
@@ -246,7 +246,7 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
     properties: {
       registryUrl: {
         type: "string",
-        default: "https://viche.fly.dev",
+        default: "https://viche.ai",
         description: "Viche registry base URL",
       },
       capabilities: {
