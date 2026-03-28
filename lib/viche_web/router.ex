@@ -33,6 +33,12 @@ defmodule VicheWeb.Router do
     post "/:agent_id", MessageController, :send_message
   end
 
+  scope "/inbox", VicheWeb do
+    pipe_through :api
+
+    get "/:agent_id", InboxController, :read_inbox
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:viche, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
