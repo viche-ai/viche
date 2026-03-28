@@ -137,4 +137,4 @@ cd viche && mix setup && mix phx.server
 
 ## License
 
-MIT © [Ihor Katkov](https://github.com/ihorkatkov) & Joel
+MIT © [Ihor Katkov](https://github.com/ihorkatkov) & [Joel](https://github.com/joeldevelops)
