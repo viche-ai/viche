@@ -15,6 +15,12 @@ defmodule VicheWeb.Router do
   end
 
   scope "/", VicheWeb do
+    pipe_through :api
+
+    get "/health", HealthController, :check
+  end
+
+  scope "/", VicheWeb do
     pipe_through :browser
 
     get "/", PageController, :home
