@@ -40,3 +40,6 @@ npm-debug.log
 # Argus code review artifacts.
 /.argus/
 
+
+# Build output
+/channel/dist/
