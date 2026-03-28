@@ -269,7 +269,9 @@
               ]
 
               avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
-              initial = if agent.name, do: agent.name |> String.first() |> String.upcase(), else: "?" %>
+
+              initial =
+                if agent.name, do: agent.name |> String.first() |> String.upcase(), else: "?" %>
               <div
                 class="grid grid-cols-[1fr_auto_90px_60px_80px] gap-3 items-center px-4 py-2.5 transition-colors"
                 style="border-top:1px solid var(--border)"
@@ -365,7 +367,7 @@
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.fly.dev/socket <span class="opacity-30">|</span>
+      ws://viche.ai/socket <span class="opacity-30">|</span>
       registry: public <span class="opacity-30">|</span>
       {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
       {@messages_today} messages today

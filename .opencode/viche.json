@@ -1,5 +1,11 @@
 {
+  "registryUrl": "https://viche.ai",
+  "capabilities": [
+    "coding"
+  ],
+  "agentName": "Ihor's personal opencode",
+  "description": "Personal AI coding assistant connected via OpenCode",
   "registries": [
-    "8f0eff00-0be8-42d6-bf8f-af7b70f40742"
+    "d42eaf71-12c3-4bb6-97b8-3cc15551846f"
   ]
 }

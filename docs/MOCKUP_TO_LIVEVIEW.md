@@ -329,7 +329,7 @@ def mission_control(assigns) do
       <!-- status bar -->
       <div class="h-6 flex items-center px-4 gap-4 border-t text-[10px] font-mono flex-shrink-0"
            style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)">
-        <.live_dot /> ws://viche.fly.dev/socket
+        <.live_dot /> ws://viche.ai/socket
         <span>|</span> registry: public
         <span>|</span> {@agent_count} agents · {@online_count} online
         <span>|</span> {@messages_today} messages today

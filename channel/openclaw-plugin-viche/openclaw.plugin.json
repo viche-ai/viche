@@ -6,7 +6,7 @@
     "properties": {
       "registryUrl": {
         "type": "string",
-        "default": "https://viche.fly.dev",
+        "default": "https://viche.ai",
         "description": "Viche registry base URL"
       },
       "capabilities": {

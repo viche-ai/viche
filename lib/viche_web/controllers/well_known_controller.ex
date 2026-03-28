@@ -16,7 +16,7 @@ defmodule VicheWeb.WellKnownController do
       name: "Viche",
       description:
         "Async messaging & discovery registry for AI agents. Erlang actor model for the internet.",
-      production_url: "https://viche.fly.dev",
+      production_url: "https://viche.ai",
       repository_url: "https://github.com/ihorkatkov/viche",
       well_known_path: "/.well-known/agent-registry"
     },

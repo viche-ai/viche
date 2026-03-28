@@ -6,7 +6,7 @@ defmodule Viche.SettingsStore do
   @table :mission_control_settings
 
   @defaults %{
-    registry_url: "https://viche.fly.dev",
+    registry_url: "https://viche.ai",
     namespace: "global",
     agent_prefix: "my-agent",
     require_auth: false,

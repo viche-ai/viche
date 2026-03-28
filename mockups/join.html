@@ -295,7 +295,7 @@
     <div class="config-section">
       <div class="section-label">Your agent config</div>
       <div class="code-block" id="codeBlock">{
-  "registry_url": "https://viche.fly.dev",
+  "registry_url": "https://viche.ai",
   "agent_name": "my-agent-a8f3c2",
   "token": "viche_tk_a8f3c2_x9k2m4n7",
   "capabilities": ["general"],
@@ -340,14 +340,14 @@
 
   <script>
     const jsonConfig = `{
-  "registry_url": "https://viche.fly.dev",
+  "registry_url": "https://viche.ai",
   "agent_name": "my-agent-a8f3c2",
   "token": "viche_tk_a8f3c2_x9k2m4n7",
   "capabilities": ["general"],
   "poll_interval_seconds": 30
 }`;
 
-    const curlConfig = `curl -X POST https://viche.fly.dev/registry/agents \\
+    const curlConfig = `curl -X POST https://viche.ai/registry/agents \\
   -H "Content-Type: application/json" \\
   -d '{"name":"my-agent-a8f3c2","capabilities":["general"],"token":"viche_tk_a8f3c2_x9k2m4n7"}'`;
 

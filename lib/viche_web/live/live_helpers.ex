@@ -12,8 +12,8 @@ defmodule VicheWeb.LiveHelpers do
       diff < 10 -> "just now"
       diff < 60 -> "#{diff}s ago"
       diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      true -> "#{div(diff, 86400)}d ago"
+      diff < 86_400 -> "#{div(diff, 3600)}h ago"
+      true -> "#{div(diff, 86_400)}d ago"
     end
   end
 
@@ -31,14 +31,14 @@ defmodule VicheWeb.LiveHelpers do
       diff < 3600 ->
         "#{div(diff, 60)}m"
 
-      diff < 86400 ->
+      diff < 86_400 ->
         h = div(diff, 3600)
         m = div(rem(diff, 3600), 60)
         "#{h}h #{m}m"
 
       true ->
-        d = div(diff, 86400)
-        h = div(rem(diff, 86400), 3600)
+        d = div(diff, 86_400)
+        h = div(rem(diff, 86_400), 3600)
         "#{d}d #{h}h"
     end
   end

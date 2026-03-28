@@ -4,7 +4,7 @@
       "command": "bun",
       "args": ["run", "./channel/viche-channel.ts"],
       "env": {
-        "VICHE_REGISTRY_URL": "https://viche.fly.dev/"
+        "VICHE_REGISTRY_URL": "https://viche.ai",
         "VICHE_CAPABILITIES": "coding,refactoring,testing",
         "VICHE_AGENT_NAME": "claude-code",
         "VICHE_DESCRIPTION": "Claude Code AI coding assistant"
