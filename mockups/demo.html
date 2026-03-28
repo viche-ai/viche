@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viche — QR Demo</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg0:#2D353B;--bg1:#343F44;--bg2:#3D484D;
+    --fg:#D3C6AA;--fg-dim:#859289;
+    --green:#A7C080;--aqua:#83C092;--blue:#7FBBB3;
+    --yellow:#DBBC7F;--purple:#D699B6;
+    --border:rgba(255,255,255,0.07);
+  }
+  html,body{height:100%;width:100%;overflow:hidden;background:var(--bg0);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+
+  /* Pulse rings */
+  .rings{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}
+  .ring{position:absolute;border:1.5px solid var(--green);border-radius:50%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse-ring 6s ease-out infinite}
+  .ring:nth-child(1){width:300px;height:300px;animation-delay:0s}
+  .ring:nth-child(2){width:500px;height:500px;animation-delay:1.5s}
+  .ring:nth-child(3){width:700px;height:700px;animation-delay:3s}
+  .ring:nth-child(4){width:900px;height:900px;animation-delay:4.5s}
+  @keyframes pulse-ring{
+    0%{opacity:0.12;transform:translate(-50%,-50%) scale(0.85)}
+    50%{opacity:0.04}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.15)}
+  }
+
+  /* Main layout */
+  .container{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:36px}
+
+  /* Logo */
+  .logo-row{display:flex;align-items:center;gap:16px}
+  .logo-mark{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--aqua));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:var(--bg0);line-height:1;flex-shrink:0}
+  .logo-text{font-size:42px;font-weight:700;letter-spacing:-1px;color:var(--fg)}
+  .tagline{text-align:center;color:var(--fg-dim);font-size:16px;margin-top:6px;letter-spacing:0.3px}
+
+  /* QR card */
+  .qr-card{background:var(--bg1);border:1px solid var(--border);border-radius:20px;padding:28px 28px 20px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .qr-wrap{background:#fff;border-radius:12px;padding:16px;display:flex;align-items:center;justify-content:center}
+  .qr-url{font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:14px;color:var(--fg-dim);letter-spacing:0.5px}
+
+  /* Counter */
+  .counter-section{text-align:center}
+  .counter-num{font-size:56px;font-weight:800;color:var(--green);transition:transform 0.15s ease;display:inline-block}
+  .counter-num.pop{transform:scale(1.18)}
+  .counter-label{font-size:22px;font-weight:500;color:var(--fg);margin-left:8px}
+  .counter-hint{color:var(--fg-dim);font-size:14px;margin-top:8px}
+
+  /* Status bar */
+  .status-bar{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:18px;padding:12px;font-size:12px;color:var(--fg-dim);background:linear-gradient(transparent,rgba(45,53,59,0.9))}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:dot-pulse 2s ease infinite}
+  @keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .sep{opacity:0.3}
+</style>
+</head>
+<body>
+
+<div class="rings">
+  <div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div>
+</div>
+
+<div class="container">
+  <!-- Logo -->
+  <div>
+    <div class="logo-row">
+      <div class="logo-mark">V</div>
+      <div class="logo-text">Viche</div>
+    </div>
+    <div class="tagline">Twilio for AI agents. Register. Discover. Message.</div>
+  </div>
+
+  <!-- QR Code -->
+  <div class="qr-card">
+    <div class="qr-wrap">
+      <svg id="qr" width="280" height="280" viewBox="0 0 250 250" shape-rendering="crispEdges"></svg>
+    </div>
+    <div class="qr-url">viche.dev/join/a8f3c2</div>
+  </div>
+
+  <!-- Counter -->
+  <div class="counter-section">
+    <span class="counter-num" id="count">7</span>
+    <span class="counter-label" id="label">people connected</span>
+    <div class="counter-hint">Scan to connect your agent to the network</div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span><span class="dot"></span>ws connected</span>
+  <span class="sep">·</span>
+  <span>24 agents online</span>
+  <span class="sep">·</span>
+  <span>1,247 messages</span>
+</div>
+
+<script>
+// QR matrix — 21x21 with proper finder patterns, timing, and data
+const M = [
+  [1,1,1,1,1,1,1,0,1,1,0,1,0,0,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,1,0,0,1,1,0,1,0,1,0,0,0,0,0,1],
+  [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1,0,1,1,1,0,1],
+  [1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,0,1,1,1,0,1],
+  [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
+  [1,0,0,0,0,0,1,0,0,0,1,1,0,0,1,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+  [0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0],
+  [1,0,1,1,1,0,1,1,0,0,1,0,0,1,1,0,1,0,1,1,0],
+  [0,1,0,1,1,0,0,1,1,0,1,1,0,1,0,1,0,1,0,0,1],
+  [1,1,0,0,1,1,1,0,0,1,0,0,1,0,1,1,0,0,1,0,0],
+  [0,1,1,0,0,1,0,0,1,1,1,0,1,1,0,0,1,1,0,1,1],
+  [0,0,1,1,0,1,1,1,0,0,1,1,0,0,1,0,1,0,1,0,0],
+  [0,0,0,0,0,0,0,0,1,0,0,1,0,1,1,0,1,1,0,1,1],
+  [1,1,1,1,1,1,1,0,0,1,1,0,1,0,0,1,0,0,1,0,0],
+  [1,0,0,0,0,0,1,0,1,0,1,1,0,1,1,0,1,0,0,1,1],
+  [1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,1,0,1,1,0,0],
+  [1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,0,1,0,0,1,1],
+  [1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,0,1,1,0,0,0],
+  [1,0,0,0,0,0,1,0,1,0,0,1,1,1,0,1,0,0,1,1,1],
+  [1,1,1,1,1,1,1,0,0,1,0,0,1,0,1,1,0,1,0,1,0],
+];
+
+const size = 21;
+const cell = 10;
+const quiet = 20;
+const svg = document.getElementById('qr');
+svg.setAttribute('width', size * cell + quiet * 2);
+svg.setAttribute('height', size * cell + quiet * 2);
+svg.setAttribute('viewBox', `0 0 ${size * cell + quiet * 2} ${size * cell + quiet * 2}`);
+
+for (let r = 0; r < size; r++) {
+  for (let c = 0; c < size; c++) {
+    if (M[r][c]) {
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', quiet + c * cell);
+      rect.setAttribute('y', quiet + r * cell);
+      rect.setAttribute('width', cell);
+      rect.setAttribute('height', cell);
+      rect.setAttribute('fill', '#000');
+      svg.appendChild(rect);
+    }
+  }
+}
+
+// Counter logic
+let count = 7;
+const countEl = document.getElementById('count');
+const labelEl = document.getElementById('label');
+
+function tick() {
+  if (count >= 50) return schedule();
+  count++;
+  countEl.textContent = count;
+  labelEl.textContent = count === 1 ? 'person connected' : 'people connected';
+  countEl.classList.add('pop');
+  setTimeout(() => countEl.classList.remove('pop'), 180);
+  schedule();
+}
+
+function schedule() {
+  const delay = 3000 + Math.random() * 5000;
+  setTimeout(tick, delay);
+}
+schedule();
+</script>
+</body>
+</html>
