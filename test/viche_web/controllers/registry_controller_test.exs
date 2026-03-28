@@ -173,11 +173,13 @@ defmodule VicheWeb.RegistryControllerTest do
 
   describe "GET /registry/discover" do
     setup do
-      # Terminate all existing agents to ensure test isolation
+      # Terminate all existing agents and wait for Registry cleanup
       Viche.AgentSupervisor
       |> DynamicSupervisor.which_children()
       |> Enum.each(fn {_, pid, _, _} ->
+        ref = Process.monitor(pid)
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+        assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1_000
       end)
 
       :ok
@@ -304,11 +306,13 @@ defmodule VicheWeb.RegistryControllerTest do
     end
 
     test "wildcard returns 200 with empty list when no agents registered", %{conn: conn} do
-      # Clear all agents first
+      # Clear all agents and wait for Registry cleanup (async on process exit)
       Viche.AgentSupervisor
       |> DynamicSupervisor.which_children()
       |> Enum.each(fn {_, pid, _, _} ->
+        ref = Process.monitor(pid)
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+        assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1_000
       end)
 
       conn = get(conn, ~p"/registry/discover", %{"capability" => "*"})
@@ -322,7 +326,9 @@ defmodule VicheWeb.RegistryControllerTest do
       Viche.AgentSupervisor
       |> DynamicSupervisor.which_children()
       |> Enum.each(fn {_, pid, _, _} ->
+        ref = Process.monitor(pid)
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+        assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1_000
       end)
 
       # agent in team-x only
