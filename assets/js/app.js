@@ -25,11 +25,11 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/viche"
 import topbar from "../vendor/topbar"
 import { NetworkGraph } from "./hooks/network_graph"
-import { CopyConfig } from "./hooks/copy_config"
+import { CopyConfig, CopyToClipboard, CopyOnClick } from "./hooks/copy_config"
 import { CounterPop } from "./hooks/counter_pop"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-const Hooks = { ...colocatedHooks, NetworkGraph, CopyConfig, CounterPop }
+const Hooks = { ...colocatedHooks, NetworkGraph, CopyConfig, CopyToClipboard, CopyOnClick, CounterPop }
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},

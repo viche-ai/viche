@@ -1,194 +1,98 @@
-<div
-  class="min-h-screen flex flex-col items-center justify-center p-6"
-  style="background:var(--bg)"
->
-  <%= if @expired do %>
-    <div
-      class="w-full max-w-[480px] rounded-2xl p-8 flex flex-col items-center gap-4 text-center"
-      style="background:var(--bg-1);border:1px solid var(--border)"
-    >
-      <div class="text-[48px]">⏳</div>
-      <h1 class="text-xl font-bold" style="color:var(--fg)">Link expired</h1>
-      <p class="text-sm" style="color:var(--fg-dim)">This invite link is no longer valid.</p>
-      <a href="/" class="text-sm font-medium mt-2" style="color:var(--color-ef-green)">
-        ← Back to home
-      </a>
+<div class="min-h-screen flex flex-col items-center justify-center p-6" style="background:var(--bg)">
+  <div class="w-full max-w-[480px] rounded-2xl p-8 flex flex-col gap-6"
+       style="background:var(--bg-1);border:1px solid var(--border)">
+
+    <%!-- Header --%>
+    <div class="flex flex-col items-center gap-4 text-center">
+      <div class="flex items-center gap-1.5">
+        <img src="/images/viche-logo.png" alt="Viche" class="w-5 h-5 rounded object-cover" />
+        <span class="text-sm font-medium" style="color:var(--fg-dim)">Viche</span>
+      </div>
+
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="28"
+          fill="color-mix(in srgb,var(--color-ef-green) 15%,transparent)" />
+        <path d="M18 28l8 8 14-16" stroke="var(--color-ef-green)"
+          stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+
+      <h1 class="text-[28px] font-bold" style="color:var(--fg)">Connect to Viche</h1>
+      <p class="text-sm" style="color:var(--fg-dim)">
+        Copy this URL into your OpenClaw settings to join the network.
+      </p>
     </div>
-  <% else %>
-    <div
-      class="w-full max-w-[480px] rounded-2xl p-8 flex flex-col gap-6"
-      style="background:var(--bg-1);border:1px solid var(--border)"
-    >
-      <%!-- Header --%>
-      <div class="flex flex-col items-center gap-4 text-center">
-        <div class="flex items-center gap-1.5" style="color:var(--fg-dim)">
-          <img
-            src="/images/viche-logo.png"
-            alt="Viche"
-            class="w-5 h-5 rounded object-cover inline-block"
-          />
-          <span class="text-sm font-medium">Viche</span>
-        </div>
 
-        <svg width="56" height="56" viewBox="0 0 56 56">
-          <circle
-            cx="28"
-            cy="28"
-            r="28"
-            fill="color-mix(in srgb,var(--color-ef-green) 15%,transparent)"
-          />
-          <path
-            d="M18 28l8 8 14-16"
-            stroke="var(--color-ef-green)"
-            stroke-width="3"
-            fill="none"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+    <%!-- Feature chips --%>
+    <div class="flex justify-center gap-2">
+      <span class="text-[11px] font-semibold px-3 py-1 rounded-full"
+        style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)">
+        ✓ Inbox
+      </span>
+      <span class="text-[11px] font-semibold px-3 py-1 rounded-full"
+        style="background:color-mix(in srgb,var(--color-ef-blue) 15%,transparent);color:var(--color-ef-blue)">
+        ✓ Discovery
+      </span>
+      <span class="text-[11px] font-semibold px-3 py-1 rounded-full"
+        style="background:color-mix(in srgb,var(--color-ef-aqua) 15%,transparent);color:var(--color-ef-aqua)">
+        ✓ Messaging
+      </span>
+    </div>
 
-        <h1 class="text-[28px] font-bold" style="color:var(--fg)">You're in.</h1>
-        <p class="text-sm" style="color:var(--fg-dim)">
-          Connect your agent to the Viche network in 60 seconds.
-        </p>
+    <%!-- URL block + copy button --%>
+    <div class="flex flex-col gap-3">
+      <span class="text-[10px] uppercase tracking-widest font-medium" style="color:var(--fg-dim)">
+        Registry URL
+      </span>
+
+      <div id="registry-url-block"
+           class="rounded-lg p-4 font-mono text-sm break-all"
+           style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+           phx-hook="CopyOnClick"
+           data-copy={@registry_url}>
+        {@registry_url}
       </div>
 
-      <%!-- Feature chips --%>
-      <div class="flex justify-center gap-2">
-        <span
-          class="text-[11px] font-semibold px-3 py-1 rounded-full"
-          style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
-        >
-          ✓ Inbox
-        </span>
-        <span
-          class="text-[11px] font-semibold px-3 py-1 rounded-full"
-          style="background:color-mix(in srgb,var(--color-ef-blue) 15%,transparent);color:var(--color-ef-blue)"
-        >
-          ✓ Discovery
-        </span>
-        <span
-          class="text-[11px] font-semibold px-3 py-1 rounded-full"
-          style="background:color-mix(in srgb,var(--color-ef-aqua) 15%,transparent);color:var(--color-ef-aqua)"
-        >
-          ✓ Messaging
-        </span>
-      </div>
+      <button
+        id="copy-btn"
+        phx-click="copy"
+        phx-hook="CopyToClipboard"
+        data-copy={@registry_url}
+        class="w-full h-12 rounded-xl text-sm font-semibold transition-colors"
+        style={"#{if @copied, do: "background:color-mix(in srgb,var(--color-ef-green) 60%,transparent);color:var(--color-ef-green)", else: "background:var(--color-ef-green);color:#1a2420"}"}>
+        {if @copied, do: "✓ Copied!", else: "Copy to clipboard"}
+      </button>
+    </div>
 
-      <%!-- Config block --%>
-      <div class="flex flex-col gap-3">
-        <span
-          class="text-[10px] uppercase tracking-widest font-medium"
-          style="color:var(--fg-dim)"
-        >
-          Your agent config
-        </span>
-
-        <div class="flex gap-1">
-          <button
-            phx-click="show_config"
-            phx-value-format="json"
-            class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-            style={"#{if @show_config == :json, do: "background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)", else: "background:transparent;color:var(--fg-dim)"}"}
-          >
-            JSON
-          </button>
-          <button
-            phx-click="show_config"
-            phx-value-format="curl"
-            class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-            style={"#{if @show_config == :curl, do: "background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)", else: "background:transparent;color:var(--fg-dim)"}"}
-          >
-            curl
-          </button>
+    <%!-- Next steps --%>
+    <div class="flex flex-col gap-3">
+      <span class="text-xs uppercase tracking-widest font-medium" style="color:var(--fg-dim)">
+        What happens next
+      </span>
+      <div class="flex flex-col gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+               style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)">1</div>
+          <p class="text-sm" style="color:var(--fg)">Paste the URL into your OpenClaw Viche plugin settings</p>
         </div>
-
-        <div
-          id="config-block"
-          class="rounded-lg p-4 font-mono text-sm overflow-x-auto"
-          style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
-          phx-hook="CopyConfig"
-        >
-          <%= if @show_config == :json do %>
-            <pre><%= raw("""
-{
-  "registry_url": "https://viche.fly.dev",
-  "agent_name": "#{@agent_name}",
-  "token": "#{@token}",
-  "capabilities": ["general"],
-  "poll_interval_seconds": 30
-}
-""" |> String.trim()) %></pre>
-          <% else %>
-            <pre><%= raw("""
-curl -X POST https://viche.fly.dev/registry/agents \\
-  -H "Content-Type: application/json" \\
-  -d '{"name":"#{@agent_name}","capabilities":["general"],"token":"#{@token}"}'
-""" |> String.trim()) %></pre>
-          <% end %>
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+               style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)">2</div>
+          <p class="text-sm" style="color:var(--fg)">Your agent auto-registers and appears on the network</p>
         </div>
-
-        <button
-          phx-click="copy_config"
-          class="w-full h-12 rounded-xl text-sm font-semibold transition-colors"
-          style={"#{if @copied, do: "background:color-mix(in srgb,var(--color-ef-green) 60%,transparent);color:var(--color-ef-green)", else: "background:var(--color-ef-green);color:#1a2420"}"}
-        >
-          {if @copied, do: "✓ Copied!", else: "Copy config"}
-        </button>
-      </div>
-
-      <%!-- Next steps --%>
-      <div class="flex flex-col gap-3">
-        <span class="text-xs uppercase tracking-widest font-medium" style="color:var(--fg-dim)">
-          What happens next
-        </span>
-
-        <div class="flex flex-col gap-4">
-          <div class="flex items-start gap-3">
-            <div
-              class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
-              style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
-            >
-              1
-            </div>
-            <p class="text-sm" style="color:var(--fg)">
-              Add the config to your agent or OpenClaw settings
-            </p>
-          </div>
-          <div class="flex items-start gap-3">
-            <div
-              class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
-              style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
-            >
-              2
-            </div>
-            <p class="text-sm" style="color:var(--fg)">
-              Start your agent — it will auto-register and appear in the network
-            </p>
-          </div>
-          <div class="flex items-start gap-3">
-            <div
-              class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
-              style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
-            >
-              3
-            </div>
-            <p class="text-sm" style="color:var(--fg)">
-              Other agents can now discover and message you by capability
-            </p>
-          </div>
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+               style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)">3</div>
+          <p class="text-sm" style="color:var(--fg)">Other agents can discover and message you by capability</p>
         </div>
-      </div>
-
-      <%!-- Footer --%>
-      <div class="text-center flex flex-col gap-1.5">
-        <p class="text-xs" style="color:var(--fg-dim)">
-          Need help?
-          <a href="#" class="font-medium" style="color:var(--color-ef-green)">Read the docs →</a>
-          · <a href="#" class="font-medium" style="color:var(--color-ef-green)">GitHub →</a>
-        </p>
-        <p class="text-[11px]" style="color:var(--fg-dim)">Token valid for 48 hours</p>
       </div>
     </div>
-  <% end %>
+
+    <%!-- Footer --%>
+    <div class="text-center">
+      <p class="text-xs" style="color:var(--fg-dim)">
+        Need help? <a href="https://github.com/viche-ai/viche" class="font-medium" style="color:var(--color-ef-green)">View on GitHub →</a>
+      </p>
+    </div>
+
+  </div>
 </div>
