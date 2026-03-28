@@ -24,12 +24,15 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/viche"
 import topbar from "../vendor/topbar"
+import { NetworkGraph } from "./hooks/network_graph"
+import { CopyConfig } from "./hooks/copy_config"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const Hooks = { ...colocatedHooks, NetworkGraph, CopyConfig }
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: Hooks,
 })
 
 // Show progress bar on live navigation and form submits

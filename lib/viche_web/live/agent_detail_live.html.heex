@@ -1,0 +1,378 @@
+<div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
+  <%!-- SIDEBAR --%>
+  <aside
+    style="background:var(--bg-1);border-right:1px solid var(--border)"
+    class="w-[216px] min-w-[216px] flex flex-col"
+  >
+    <%!-- Logo --%>
+    <div class="px-4 py-4 flex items-center gap-2">
+      <div
+        class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold"
+        style="background:var(--color-ef-green);color:var(--color-ef-bg0)"
+      >
+        V
+      </div>
+      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">viche</span>
+      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1</span>
+    </div>
+
+    <%!-- Nav --%>
+    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
+      <.link navigate="/dashboard" class="nav-item">
+        <.icon name="hero-squares-2x2-micro" class="size-4" />
+        <span>Dashboard</span>
+      </.link>
+
+      <.link navigate="/network" class="nav-item">
+        <.icon name="hero-signal-micro" class="size-4" />
+        <span>Network</span>
+      </.link>
+
+      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <.link
+        navigate="/agents"
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);margin-left:-2px"
+      >
+        <.icon name="hero-users-micro" class="size-4" />
+        <span class="flex-1">All Agents</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
+      </.link>
+
+      <.link navigate="/agents?status=online" class="nav-item">
+        <.icon name="hero-bolt-micro" class="size-4" />
+        <span class="flex-1">Online</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
+        >
+          {@online_count}
+        </span>
+      </.link>
+
+      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <.link navigate="/sessions" class="nav-item">
+        <.icon name="hero-clock-micro" class="size-4" />
+        <span class="flex-1">Sessions</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
+        >
+          {@session_count}
+        </span>
+      </.link>
+
+      <.link navigate="/inbox" class="nav-item">
+        <.icon name="hero-envelope-micro" class="size-4" />
+        <span>Inbox Monitor</span>
+      </.link>
+
+      <div class="flex-1"></div>
+
+      <.link navigate="/settings" class="nav-item">
+        <.icon name="hero-cog-6-tooth-micro" class="size-4" />
+        <span>Settings</span>
+      </.link>
+
+      <a
+        href="https://github.com/ihorkatkov/viche"
+        target="_blank"
+        rel="noopener"
+        class="nav-item mb-2"
+      >
+        <.icon name="hero-code-bracket-micro" class="size-4" />
+        <span>GitHub</span>
+      </a>
+    </nav>
+  </aside>
+
+  <%!-- MAIN --%>
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <%!-- TOPBAR --%>
+    <div
+      class="h-[50px] flex items-center px-5 gap-3 border-b flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border)"
+    >
+      <.link navigate="/agents" class="flex items-center gap-1 text-[13px]" style="color:var(--fg-dim)">
+        <.icon name="hero-arrow-left-micro" class="size-3.5" />
+        Agents
+      </.link>
+      <%= if @agent do %>
+        <span class="text-[13px]" style="color:var(--fg-dim)">/</span>
+        <span class="text-[15px] font-semibold" style="color:var(--fg)">{@agent.name}</span>
+        <span class={"status-pill #{@agent.status}"}>{@agent.status}</span>
+      <% end %>
+      <div class="flex-1"></div>
+      <span class="flex items-center gap-1.5 text-[11px]" style="color:var(--color-ef-green)">
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+        </span>
+        Live
+      </span>
+      <Layouts.theme_toggle />
+    </div>
+
+    <%= if @agent == nil do %>
+      <%!-- NOT FOUND --%>
+      <div class="flex-1 flex items-center justify-center flex-col gap-4">
+        <span class="text-[14px]" style="color:var(--fg-dim)">Agent not found</span>
+        <.link
+          navigate="/agents"
+          class="text-[12px] px-4 py-1.5 rounded-lg"
+          style="background:var(--color-ef-green);color:var(--color-ef-bg0)"
+        >
+          Back to Agents
+        </.link>
+      </div>
+    <% else %>
+      <%!-- CONTENT: two-column --%>
+      <div class="flex-1 flex overflow-hidden">
+        <%
+          avatar_colors = ["var(--color-ef-green)", "var(--color-ef-blue)", "var(--color-ef-purple)", "var(--color-ef-yellow)", "var(--color-ef-aqua)"]
+          avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(@agent.name), 5))
+          initial = @agent.name |> String.first() |> String.upcase()
+        %>
+
+        <%!-- LEFT COLUMN: Profile --%>
+        <div
+          class="w-[380px] min-w-[380px] overflow-y-auto p-4 flex flex-col gap-4"
+          style="border-right:1px solid var(--border)"
+        >
+          <%!-- Profile Card --%>
+          <div class="rounded-lg p-4" style="background:var(--bg-1);border:1px solid var(--border)">
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="w-14 h-14 rounded-lg flex items-center justify-center text-[20px] font-bold flex-shrink-0"
+                style={"background:color-mix(in srgb, #{avatar_color} 20%, transparent);color:#{avatar_color}"}
+              >
+                {initial}
+              </div>
+              <div>
+                <div class="text-[20px] font-bold" style="color:var(--fg)">{@agent.name}</div>
+                <span class={"status-pill #{@agent.status}"}>{@agent.status}</span>
+              </div>
+            </div>
+            <div class="text-[11px] font-mono mb-3" style="color:var(--fg-dim)">{@agent.id}</div>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div style="color:var(--fg-dim)">Registered</div>
+              <div style="color:var(--fg)">2h ago</div>
+              <div style="color:var(--fg-dim)">Last seen</div>
+              <div style="color:var(--fg)">{@agent.last_seen}</div>
+              <div style="color:var(--fg-dim)">Registry</div>
+              <div style="color:var(--fg)">global</div>
+              <div style="color:var(--fg-dim)">Queue depth</div>
+              <div style="color:var(--fg)">{@agent.queue_depth}</div>
+            </div>
+          </div>
+
+          <%!-- Capabilities Card --%>
+          <div class="rounded-lg p-4" style="background:var(--bg-1);border:1px solid var(--border)">
+            <div class="text-[12px] font-semibold uppercase tracking-wide mb-3" style="color:var(--fg-dim)">
+              Capabilities
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <%= for cap <- @agent.capabilities do %>
+                <span
+                  class="cap-tag text-[12px] px-2.5 py-1 flex items-center gap-1.5"
+                >
+                  <span>{cap_icon(cap)}</span>
+                  {cap}
+                </span>
+              <% end %>
+            </div>
+          </div>
+
+          <%!-- Stats Card --%>
+          <div class="rounded-lg p-4" style="background:var(--bg-1);border:1px solid var(--border)">
+            <div class="text-[12px] font-semibold uppercase tracking-wide mb-3" style="color:var(--fg-dim)">
+              Stats
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-green)">47</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Tasks today</div>
+              </div>
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-blue)">12s</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Avg response</div>
+              </div>
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-purple)">98.2%</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Success rate</div>
+              </div>
+              <div>
+                <div class="text-[18px] font-bold" style="color:var(--color-ef-aqua)">2h 14m</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">Uptime</div>
+              </div>
+            </div>
+          </div>
+
+          <%!-- Recent Sessions Card --%>
+          <div class="rounded-lg p-4" style="background:var(--bg-1);border:1px solid var(--border)">
+            <div class="text-[12px] font-semibold uppercase tracking-wide mb-3" style="color:var(--fg-dim)">
+              Recent Sessions
+            </div>
+            <div class="flex flex-col gap-1">
+              <.link
+                navigate="/sessions"
+                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
+                style="background:transparent"
+              >
+                <div>
+                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_4f2a</div>
+                  <div class="text-[10px]" style="color:var(--fg-dim)">with geth-hivemind &middot; 14 msgs</div>
+                </div>
+                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
+              </.link>
+              <.link
+                navigate="/sessions"
+                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
+                style="background:transparent"
+              >
+                <div>
+                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_2e7d</div>
+                  <div class="text-[10px]" style="color:var(--fg-dim)">with opencode-worker-3 &middot; 22 msgs</div>
+                </div>
+                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
+              </.link>
+              <.link
+                navigate="/sessions"
+                class="flex items-center justify-between py-2 px-2 rounded-md cursor-pointer transition-colors"
+                style="background:transparent"
+              >
+                <div>
+                  <div class="text-[12px] font-mono" style="color:var(--fg)">sess_b9c1</div>
+                  <div class="text-[10px]" style="color:var(--fg-dim)">with aris-prod &middot; 9 msgs</div>
+                </div>
+                <span style="color:var(--fg-dim)"><.icon name="hero-chevron-right-micro" class="size-3.5" /></span>
+              </.link>
+            </div>
+          </div>
+        </div>
+
+        <%!-- RIGHT COLUMN: Task Dispatch --%>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <%!-- Send Task --%>
+          <div class="rounded-lg p-4" style="background:var(--bg-1);border:1px solid var(--border)">
+            <div class="text-[13px] font-semibold mb-3" style="color:var(--fg)">Send Task</div>
+            <.form for={%{}} phx-submit="dispatch_task" phx-change="task_input_changed">
+              <textarea
+                name="task"
+                value={@task_input}
+                rows="6"
+                placeholder={"Write a task for #{@agent.name}..."}
+                class="w-full rounded-lg p-3 text-sm font-mono resize-none outline-none"
+                style="background:var(--bg-2);color:var(--fg);border:1px solid var(--border)"
+              >{@task_input}</textarea>
+              <div class="flex items-center justify-between mt-2">
+                <div class="text-[10px] font-mono" style="color:var(--fg-dim)">
+                  {String.length(@task_input)} / 4096
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    phx-click="clear_task"
+                    class="text-[11px] px-3 py-1.5 rounded-lg transition-colors"
+                    style="background:var(--bg-2);color:var(--fg-dim);border:1px solid var(--border)"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="submit"
+                    class="text-[11px] px-4 py-1.5 rounded-lg font-semibold transition-colors"
+                    style="background:var(--color-ef-green);color:var(--color-ef-bg0)"
+                  >
+                    <.icon name="hero-paper-airplane-micro" class="size-3.5 inline mr-1" />
+                    Send Task
+                  </button>
+                </div>
+              </div>
+            </.form>
+          </div>
+
+          <%!-- Response Area --%>
+          <div
+            class="rounded-lg p-3 font-mono text-sm flex-1"
+            style="background:var(--bg-2);border:1px solid var(--border);min-height:200px;color:var(--fg)"
+          >
+            <%= cond do %>
+              <% @response == nil -> %>
+                <div class="text-[12px]" style="color:var(--fg-dim)">Response will appear here...</div>
+              <% @response.status == :pending && @response.messages == [] -> %>
+                <div class="flex items-center gap-2">
+                  <span class="flex gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-bounce" style="animation-delay:0ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-bounce" style="animation-delay:150ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-bounce" style="animation-delay:300ms"></span>
+                  </span>
+                  <span class="text-[12px]" style="color:var(--fg-dim)">Processing...</span>
+                </div>
+              <% true -> %>
+                <div class="flex flex-col gap-2">
+                  <%= for msg <- @response.messages do %>
+                    <div class="flex gap-2">
+                      <span
+                        class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded flex-shrink-0 self-start"
+                        style="background:color-mix(in srgb, var(--color-ef-blue) 20%, transparent);color:var(--color-ef-blue)"
+                      >
+                        {msg.type}
+                      </span>
+                      <span class="text-[12px]" style="color:var(--fg)">{msg.body}</span>
+                    </div>
+                  <% end %>
+                </div>
+            <% end %>
+          </div>
+
+          <%!-- Dispatch History --%>
+          <%= if @dispatch_history != [] do %>
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-wide mb-2" style="color:var(--fg-dim)">
+                This session
+              </div>
+              <div class="flex flex-col gap-1">
+                <%= for entry <- @dispatch_history do %>
+                  <div
+                    class="flex items-center gap-2 px-3 py-2 rounded-md text-[11px]"
+                    style="background:var(--bg-1);border:1px solid var(--border)"
+                  >
+                    <span class="truncate flex-1 font-mono" style="color:var(--fg)">{String.slice(entry.task, 0, 60)}</span>
+                    <span style="color:var(--fg-dim)">&rarr;</span>
+                    <span
+                      class="text-[10px] font-mono"
+                      style={if entry.result == "pending", do: "color:var(--color-ef-yellow)", else: "color:var(--color-ef-green)"}
+                    >
+                      {entry.result}
+                    </span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%!-- STATUS BAR --%>
+    <div
+      class="h-6 flex items-center px-4 gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+      </span>
+      ws://viche.fly.dev/socket
+      <span class="opacity-30">|</span>
+      registry: public
+      <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online
+      <span class="opacity-30">|</span>
+      {@messages_today} messages today
+    </div>
+  </main>
+</div>

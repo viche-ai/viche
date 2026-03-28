@@ -25,6 +25,13 @@ defmodule VicheWeb.Router do
 
     get "/", PageController, :home
     live "/dashboard", DashboardLive
+    live "/agents", AgentsLive
+    live "/agents/:id", AgentDetailLive
+    live "/sessions", SessionsLive
+    live "/network", NetworkLive
+    live "/demo", DemoLive
+    live "/join/:hash", JoinLive
+    live "/settings", SettingsLive
   end
 
   scope "/.well-known", VicheWeb do

@@ -1,0 +1,209 @@
+<div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
+  <%!-- SIDEBAR --%>
+  <aside
+    style="background:var(--bg-1);border-right:1px solid var(--border)"
+    class="w-[216px] min-w-[216px] flex flex-col"
+  >
+    <%!-- Logo --%>
+    <div class="px-4 py-4 flex items-center gap-2">
+      <div
+        class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold"
+        style="background:var(--color-ef-green);color:var(--color-ef-bg0)"
+      >
+        V
+      </div>
+      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">viche</span>
+      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1</span>
+    </div>
+
+    <%!-- Nav --%>
+    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
+      <.link navigate="/dashboard" class="nav-item">
+        <.icon name="hero-squares-2x2-micro" class="size-4" />
+        <span>Dashboard</span>
+      </.link>
+
+      <div
+        class="nav-item active"
+        style="border-left:2px solid var(--color-ef-green);margin-left:-2px"
+      >
+        <.icon name="hero-signal-micro" class="size-4" />
+        <span>Network</span>
+      </div>
+
+      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <.link navigate="/agents" class="nav-item">
+        <.icon name="hero-users-micro" class="size-4" />
+        <span class="flex-1">All Agents</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          {@agent_count}
+        </span>
+      </.link>
+
+      <.link navigate="/agents?status=online" class="nav-item">
+        <.icon name="hero-bolt-micro" class="size-4" />
+        <span class="flex-1">Online</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
+        >
+          {@online_count}
+        </span>
+      </.link>
+
+      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+
+      <.link navigate="/sessions" class="nav-item">
+        <.icon name="hero-clock-micro" class="size-4" />
+        <span class="flex-1">Sessions</span>
+        <span
+          class="text-[10px] font-mono px-1.5 rounded"
+          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
+        >
+          {@session_count}
+        </span>
+      </.link>
+
+      <.link navigate="/inbox" class="nav-item">
+        <.icon name="hero-envelope-micro" class="size-4" />
+        <span>Inbox Monitor</span>
+      </.link>
+
+      <div class="flex-1"></div>
+
+      <.link navigate="/settings" class="nav-item">
+        <.icon name="hero-cog-6-tooth-micro" class="size-4" />
+        <span>Settings</span>
+      </.link>
+
+      <a
+        href="https://github.com/ihorkatkov/viche"
+        target="_blank"
+        rel="noopener"
+        class="nav-item mb-2"
+      >
+        <.icon name="hero-code-bracket-micro" class="size-4" />
+        <span>GitHub</span>
+      </a>
+    </nav>
+  </aside>
+
+  <%!-- MAIN --%>
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <%!-- TOPBAR --%>
+    <div
+      class="h-[50px] flex items-center px-5 gap-3 border-b flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border)"
+    >
+      <span class="text-[15px] font-semibold" style="color:var(--fg)">Network</span>
+      <span class="text-[13px]" style="color:var(--fg-dim)">/ live</span>
+      <span class="flex items-center gap-1.5 text-[11px]" style="color:var(--color-ef-green)">
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+        </span>
+      </span>
+      <span
+        class="text-[10px] font-mono px-1.5 rounded"
+        style="background:var(--bg-2);color:var(--fg-dim)"
+      >
+        {@agent_count} agents
+      </span>
+      <div class="flex-1"></div>
+      <Layouts.theme_toggle />
+    </div>
+
+    <%!-- CONTENT: 3-column --%>
+    <div class="flex-1 flex overflow-hidden">
+      <%!-- LEFT: Agent Roster --%>
+      <div class="w-[220px] border-r overflow-y-auto flex-shrink-0" style="background:var(--bg-1);border-color:var(--border)">
+        <div class="flex items-center px-3 py-2.5 gap-2" style="border-bottom:1px solid var(--border)">
+          <span class="text-[12px] font-semibold" style="color:var(--fg)">Agents</span>
+          <span
+            class="text-[10px] font-mono px-1.5 rounded"
+            style="background:var(--bg-2);color:var(--fg-dim)"
+          >
+            {@agent_count}
+          </span>
+        </div>
+        <%= for agent <- @agents do %>
+          <div
+            class="flex items-center gap-2.5 px-3 py-2.5 border-b cursor-pointer"
+            style="border-color:var(--border)"
+            phx-click={JS.push("noop")}
+            id={"roster-#{agent.id}"}
+          >
+            <span class="w-2 h-2 rounded-full" style={"background:#{agent.color}"}></span>
+            <div class="flex-1 min-w-0">
+              <div class="text-[12.5px] font-medium truncate" style="color:var(--fg)">{agent.name}</div>
+              <div class="text-[10px]" style="color:var(--fg-dim)">{agent.status}</div>
+            </div>
+            <span class={"status-pill #{agent.status} text-[9px] px-1.5"}>{agent.status}</span>
+          </div>
+        <% end %>
+      </div>
+
+      <%!-- CENTRE: Graph --%>
+      <div class="flex-1 relative" style="background:var(--bg)">
+        <div
+          id="network-graph"
+          phx-hook="NetworkGraph"
+          phx-update="ignore"
+          data-agents={Jason.encode!(Enum.map(@agents, fn a -> %{id: a.id, name: a.name, color: a.color, status: to_string(a.status)} end))}
+          data-links={Jason.encode!(@links)}
+          class="w-full h-full absolute inset-0"
+        >
+        </div>
+        <div class="absolute top-3 left-3 flex items-center gap-1.5 text-[11px] pointer-events-none" style="color:var(--color-ef-green)">
+          <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+          LIVE MESH
+        </div>
+      </div>
+
+      <%!-- RIGHT: Events Feed --%>
+      <div class="w-[260px] border-l flex flex-col overflow-hidden" style="background:var(--bg-1);border-color:var(--border)">
+        <div class="flex items-center px-3 py-2.5 gap-2 flex-shrink-0" style="border-bottom:1px solid var(--border)">
+          <span class="text-[12px] font-semibold" style="color:var(--fg)">Events</span>
+          <div class="flex-1"></div>
+          <button
+            phx-click="toggle_pause"
+            class="text-[11px] px-2 py-1 rounded flex items-center gap-1"
+            style={"background:var(--bg-2);color:#{if @paused, do: "var(--color-ef-yellow)", else: "var(--fg-dim)"}"}
+          >
+            <.icon name={if @paused, do: "hero-play-micro", else: "hero-pause-micro"} class="size-3" />
+            {if @paused, do: "Resume", else: "Pause"}
+          </button>
+        </div>
+        <div class="overflow-y-auto flex-1">
+          <%= for item <- @feed do %>
+            <div class="px-3 py-2.5 border-b flex gap-2 items-start" style="border-color:var(--border)">
+              <span class={"feed-type #{item.type} mt-0.5"}>{item.type}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-[11px] font-medium truncate" style="color:var(--fg)">{item.from} &rarr; {item.to}</div>
+                <div class="text-[10px]" style="color:var(--fg-dim)">{item.at}</div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%!-- STATUS BAR --%>
+    <div
+      class="h-6 flex items-center px-4 gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+      </span>
+      ws://viche.fly.dev/socket
+      <span class="opacity-30">|</span>
+      registry: public
+      <span class="opacity-30">|</span>
+      {@agent_count} agents &middot; {@online_count} online
+      <span class="opacity-30">|</span>
+      {@messages_today} messages today
+    </div>
+  </main>
+</div>
