@@ -20,23 +20,23 @@ export interface VicheConfig {
   agentName?: string;
   /** Optional agent description. */
   description?: string;
-  /**
-   * OpenClaw hooks token used for webhook injection (`POST /hooks/agent`).
-   * Falls back to `config.hooks.token` from the main OpenClaw config when omitted.
-   */
-  hooksToken?: string;
-  /**
-   * OpenClaw gateway URL used for webhook injection.
-   * Default: "http://127.0.0.1:18789"
-   */
-  gatewayUrl?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Runtime type alias
+// ---------------------------------------------------------------------------
+
+/**
+ * Alias for the OpenClaw PluginRuntime object passed to the service.
+ * Typed as `any` to avoid importing the full SDK runtime type.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PluginRuntime = any;
+
 /** Defaults applied when config fields are omitted. */
-const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[]; gatewayUrl: string } = {
+const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[] } = {
   registryUrl: "http://localhost:4000",
   capabilities: ["coding"],
-  gatewayUrl: "http://127.0.0.1:18789",
 };
 
 type Issue = { path: Array<string | number>; message: string };
@@ -90,16 +90,6 @@ export const VicheConfigSchema = {
       return issue(["description"], "must be a string");
     }
 
-    // hooksToken
-    if (raw.hooksToken !== undefined && typeof raw.hooksToken !== "string") {
-      return issue(["hooksToken"], "must be a string");
-    }
-
-    // gatewayUrl
-    if (raw.gatewayUrl !== undefined && typeof raw.gatewayUrl !== "string") {
-      return issue(["gatewayUrl"], "must be a string");
-    }
-
     const normalized: VicheConfig = {
       registryUrl:
         typeof raw.registryUrl === "string"
@@ -111,11 +101,8 @@ export const VicheConfigSchema = {
     };
 
     // Only assign optional string properties when present to satisfy exactOptionalPropertyTypes.
-    const gatewayUrl = typeof raw.gatewayUrl === "string" ? raw.gatewayUrl : CONFIG_DEFAULTS.gatewayUrl;
-    if (gatewayUrl !== undefined) normalized.gatewayUrl = gatewayUrl;
     if (typeof raw.agentName === "string") normalized.agentName = raw.agentName;
     if (typeof raw.description === "string") normalized.description = raw.description;
-    if (typeof raw.hooksToken === "string") normalized.hooksToken = raw.hooksToken;
 
     return { success: true, data: normalized };
   },
@@ -142,16 +129,6 @@ export const VicheConfigSchema = {
       description: {
         type: "string",
         description: "Short description of this agent",
-      },
-      hooksToken: {
-        type: "string",
-        description:
-          "OpenClaw hooks token for webhook injection. Defaults to config.hooks.token.",
-      },
-      gatewayUrl: {
-        type: "string",
-        default: "http://127.0.0.1:18789",
-        description: "OpenClaw gateway URL for inbound message injection",
       },
     },
   },

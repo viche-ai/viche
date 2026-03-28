@@ -15,7 +15,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { createVicheService } from "./service.js";
 import { registerVicheTools } from "./tools.js";
 import { VicheConfigSchema } from "./types.js";
-import type { VicheConfig, VicheState } from "./types.js";
+import type { VicheConfig, VicheState, PluginRuntime } from "./types.js";
 
 export default definePluginEntry({
   id: "viche",
@@ -44,7 +44,9 @@ export default definePluginEntry({
     const state: VicheState = { agentId: null };
 
     // Background service — registration + WebSocket lifecycle.
-    api.registerService(createVicheService(config, state));
+    const runtime = (api as unknown as { runtime: PluginRuntime }).runtime;
+    const openclawConfig = (api as unknown as { config: unknown }).config;
+    api.registerService(createVicheService(config, state, runtime, openclawConfig));
 
     // Agent-callable tools.
     registerVicheTools(api, config, state);

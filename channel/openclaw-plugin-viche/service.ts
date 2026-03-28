@@ -6,8 +6,8 @@
  *      (HTTP POST /registry/register, 3 attempts with 2 s backoff).
  *   2. Connect a Phoenix Channel WebSocket (`ws://.../agent/websocket`) and
  *      join `agent:{agentId}` to receive real-time messages.
- *   3. On `new_message` events, inject the message into the OpenClaw session
- *      via the local gateway's `POST /hooks/agent` webhook.
+ *   3. On `new_message` events, inject the message into the main agent session
+ *      via `runtime.subagent.run()` so the user sees it with full context.
  *   4. On stop, leave the channel, disconnect the socket, and clear state.
  */
 
@@ -21,6 +21,7 @@ import type {
 import type {
   AgentInfo,
   InboundMessagePayload,
+  PluginRuntime,
   RegisterResponse,
   VicheConfig,
   VicheState,
@@ -88,51 +89,31 @@ async function registerWithRetry(
 }
 
 // ---------------------------------------------------------------------------
-// Inbound message injection
+// Inbound message injection into main session
 // ---------------------------------------------------------------------------
 
 async function handleInboundMessage(
   payload: InboundMessagePayload,
-  gatewayUrl: string,
-  hooksToken: string | undefined,
+  runtime: PluginRuntime,
   logger: PluginLogger,
 ): Promise<void> {
   const label = payload.type === "result" ? "Result" : "Task";
   const message = `[Viche ${label} from ${payload.from}] ${payload.body}`;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (hooksToken) {
-    headers["Authorization"] = `Bearer ${hooksToken}`;
-  }
-
   try {
-    const resp = await fetch(`${gatewayUrl}/hooks/agent`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        message,
-        metadata: {
-          message_id: payload.id,
-          from: payload.from,
-          type: payload.type,
-        },
-      }),
+    const { runId } = await runtime.subagent.run({
+      sessionKey: "agent:main:main",
+      message,
+      deliver: false,
+      idempotencyKey: payload.id,
     });
-
-    if (!resp.ok) {
-      logger.warn(
-        `Viche: webhook injection returned ${resp.status} ${resp.statusText} for message ${payload.id}`,
-      );
-    } else {
-      logger.info(`Viche: injected message ${payload.id} from ${payload.from}`);
-    }
+    logger.info(
+      `Viche: injected message ${payload.id} from ${payload.from} into main session (runId: ${runId})`,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.warn(`Viche: failed to inject inbound message ${payload.id}: ${msg}`);
-    // Do NOT rethrow — a transient injection failure must not crash the service.
+    logger.warn(`Viche: failed to inject message ${payload.id}: ${msg}`);
+    // Do NOT rethrow — a transient failure must not crash the service.
   }
 }
 
@@ -143,13 +124,17 @@ async function handleInboundMessage(
 /**
  * Returns an OpenClawPluginService that manages the Viche WebSocket lifecycle.
  *
- * @param config  - Resolved plugin config (from types.VicheConfig).
- * @param state   - Shared mutable state object written by the service and
- *                  read by the tool handlers.
+ * @param config        - Resolved plugin config (from types.VicheConfig).
+ * @param state         - Shared mutable state object written by the service and
+ *                        read by the tool handlers.
+ * @param runtime       - OpenClaw PluginRuntime for spawning subagent sessions.
+ * @param _openclawConfig - Full OpenClaw config (reserved for future use).
  */
 export function createVicheService(
   config: VicheConfig,
   state: VicheState,
+  runtime: PluginRuntime,
+  _openclawConfig: unknown,
 ): OpenClawPluginService {
   let socket: PhoenixSocket | null = null;
   let channel: PhoenixChannel | null = null;
@@ -163,32 +148,22 @@ export function createVicheService(
       // 1. Register with Viche (with retry)
       state.agentId = await registerWithRetry(config, logger);
 
-      // 2. Resolve auth token for inbound webhook injection.
-      //    Plugin config takes priority; fall back to the main gateway hooks token.
-      const mainConfig = ctx.config as Record<string, unknown>;
-      const hooksSection = mainConfig.hooks as Record<string, unknown> | undefined;
-      const hooksToken: string | undefined =
-        config.hooksToken ??
-        (typeof hooksSection?.token === "string" ? hooksSection.token : undefined);
-
-      const gatewayUrl = config.gatewayUrl ?? "http://127.0.0.1:18789";
-
-      // 3. Connect Phoenix WebSocket
+      // 2. Connect Phoenix WebSocket
       const wsBase = config.registryUrl.replace(/^http/, "ws");
       socket = new Socket(`${wsBase}/agent/websocket`, {
         params: { agent_id: state.agentId },
       });
       socket.connect();
 
-      // 4. Join agent channel
+      // 3. Join agent channel
       channel = socket.channel(`agent:${state.agentId}`, {});
 
-      // 5. Subscribe to inbound messages before joining to avoid missing events
+      // 4. Subscribe to inbound messages before joining to avoid missing events
       channel.on("new_message", (payload: InboundMessagePayload) => {
-        void handleInboundMessage(payload, gatewayUrl, hooksToken, logger);
+        void handleInboundMessage(payload, runtime, logger);
       });
 
-      // 6. Join and wait for confirmation
+      // 5. Join and wait for confirmation
       await new Promise<void>((resolve, reject) => {
         channel!
           .join()
