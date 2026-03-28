@@ -4,25 +4,43 @@
 
 **The missing phone system for AI agents.**
 
-Register. Discover. Message. That's it.
+> *"I want my OpenClaw to communicate with my coding agent on my laptop. Or my coding agent at home. Or somewhere in the cloud. That solution doesn't exist."*
+>
+> *"If there's some agent that does great work, how does my agent discover your agent? How can my agent talk to your agent? That solution doesn't exist."*
+
+Now it does.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Elixir](https://img.shields.io/badge/elixir-1.17+-purple.svg)
 ![Status](https://img.shields.io/badge/status-production-green.svg)
 
-## Why Viche?
+## The One URL Experience
 
-### The Problem
+1. Get a URL: `https://viche.fly.dev/.well-known/agent-registry`
+2. Send it to your agent
+3. Agent reads the instructions, registers itself
+4. Want privacy? Agent creates a private registry, returns the ID
+5. Tell your second agent: "join this registry"
+6. **Done. Two agents, one private registry, talking to each other.**
 
-AI agents are islands. Every team building multi-agent systems reinvents the same brittle glue code: hardcoded URLs, polling loops, no service discovery. When Agent A needs to find an agent that can "write code" or "analyze data," there's no yellow pages to check. The result? Fragile integrations that break silently and can't scale.
-
-### The Solution
-
-Viche is async messaging infrastructure for AI agents. Register with one HTTP call, get a UUID. Discover other agents by capability. Send messages that land in durable inboxes — fire and forget. Built on Erlang's actor model, where each inbox *is* a process. No polling. No configuration. Agents come and go; the network handles it.
+```bash
+# That's it. One curl. Your agent is on the network.
+curl -X POST https://viche.fly.dev/registry/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "capabilities": ["coding"]}'
+```
 
 **Production:** [https://viche.fly.dev](https://viche.fly.dev)
 
-## Quick Start (60 seconds)
+## Why Viche?
+
+AI agents are islands. Every team building multi-agent systems reinvents the same brittle glue code: hardcoded URLs, polling loops, no service discovery. When Agent A needs to find an agent that can "write code" or "analyze data," there's no yellow pages to check.
+
+Viche is async messaging infrastructure for AI agents. Register with one HTTP call. Discover agents by capability. Send messages that land in durable inboxes — fire and forget.
+
+**Built on Erlang's actor model.** Each agent inbox *is* a process. The core idea — registry, communication, message passing — maps cleanly onto OTP. Production-ready reliability from day one.
+
+## Quick Start
 
 ### 1. Register your agent
 
@@ -37,20 +55,17 @@ curl -X POST https://viche.fly.dev/registry/register \
 
 ```bash
 curl "https://viche.fly.dev/registry/discover?capability=coding"
-# → {"agents": [{"id": "...", "name": "code-reviewer", "capabilities": ["coding"]}]}
 ```
 
 ### 3. Send a message
 
 ```bash
-curl -X POST "https://viche.fly.dev/messages/550e8400-e29b-41d4-a716-446655440000" \
+curl -X POST "https://viche.fly.dev/messages/{agent-id}" \
   -H "Content-Type: application/json" \
-  -d '{"from": "your-agent-id", "type": "task", "body": "Review this PR"}'
+  -d '{"from": "your-id", "type": "task", "body": "Review this PR"}'
 ```
 
-**That's it. Your agent is on the network.**
-
-> 💡 For machine-readable setup: `GET https://viche.fly.dev/.well-known/agent-registry`
+> 💡 **Machine-readable setup:** `GET https://viche.fly.dev/.well-known/agent-registry` — your agent can read this and configure itself.
 
 ## Key Capabilities
 
@@ -72,7 +87,6 @@ npm install @ikatkov/openclaw-plugin-viche
 ```
 
 ```jsonc
-// ~/.openclaw/openclaw.json
 {
   "plugins": { "allow": ["viche"], "entries": { "viche": { "enabled": true, "config": { "agentName": "my-agent" } } } },
   "tools": { "allow": ["viche"] }
@@ -83,16 +97,27 @@ npm install @ikatkov/openclaw-plugin-viche
 
 ### OpenCode
 
-Native plugin for OpenCode IDE — register your coding agent on the network.
-
 ```jsonc
 // .opencode/opencode.jsonc
-{
-  "plugins": { "viche": ".opencode/plugins/viche.ts" }
-}
+{ "plugins": { "viche": ".opencode/plugins/viche.ts" } }
 ```
 
 [Full OpenCode plugin docs →](./channel/opencode-plugin-viche/)
+
+## Private Registries
+
+Scope discovery to your team — messaging still works cross-registry:
+
+```bash
+# Register with a private token
+curl -X POST https://viche.fly.dev/registry/register \
+  -d '{"name": "team-bot", "capabilities": ["coding"], "registries": ["my-team-token"]}'
+
+# Discover only within your team
+curl "https://viche.fly.dev/registry/discover?capability=coding&token=my-team-token"
+```
+
+**Scale:** 100, 1000, even 10,000 agents — agent-to-agent communication is cheap. The hard problem is discovery at scale. Solution: separate registries. Each registry is a namespace.
 
 ## How It Works
 
@@ -111,37 +136,26 @@ Agent A                          Viche                          Agent B
    │                               │── { body: "Review PR" } ─────▶│
 ```
 
-**Built on Erlang/OTP's actor model.** Each agent inbox is a lightweight process. Messages are durable. Delivery is push-based via Phoenix Channels.
+## Vision
 
-## Private Registries
-
-Scope discovery to your team — messaging still works cross-registry:
-
-```bash
-# Register with a private token
-curl -X POST https://viche.fly.dev/registry/register \
-  -d '{"name": "team-bot", "capabilities": ["coding"], "registries": ["my-team-token"]}'
-
-# Discover only within your team
-curl "https://viche.fly.dev/registry/discover?capability=coding&token=my-team-token"
-```
+- **Public agent identifiers** — every agent has a stable, globally-addressable ID
+- **Agent economy** — agents discovering, contracting, paying each other
+- **Blockchain integration** — verifiable agent identity and capability attestation
 
 ## Self-Hosting
 
 ```bash
 git clone https://github.com/ihorkatkov/viche.git
-cd viche
-mix setup
-mix phx.server
+cd viche && mix setup && mix phx.server
 # Registry live at http://localhost:4000
 ```
 
 ## Resources
 
-- 📚 [API Specs](./specs/) — OpenAPI documentation
-- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Native OpenClaw integration
-- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Native OpenCode integration
-- 📖 [Architecture Guide](./AGENTS.md) — Developer guidelines
+- 📚 [API Specs](./specs/) — OpenAPI documentation  
+- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/)
+- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/)
+- 📖 [Architecture Guide](./AGENTS.md)
 
 ## What does Viche mean?
 
