@@ -221,11 +221,18 @@ export function createVicheService(
   let socket: PhoenixSocket | null = null;
   let channel: PhoenixChannel | null = null;
 
+  /** True once stop() is called; prevents recovery from spawning new connections. */
+  let stopped = false;
+  /** True while a re-registration + reconnect is in progress; prevents retry storms. */
+  let recovering = false;
+
   return {
     id: "viche-bridge",
 
     async start(ctx: OpenClawPluginServiceContext): Promise<void> {
       const logger = ctx.logger;
+      stopped = false;
+      recovering = false;
 
       // 1. Register with Viche (with retry)
       state.agentId = await registerWithRetry(config, logger);
@@ -236,10 +243,85 @@ export function createVicheService(
         const wsBase = config.registryUrl.replace(/^http/, "ws");
         socket = new Socket(`${wsBase}/agent/websocket`, {
           params: { agent_id: agentId },
+          reconnectAfterMs: (tries: number) =>
+            ([1000, 2000, 5000, 10000] as const)[tries - 1] ?? 10000,
         });
+
+        socket.onClose(() => {
+          logger.warn("Viche: WebSocket disconnected — will reconnect automatically");
+        });
+
+        socket.onOpen(() => {
+          logger.info("Viche: WebSocket (re)connected");
+        });
+
         socket.connect();
 
         channel = socket.channel(`agent:${agentId}`, {});
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        channel.onClose?.(() => {
+          logger.warn(`Viche: agent:${agentId} channel closed`);
+        });
+
+        // Fired when the channel rejoin is rejected by the server (e.g. agent_not_found
+        // after the agent process was killed while the transport was disconnected).
+        // We re-register to obtain a new agentId and reconnect on a fresh socket.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        channel.onError?.(async (reason: unknown) => {
+          // Guard: ignore if stop() was called or recovery is already running.
+          if (recovering || stopped) return;
+          recovering = true;
+
+          const reasonStr =
+            typeof reason === "string" ? reason : JSON.stringify(reason);
+          logger.warn(
+            `Viche: channel error (${reasonStr}) — re-registering to recover`,
+          );
+
+          // Capture stale refs before nulling so stop() sees a clean state
+          // even if it races with the async recovery below.
+          const staleChannel = channel;
+          const staleSocket = socket;
+          channel = null;
+          socket = null;
+
+          // Stop Phoenix's internal rejoin-retry loop on the old channel.
+          try {
+            staleChannel?.leave();
+          } catch {
+            /* ignore */
+          }
+
+          // Drop the transport.
+          try {
+            staleSocket?.disconnect();
+          } catch {
+            /* ignore */
+          }
+
+          if (stopped) {
+            recovering = false;
+            return;
+          }
+
+          try {
+            // Capture new ID before updating state so that a concurrent stop()
+            // leaves state.agentId as null (set by stop()) rather than the new ID.
+            const newAgentId = await registerWithRetry(config, logger);
+
+            if (stopped) return;
+
+            state.agentId = newAgentId;
+            await connectAndJoin(state.agentId);
+            logger.info(`Viche: recovered — re-registered as ${state.agentId}`);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.error(`Viche: channel recovery failed: ${msg}`);
+          } finally {
+            recovering = false;
+          }
+        });
 
         channel.on("new_message", async (payload: InboundMessagePayload) => {
           await handleInboundMessage(payload, runtime, config, state, logger);
@@ -303,6 +385,9 @@ export function createVicheService(
 
     async stop(ctx: OpenClawPluginServiceContext): Promise<void> {
       const logger = ctx.logger;
+
+      // Signal recovery (if running) to abort before it spawns new connections.
+      stopped = true;
 
       if (channel) {
         try {
