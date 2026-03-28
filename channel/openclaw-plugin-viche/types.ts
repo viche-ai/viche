@@ -133,6 +133,13 @@ const CONFIG_DEFAULTS: { registryUrl: string; capabilities: string[] } = {
   capabilities: ["coding"],
 };
 
+/**
+ * Valid registry token pattern — must match the server-side rule in AGENTS.md.
+ * Accepts 1–256 chars: alphanumeric, `.`, `_`, `-`.
+ * Rejects empty strings, whitespace-only strings, and strings containing spaces.
+ */
+const REGISTRY_TOKEN_RE = /^[a-zA-Z0-9._-]+$/;
+
 type Issue = { path: Array<string | number>; message: string };
 type SafeParseResult =
   | { success: true; data: VicheConfig }
@@ -148,9 +155,9 @@ function issue(path: Array<string | number>, message: string): SafeParseResult {
  */
 export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
   safeParse(value: unknown): SafeParseResult {
-    // Allow undefined / null → full defaults
+    // Allow undefined / null → full defaults with auto-generated private registry token
     if (value === undefined || value === null) {
-      return { success: true, data: { ...CONFIG_DEFAULTS } };
+      return { success: true, data: { ...CONFIG_DEFAULTS, registries: [crypto.randomUUID()] } };
     }
 
     if (typeof value !== "object" || Array.isArray(value)) {
@@ -186,17 +193,35 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
 
     // registries (new array form)
     if (raw.registries !== undefined) {
-      if (
-        !Array.isArray(raw.registries) ||
-        !raw.registries.every((r) => typeof r === "string")
-      ) {
+      if (!Array.isArray(raw.registries)) {
         return issue(["registries"], "must be an array of strings");
+      }
+      for (let i = 0; i < raw.registries.length; i++) {
+        const r = raw.registries[i];
+        if (typeof r !== "string") {
+          return issue(["registries", i], "must be a string");
+        }
+        if (!REGISTRY_TOKEN_RE.test(r)) {
+          return issue(
+            ["registries", i],
+            'must match ^[a-zA-Z0-9._-]+$ (no spaces or whitespace allowed)'
+          );
+        }
       }
     }
 
     // registryToken (legacy string — converted to single-element array)
-    if (raw.registryToken !== undefined && typeof raw.registryToken !== "string") {
-      return issue(["registryToken"], "must be a string");
+    if (raw.registryToken !== undefined) {
+      if (typeof raw.registryToken !== "string") {
+        return issue(["registryToken"], "must be a string");
+      }
+      // Non-empty value must satisfy the token format (empty string → treated as "not provided")
+      if (raw.registryToken.length > 0 && !REGISTRY_TOKEN_RE.test(raw.registryToken)) {
+        return issue(
+          ["registryToken"],
+          'must match ^[a-zA-Z0-9._-]+$ (no spaces or whitespace allowed)'
+        );
+      }
     }
 
     // defaultInboundSession
@@ -223,10 +248,14 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
     if (typeof raw.description === "string") normalized.description = raw.description;
 
     // Resolve registries: prefer `registries` array; fall back to legacy `registryToken` string.
+    // When neither is provided (or both are effectively empty), auto-generate a private UUID token
+    // so the server receives an explicit non-"global" token instead of silently joining "global".
     if (Array.isArray(raw.registries) && raw.registries.length > 0) {
       normalized.registries = raw.registries as string[];
     } else if (typeof raw.registryToken === "string" && raw.registryToken.length > 0) {
       normalized.registries = [raw.registryToken];
+    } else {
+      normalized.registries = [crypto.randomUUID()];
     }
 
     // defaultInboundSession

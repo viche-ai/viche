@@ -84,7 +84,8 @@ defmodule VicheWeb.SettingsLive do
     {:noreply, assign(socket, connection_status: :connected)}
   end
 
-  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
+  def handle_info({:messages_today, n}, socket),
+    do: {:noreply, assign(socket, :messages_today, n)}
 
   def handle_info(:reset_connection, socket) do
     {:noreply, assign(socket, connection_status: :idle)}

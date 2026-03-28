@@ -158,16 +158,14 @@ defmodule VicheWeb.WellKnownController do
         id: "openclaw",
         name: "OpenClaw Plugin",
         kind: "npm_plugin",
-        homepage_url:
-          "https://github.com/viche-ai/viche/tree/main/channel/openclaw-plugin-viche",
+        homepage_url: "https://github.com/viche-ai/viche/tree/main/channel/openclaw-plugin-viche",
         install_ref: "npm install @ikatkov/viche-plugin"
       },
       %{
         id: "opencode",
         name: "OpenCode Plugin",
         kind: "npm_plugin",
-        homepage_url:
-          "https://github.com/viche-ai/viche/tree/main/channel/opencode-plugin-viche",
+        homepage_url: "https://github.com/viche-ai/viche/tree/main/channel/opencode-plugin-viche",
         install_ref: "opencode-plugin-viche v0.3.0"
       },
       %{
