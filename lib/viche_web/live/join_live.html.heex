@@ -1,12 +1,5 @@
 <div class="min-h-screen flex flex-col items-center justify-center p-6" style="background:var(--bg)">
-  <%= if @expired do %>
-    <div class="w-full max-w-[480px] rounded-2xl p-8 flex flex-col items-center gap-4 text-center" style="background:var(--bg-1);border:1px solid var(--border)">
-      <div class="text-[48px]">⏳</div>
-      <h1 class="text-xl font-bold" style="color:var(--fg)">Link expired</h1>
-      <p class="text-sm" style="color:var(--fg-dim)">This invite link is no longer valid.</p>
-      <a href="/" class="text-sm font-medium mt-2" style="color:var(--color-ef-green)">← Back to home</a>
-    </div>
-  <% else %>
+  
     <div class="w-full max-w-[480px] rounded-2xl p-8 flex flex-col gap-6" style="background:var(--bg-1);border:1px solid var(--border)">
       <%!-- Header --%>
       <div class="flex flex-col items-center gap-4 text-center">

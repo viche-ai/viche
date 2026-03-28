@@ -30,7 +30,7 @@ defmodule VicheWeb.Router do
     live "/sessions", SessionsLive
     live "/network", NetworkLive
     live "/demo", DemoLive
-    live "/join/:hash", JoinLive
+    live "/join", JoinLive
     live "/settings", SettingsLive
   end
 
