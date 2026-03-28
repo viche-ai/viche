@@ -6,14 +6,31 @@ defmodule Viche.Agent do
   supervised by `Viche.AgentSupervisor`, and registered in `Viche.AgentRegistry`.
   """
 
+  @type connection_type :: :websocket | :long_poll
+
   @type t :: %__MODULE__{
           id: String.t(),
           name: String.t() | nil,
           capabilities: [String.t()],
           description: String.t() | nil,
           inbox: list(),
-          registered_at: DateTime.t()
+          registered_at: DateTime.t(),
+          connection_type: connection_type(),
+          last_activity: DateTime.t() | nil,
+          polling_timeout_ms: pos_integer()
         }
 
-  defstruct [:id, :name, :capabilities, :description, :registered_at, inbox: []]
+  @default_polling_timeout_ms 60_000
+
+  defstruct [
+    :id,
+    :name,
+    :capabilities,
+    :description,
+    :registered_at,
+    inbox: [],
+    connection_type: :long_poll,
+    last_activity: nil,
+    polling_timeout_ms: @default_polling_timeout_ms
+  ]
 end

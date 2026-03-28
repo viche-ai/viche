@@ -78,6 +78,50 @@ defmodule VicheWeb.RegistryControllerTest do
 
       assert id1 != id2
     end
+
+    test "accepts valid polling_timeout_ms and returns it in response", %{conn: conn} do
+      params = %{"capabilities" => ["test"], "polling_timeout_ms" => 120_000}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{
+               "polling_timeout_ms" => 120_000
+             } = json_response(conn, 201)
+    end
+
+    test "defaults polling_timeout_ms to 60_000 when not provided", %{conn: conn} do
+      params = %{"capabilities" => ["test"]}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{
+               "polling_timeout_ms" => 60_000
+             } = json_response(conn, 201)
+    end
+
+    test "returns 422 when polling_timeout_ms is below minimum (5000)", %{conn: conn} do
+      params = %{"capabilities" => ["test"], "polling_timeout_ms" => 1_000}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"error" => "invalid_polling_timeout"} = json_response(conn, 422)
+    end
+
+    test "returns 422 when polling_timeout_ms is not an integer", %{conn: conn} do
+      params = %{"capabilities" => ["test"], "polling_timeout_ms" => "fast"}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"error" => "invalid_polling_timeout"} = json_response(conn, 422)
+    end
+
+    test "accepts polling_timeout_ms exactly at minimum (5000)", %{conn: conn} do
+      params = %{"capabilities" => ["test"], "polling_timeout_ms" => 5_000}
+
+      conn = post(conn, ~p"/registry/register", params)
+
+      assert %{"polling_timeout_ms" => 5_000} = json_response(conn, 201)
+    end
   end
 
   describe "GET /registry/discover" do

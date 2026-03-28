@@ -194,4 +194,69 @@ defmodule VicheWeb.AgentChannelTest do
       assert is_binary(payload.sent_at)
     end
   end
+
+  describe "join/3 - sends :websocket_connected to AgentServer" do
+    test "joining channel sets connection_type to :websocket on the AgentServer", %{
+      agent_id: agent_id
+    } do
+      {:ok, _, _socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_id}", %{agent_id: agent_id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_id}")
+
+      # Synchronize with the AgentServer to ensure the message was processed
+      via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+      _ = :sys.get_state(GenServer.whereis(via))
+
+      state = Viche.AgentServer.get_state(via)
+      assert state.connection_type == :websocket
+    end
+  end
+
+  describe "terminate/2 - sends :websocket_disconnected to AgentServer" do
+    test "closing the socket triggers grace period and eventually deregisters the agent", %{
+      agent_id: agent_id
+    } do
+      [{pid, _}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+      ref = Process.monitor(pid)
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_id}", %{agent_id: agent_id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_id}")
+
+      # Close the socket — triggers terminate/2 → :websocket_disconnected → grace timer
+      Process.unlink(socket.channel_pid)
+      close(socket)
+
+      # Wait for grace period (150ms in tests) and agent process to exit
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 2_000
+
+      # Synchronize with Registry partitions to ensure the :DOWN message has been processed
+      # and the ETS entries have been removed before checking
+      Viche.AgentRegistry
+      |> Supervisor.which_children()
+      |> Enum.each(fn {_, reg_pid, _, _} -> _ = :sys.get_state(reg_pid) end)
+
+      assert Registry.lookup(Viche.AgentRegistry, agent_id) == []
+    end
+
+    test "disconnecting sets grace timer but agent stays alive during grace period", %{
+      agent_id: agent_id
+    } do
+      [{pid, _}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_id}", %{agent_id: agent_id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_id}")
+
+      # Close the socket
+      Process.unlink(socket.channel_pid)
+      close(socket)
+
+      # Agent should still be alive immediately after disconnect
+      assert Process.alive?(pid)
+    end
+  end
 end

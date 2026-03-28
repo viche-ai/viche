@@ -39,3 +39,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Use very short grace period in tests to avoid slow tests
+config :viche, grace_period_ms: 150

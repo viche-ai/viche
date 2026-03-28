@@ -10,6 +10,7 @@ defmodule Viche.Agents do
       Viche.Agents.inspect_inbox("abc12345")
       Viche.Agents.drain_inbox("abc12345")
       Viche.Agents.discover(%{capability: "coding"})
+      Viche.Agents.deregister("abc12345")
   """
 
   alias Viche.Agent
@@ -42,10 +43,12 @@ defmodule Viche.Agents do
   Registers a new agent and starts its GenServer.
 
   ## Parameters
-    - `%{capabilities: [...], name: "...", description: "..."}`
+    - `%{capabilities: [...], name: "...", description: "...", polling_timeout_ms: 60_000}`
 
-  `name` and `description` are optional; `capabilities` is required and must be
-  a non-empty list.
+  `name`, `description`, and `polling_timeout_ms` are optional; `capabilities` is required and
+  must be a non-empty list.
+
+  `polling_timeout_ms` defaults to `60_000` (60 seconds) and must be >= 5000 if provided.
 
   ## Returns
     - `{:ok, %Viche.Agent{}}` on success
@@ -57,10 +60,16 @@ defmodule Viche.Agents do
     agent_id = generate_unique_id()
     name = Map.get(attrs, :name)
     description = Map.get(attrs, :description)
+    polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
 
-    child_spec =
-      {AgentServer, [id: agent_id, name: name, capabilities: caps, description: description]}
+    child_opts = [id: agent_id, name: name, capabilities: caps, description: description]
 
+    child_opts =
+      if polling_timeout_ms,
+        do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
+        else: child_opts
+
+    child_spec = {AgentServer, child_opts}
     {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
 
     via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
@@ -69,6 +78,27 @@ defmodule Viche.Agents do
   end
 
   def register_agent(_attrs), do: {:error, :capabilities_required}
+
+  @doc """
+  Deregisters an agent: stops its GenServer, purges inbox, removes from Registry.
+
+  The agent can re-register later with a new ID but starts with clean state.
+
+  ## Returns
+    - `:ok` — agent was deregistered
+    - `{:error, :agent_not_found}` — no agent with the given id
+  """
+  @spec deregister(String.t()) :: :ok | {:error, :agent_not_found}
+  def deregister(agent_id) do
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{pid, _meta}] ->
+        DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+        :ok
+
+      [] ->
+        {:error, :agent_not_found}
+    end
+  end
 
   @doc """
   Discovers agents by capability or name.

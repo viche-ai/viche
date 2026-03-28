@@ -155,5 +155,22 @@ defmodule VicheWeb.InboxControllerTest do
       state = AgentServer.get_state(via)
       assert state.inbox == []
     end
+
+    test "reading inbox updates last_activity timestamp", %{conn: conn} do
+      agent_id = register_agent(conn)
+
+      via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+      state_before = AgentServer.get_state(via)
+      initial_activity = state_before.last_activity
+
+      # Small delay to ensure measurable time difference
+      Process.sleep(10)
+
+      # Read inbox via HTTP
+      get(build_conn(), ~p"/inbox/#{agent_id}")
+
+      state_after = AgentServer.get_state(via)
+      assert DateTime.compare(state_after.last_activity, initial_activity) == :gt
+    end
   end
 end

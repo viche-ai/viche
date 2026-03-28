@@ -294,4 +294,63 @@ defmodule Viche.AgentsTest do
       assert {:error, :agent_not_found} = Agents.drain_inbox("nonexistent")
     end
   end
+
+  describe "deregister/1" do
+    setup do
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})
+      %{agent_id: agent.id}
+    end
+
+    test "happy path: stops process and removes from Registry", %{agent_id: agent_id} do
+      [{pid, _}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+      ref = Process.monitor(pid)
+
+      assert :ok = Agents.deregister(agent_id)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1_000
+
+      # Synchronize with Registry partitions to ensure the :DOWN message has been
+      # processed and the ETS entries have been removed before checking.
+      Viche.AgentRegistry
+      |> Supervisor.which_children()
+      |> Enum.each(fn {_, reg_pid, _, _} -> _ = :sys.get_state(reg_pid) end)
+
+      assert Registry.lookup(Viche.AgentRegistry, agent_id) == []
+    end
+
+    test "returns {:error, :agent_not_found} for unknown id" do
+      assert {:error, :agent_not_found} = Agents.deregister("nonexistent")
+    end
+
+    test "inbox is purged after deregister — re-registering with same caps gives empty inbox",
+         %{agent_id: agent_id} do
+      # Send a message so inbox has content
+      Agents.send_message(%{to: agent_id, from: "sender", body: "hello", type: "task"})
+      assert {:ok, [_msg]} = Agents.inspect_inbox(agent_id)
+
+      # Deregister removes the process and its in-memory inbox
+      assert :ok = Agents.deregister(agent_id)
+
+      # Re-register a fresh agent (different ID, clean state)
+      {:ok, new_agent} = Agents.register_agent(%{capabilities: ["test"]})
+      assert {:ok, []} = Agents.drain_inbox(new_agent.id)
+    end
+  end
+
+  describe "register_agent/1 with polling_timeout_ms" do
+    test "accepts custom polling_timeout_ms and returns it in agent struct" do
+      assert {:ok, agent} =
+               Agents.register_agent(%{
+                 capabilities: ["test"],
+                 polling_timeout_ms: 30_000
+               })
+
+      assert agent.polling_timeout_ms == 30_000
+    end
+
+    test "defaults polling_timeout_ms to 60_000 when not provided" do
+      assert {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})
+      assert agent.polling_timeout_ms == 60_000
+    end
+  end
 end

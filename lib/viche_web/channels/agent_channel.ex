@@ -19,17 +19,36 @@ defmodule VicheWeb.AgentChannel do
 
   - `"new_message"` — pushed when a message arrives in the agent's inbox;
     delivered automatically via `VicheWeb.Endpoint.broadcast/3`
+
+  ## Lifecycle notifications
+
+  On `join/3`, the AgentServer is notified via `:websocket_connected`, which sets
+  `connection_type: :websocket` and cancels any pending polling-based deregistration.
+
+  On `terminate/2`, the AgentServer is notified via `:websocket_disconnected`, which
+  starts a 5-second grace timer. If the agent reconnects before the timer fires, the
+  grace timer is cancelled and the agent stays alive.
   """
 
   use Phoenix.Channel
 
   def join("agent:" <> agent_id, _params, socket) do
     case Registry.lookup(Viche.AgentRegistry, agent_id) do
-      [{_pid, _meta}] ->
+      [{pid, _meta}] ->
+        send(pid, :websocket_connected)
         {:ok, assign(socket, :agent_id, agent_id)}
 
       [] ->
         {:error, %{reason: "agent_not_found"}}
+    end
+  end
+
+  def terminate(_reason, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{pid, _meta}] -> send(pid, :websocket_disconnected)
+      [] -> :ok
     end
   end
 

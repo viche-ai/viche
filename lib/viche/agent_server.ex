@@ -2,9 +2,18 @@ defmodule Viche.AgentServer do
   @moduledoc """
   GenServer representing a single registered agent.
 
-  State is `%Viche.Agent{}`. Registered in `Viche.AgentRegistry` via a `:via` tuple,
+  State is `{%Viche.Agent{}, meta}` where `meta` holds internal timer references
+  (`grace_timer_ref`). Registered in `Viche.AgentRegistry` via a `:via` tuple,
   with agent metadata (name, capabilities, description) stored as the Registry value
   for efficient discovery.
+
+  ## Deregistration modes
+
+  - **WebSocket grace period**: When an agent's channel disconnects, a grace timer
+    fires `:deregister_grace_expired` after `grace_period_ms`. A reconnect within
+    that window cancels the timer.
+  - **Long-poll inactivity**: Agents that haven't drained their inbox within
+    `polling_timeout_ms` milliseconds are stopped automatically.
   """
 
   use GenServer
@@ -16,8 +25,18 @@ defmodule Viche.AgentServer do
           id: String.t(),
           name: String.t() | nil,
           capabilities: [String.t()],
-          description: String.t() | nil
+          description: String.t() | nil,
+          polling_timeout_ms: pos_integer() | nil
         ]
+
+  # Never restart — dynamic agents re-register with a new ID on crash
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :temporary
+    }
+  end
 
   # ---------------------------------------------------------------------------
   # Public API
@@ -66,6 +85,9 @@ defmodule Viche.AgentServer do
     name = Keyword.get(opts, :name)
     capabilities = Keyword.get(opts, :capabilities, [])
     description = Keyword.get(opts, :description)
+    polling_timeout_ms = Keyword.get(opts, :polling_timeout_ms, 60_000)
+
+    registered_at = DateTime.utc_now()
 
     agent = %Agent{
       id: agent_id,
@@ -73,30 +95,112 @@ defmodule Viche.AgentServer do
       capabilities: capabilities,
       description: description,
       inbox: [],
-      registered_at: DateTime.utc_now()
+      registered_at: registered_at,
+      last_activity: registered_at,
+      polling_timeout_ms: polling_timeout_ms
     }
 
-    {:ok, agent}
+    Process.send_after(self(), :check_polling_timeout, polling_timeout_ms)
+
+    {:ok, {agent, %{grace_timer_ref: nil}}}
   end
 
   @impl GenServer
-  def handle_call(:get_state, _from, agent) do
-    {:reply, agent, agent}
+  def handle_call(:get_state, _from, {%Agent{} = agent, meta}) do
+    {:reply, agent, {agent, meta}}
   end
 
   @impl GenServer
-  def handle_call({:receive_message, %Message{} = message}, _from, %Agent{} = agent) do
+  def handle_call({:receive_message, %Message{} = message}, _from, {%Agent{} = agent, meta}) do
     updated = %Agent{agent | inbox: agent.inbox ++ [message]}
-    {:reply, :ok, updated}
+    {:reply, :ok, {updated, meta}}
   end
 
   @impl GenServer
-  def handle_call(:drain_inbox, _from, %Agent{inbox: inbox} = agent) do
-    {:reply, inbox, %Agent{agent | inbox: []}}
+  def handle_call(:drain_inbox, _from, {%Agent{inbox: inbox} = agent, meta}) do
+    updated = %Agent{agent | inbox: [], last_activity: DateTime.utc_now()}
+    reschedule_polling_timeout(updated)
+    {:reply, inbox, {updated, meta}}
   end
 
   @impl GenServer
-  def handle_call(:inspect_inbox, _from, %Agent{inbox: inbox} = agent) do
-    {:reply, inbox, agent}
+  def handle_call(:inspect_inbox, _from, {%Agent{inbox: inbox} = agent, meta}) do
+    {:reply, inbox, {agent, meta}}
   end
+
+  @impl GenServer
+  def handle_info(:websocket_connected, {%Agent{} = agent, %{grace_timer_ref: ref} = meta}) do
+    cancel_grace_timer(ref)
+    updated_agent = %Agent{agent | connection_type: :websocket}
+    {:noreply, {updated_agent, %{meta | grace_timer_ref: nil}}}
+  end
+
+  @impl GenServer
+  def handle_info(:websocket_disconnected, {%Agent{} = agent, meta}) do
+    ref = Process.send_after(self(), :deregister_grace_expired, grace_period_ms())
+    {:noreply, {agent, %{meta | grace_timer_ref: ref}}}
+  end
+
+  @impl GenServer
+  def handle_info(:deregister_grace_expired, {%Agent{} = agent, meta}) do
+    # Returning {:stop, :normal} terminates the process cleanly.
+    # The :via Registry entry is automatically removed on process exit.
+    # The DynamicSupervisor records the child as stopped (restart: :temporary means no restart).
+    {:stop, :normal, {agent, meta}}
+  end
+
+  @impl GenServer
+  def handle_info(:check_polling_timeout, {%Agent{connection_type: :websocket} = agent, meta}) do
+    # WebSocket agents use the grace period mechanism instead of polling timeout
+    {:noreply, {agent, meta}}
+  end
+
+  @impl GenServer
+  def handle_info(:check_polling_timeout, {%Agent{} = agent, meta}) do
+    elapsed = DateTime.diff(DateTime.utc_now(), agent.last_activity, :millisecond)
+    remaining = agent.polling_timeout_ms - elapsed
+
+    if remaining <= 0 do
+      {:stop, :normal, {agent, meta}}
+    else
+      Process.send_after(self(), :check_polling_timeout, remaining)
+      {:noreply, {agent, meta}}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Private helpers
+  # ---------------------------------------------------------------------------
+
+  @spec reschedule_polling_timeout(Agent.t()) :: reference() | :ok
+  defp reschedule_polling_timeout(%Agent{
+         connection_type: :long_poll,
+         polling_timeout_ms: timeout
+       }) do
+    Process.send_after(self(), :check_polling_timeout, timeout)
+  end
+
+  defp reschedule_polling_timeout(_agent), do: :ok
+
+  # Cancels a grace period timer ref and flushes any stale :deregister_grace_expired
+  # message that may have already been delivered to the mailbox before cancel ran.
+  # Without the flush, a reconnect arriving just as the timer fires would still
+  # process the stale message and kill a live agent.
+  @spec cancel_grace_timer(reference() | nil) :: :ok
+  defp cancel_grace_timer(nil), do: :ok
+
+  defp cancel_grace_timer(ref) do
+    if Process.cancel_timer(ref) == false do
+      receive do
+        :deregister_grace_expired -> :ok
+      after
+        0 -> :ok
+      end
+    end
+
+    :ok
+  end
+
+  @spec grace_period_ms() :: pos_integer()
+  defp grace_period_ms, do: Application.get_env(:viche, :grace_period_ms, 5_000)
 end

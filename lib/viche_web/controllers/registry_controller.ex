@@ -9,31 +9,45 @@ defmodule VicheWeb.RegistryController do
 
   alias Viche.Agents
 
+  @min_polling_timeout_ms 5_000
+
   @spec register(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def register(conn, params) do
-    attrs = %{
-      capabilities: Map.get(params, "capabilities"),
-      name: Map.get(params, "name"),
-      description: Map.get(params, "description")
-    }
+    polling_timeout_ms = Map.get(params, "polling_timeout_ms")
 
-    case Agents.register_agent(attrs) do
-      {:ok, agent} ->
-        conn
-        |> put_status(:created)
-        |> json(%{
-          id: agent.id,
-          name: agent.name,
-          capabilities: agent.capabilities,
-          description: agent.description,
-          inbox_url: "/inbox/#{agent.id}",
-          registered_at: DateTime.to_iso8601(agent.registered_at)
-        })
-
-      {:error, :capabilities_required} ->
+    case validate_polling_timeout(polling_timeout_ms) do
+      {:error, :invalid_polling_timeout} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "capabilities_required"})
+        |> json(%{error: "invalid_polling_timeout"})
+
+      :ok ->
+        attrs = %{
+          capabilities: Map.get(params, "capabilities"),
+          name: Map.get(params, "name"),
+          description: Map.get(params, "description"),
+          polling_timeout_ms: polling_timeout_ms
+        }
+
+        case Agents.register_agent(attrs) do
+          {:ok, agent} ->
+            conn
+            |> put_status(:created)
+            |> json(%{
+              id: agent.id,
+              name: agent.name,
+              capabilities: agent.capabilities,
+              description: agent.description,
+              inbox_url: "/inbox/#{agent.id}",
+              registered_at: DateTime.to_iso8601(agent.registered_at),
+              polling_timeout_ms: agent.polling_timeout_ms
+            })
+
+          {:error, :capabilities_required} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "capabilities_required"})
+        end
     end
   end
 
@@ -58,6 +72,15 @@ defmodule VicheWeb.RegistryController do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  @spec validate_polling_timeout(nil | integer() | term()) ::
+          :ok | {:error, :invalid_polling_timeout}
+  defp validate_polling_timeout(nil), do: :ok
+
+  defp validate_polling_timeout(ms) when is_integer(ms) and ms >= @min_polling_timeout_ms,
+    do: :ok
+
+  defp validate_polling_timeout(_), do: {:error, :invalid_polling_timeout}
 
   @spec build_discover_query(map()) :: map()
   defp build_discover_query(params) do
