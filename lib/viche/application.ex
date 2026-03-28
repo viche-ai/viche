@@ -14,6 +14,7 @@ defmodule Viche.Application do
       {Phoenix.PubSub, name: Viche.PubSub},
       {Registry, keys: :unique, name: Viche.AgentRegistry},
       {DynamicSupervisor, name: Viche.AgentSupervisor, strategy: :one_for_one},
+      Viche.MessageCounter,
       # Start to serve requests, typically the last entry
       VicheWeb.Endpoint
     ]
@@ -22,6 +23,7 @@ defmodule Viche.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Viche.Supervisor]
     Viche.JoinTokens.init()
+    Viche.SettingsStore.init()
     Supervisor.start_link(children, opts)
   end
 

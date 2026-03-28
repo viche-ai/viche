@@ -1,23 +1,17 @@
 defmodule VicheWeb.SettingsLive do
   use VicheWeb, :live_view
 
-  @default_settings %{
-    registry_url: "https://viche.fly.dev",
-    namespace: "global",
-    agent_prefix: "my-agent",
-    require_auth: false,
-    live_feed: true,
-    animate_graph: true
-  }
+  defp default_settings, do: Viche.SettingsStore.defaults()
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
     agents = Viche.Agents.list_agents_with_status()
     online = Enum.count(agents, &(&1.status == :online))
 
     socket =
       socket
-      |> assign(:settings, @default_settings)
+      |> assign(:settings, Viche.SettingsStore.get())
       |> assign(:token, "viche_tk_demo_x9k2m4n7")
       |> assign(:show_token, false)
       |> assign(:dirty, false)
@@ -27,7 +21,7 @@ defmodule VicheWeb.SettingsLive do
       |> assign(:agent_count, length(agents))
       |> assign(:online_count, online)
       |> assign(:session_count, 3)
-      |> assign(:messages_today, 1247)
+      |> assign(:messages_today, Viche.MessageCounter.get())
 
     {:ok, socket}
   end
@@ -55,11 +49,12 @@ defmodule VicheWeb.SettingsLive do
   end
 
   def handle_event("save_settings", _params, socket) do
+    Viche.SettingsStore.put(socket.assigns.settings)
     {:noreply, assign(socket, dirty: false)}
   end
 
   def handle_event("discard_changes", _params, socket) do
-    {:noreply, assign(socket, settings: @default_settings, dirty: false)}
+    {:noreply, assign(socket, settings: Viche.SettingsStore.get(), dirty: false)}
   end
 
   def handle_event("confirm_danger", %{"action" => a}, socket) do
@@ -75,7 +70,8 @@ defmodule VicheWeb.SettingsLive do
   end
 
   def handle_event("execute_danger", %{"action" => "reset"}, socket) do
-    {:noreply, assign(socket, settings: @default_settings, dirty: false, danger_confirm: nil)}
+    Viche.SettingsStore.put(default_settings())
+    {:noreply, assign(socket, settings: default_settings(), dirty: false, danger_confirm: nil)}
   end
 
   def handle_event("select_theme", %{"theme" => t}, socket) do
@@ -87,6 +83,8 @@ defmodule VicheWeb.SettingsLive do
     Process.send_after(self(), :reset_connection, 3000)
     {:noreply, assign(socket, connection_status: :connected)}
   end
+
+  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
 
   def handle_info(:reset_connection, socket) do
     {:noreply, assign(socket, connection_status: :idle)}

@@ -5,6 +5,8 @@ defmodule VicheWeb.NetworkLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+      Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
+      subscribe_to_all_agents(Viche.Agents.list_agents_with_status())
       Process.send_after(self(), :tick, 3_000)
     end
 
@@ -21,7 +23,7 @@ defmodule VicheWeb.NetworkLive do
       |> assign(:agent_count, length(agents))
       |> assign(:online_count, online)
       |> assign(:session_count, 3)
-      |> assign(:messages_today, 1247)
+      |> assign(:messages_today, Viche.MessageCounter.get())
 
     {:ok, socket}
   end
@@ -132,6 +134,53 @@ defmodule VicheWeb.NetworkLive do
     {:noreply, socket}
   end
 
+  def handle_info(
+        %Phoenix.Socket.Broadcast{
+          topic: "agent:" <> agent_id,
+          event: "new_message",
+          payload: message
+        },
+        socket
+      ) do
+    # Find the recipient agent color for the pulse animation
+    color =
+      case Enum.find(socket.assigns.agents, &(&1.id == agent_id)) do
+        nil -> "#A7C080"
+        agent -> agent.color
+      end
+
+    # Find sender by name (message.from may be an agent name or "mission-control")
+    from_id =
+      case Enum.find(socket.assigns.agents, &(&1.name == message.from || &1.id == message.from)) do
+        nil -> nil
+        agent -> agent.id
+      end
+
+    socket =
+      socket
+      |> update(:messages_today, &(&1 + 1))
+      |> update(:feed, fn feed ->
+        event = %{
+          type: message.type,
+          from: message.from,
+          to: agent_id,
+          color: color,
+          at: "just now"
+        }
+        [event | Enum.take(feed, 49)]
+      end)
+
+    socket =
+      if from_id do
+        push_event(socket, "graph_pulse", %{from: from_id, to: agent_id, color: color})
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   @impl true
@@ -161,4 +210,11 @@ defmodule VicheWeb.NetworkLive do
     colors = ["#A7C080", "#7FBBB3", "#D699B6", "#DBBC7F", "#83C092", "#E69875", "#E67E80"]
     Enum.at(colors, rem(:erlang.phash2(name), 7))
   end
+  defp subscribe_to_all_agents(agents) do
+    Enum.each(agents, fn agent ->
+      Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{agent.id}")
+    end)
+  end
+
+
 end

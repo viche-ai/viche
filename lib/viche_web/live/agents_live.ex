@@ -5,6 +5,7 @@ defmodule VicheWeb.AgentsLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+      Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
     end
 
     socket =
@@ -12,7 +13,7 @@ defmodule VicheWeb.AgentsLive do
       |> assign(:filter, :all)
       |> assign(:query, "")
       |> assign(:session_count, 3)
-      |> assign(:messages_today, 1247)
+      |> assign(:messages_today, Viche.MessageCounter.get())
       |> load_agents()
 
     {:ok, socket}
@@ -51,6 +52,8 @@ defmodule VicheWeb.AgentsLive do
       when event in ["agent_joined", "agent_left"] do
     {:noreply, load_agents(socket)}
   end
+
+  def handle_info({:messages_today, n}, socket), do: {:noreply, assign(socket, :messages_today, n)}
 
   # -- Helpers --
 
