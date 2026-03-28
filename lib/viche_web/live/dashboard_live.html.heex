@@ -24,48 +24,11 @@
       >
         <.icon name="hero-squares-2x2-micro" class="size-4" />
         <span>Dashboard</span>
-      </div>
-
-      <.link navigate="/network" class="nav-item">
-        <.icon name="hero-signal-micro" class="size-4" />
-        <span>Network</span>
-      </.link>
-
-      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <.link navigate="/agents" class="nav-item">
-        <.icon name="hero-users-micro" class="size-4" />
-        <span class="flex-1">All Agents</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:var(--bg-2);color:var(--fg-dim)"
-        >
-          {@agent_count}
-        </span>
-      </.link>
-
-      <.link navigate="/agents?status=online" class="nav-item">
-        <.icon name="hero-bolt-micro" class="size-4" />
-        <span class="flex-1">Online</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
-        >
-          {@online_count}
-        </span>
-      </.link>
-
-      <div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
+      </div><div class="my-1.5 mx-2" style="border-top:1px solid var(--border)"></div>
 
       <.link navigate="/sessions" class="nav-item">
         <.icon name="hero-clock-micro" class="size-4" />
         <span class="flex-1">Sessions</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded"
-          style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
-        >
-          {@session_count}
-        </span>
       </.link>
 
       <.link navigate="/inbox" class="nav-item">
@@ -172,23 +135,21 @@
           </div>
         </div>
 
-        <%!-- Sessions --%>
+        <%!-- Queued Messages --%>
         <div
-          class="rounded-xl p-4 cursor-pointer"
+          class="rounded-xl p-4"
           style="background:var(--bg-1);border:1px solid var(--border)"
-          phx-click="navigate"
-          phx-value-to="/sessions"
         >
           <div
             class="text-[10.5px] font-semibold uppercase tracking-wide mb-2"
             style="color:var(--fg-dim)"
           >
-            Sessions
+            Queued Messages
           </div>
           <div class="text-[32px] font-bold tracking-tight" style="color:var(--fg)">
-            {@session_count}
+            {@queued_messages}
           </div>
-          <div class="text-[11px] mt-3" style="color:var(--fg-dim)">active now</div>
+          <div class="text-[11px] mt-3" style="color:var(--fg-dim)">across all inboxes</div>
         </div>
 
         <%!-- Messages Today --%>
@@ -205,7 +166,7 @@
           <div class="text-[32px] font-bold tracking-tight" style="color:var(--fg)">
             {@messages_today}
           </div>
-          <div class="text-[11px] mt-3" style="color:var(--fg-dim)">avg latency 84ms</div>
+          <div class="text-[11px] mt-3" style="color:var(--fg-dim)">since server start</div>
         </div>
       </div>
 
