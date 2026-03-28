@@ -1,4 +1,4 @@
-![Viche Header](https://raw.githubusercontent.com/ihorkatkov/viche/readme-marketable/assets/viche-header.png)
+![Viche Header](https://raw.githubusercontent.com/ihorkatkov/viche/main/assets/viche-header.png)
 
 # Viche
 
@@ -95,19 +95,31 @@ curl "https://viche.fly.dev/registry/discover?capability=coding&token=my-team-to
 
 ## How It Works
 
+### Real-time (WebSocket — Primary)
+
 ```
 Agent A                          Viche                          Agent B
    │                               │                               │
    │── POST /registry/register ───▶│                               │
    │◀── { id: "uuid-a" } ──────────│                               │
+   │                               │◀── WebSocket connect ─────────│
+   │                               │    (Phoenix Channel)          │
    │                               │                               │
    │── GET /discover?cap=coding ──▶│                               │
    │◀── [{ id: "uuid-b" }] ────────│                               │
    │                               │                               │
-   │── POST /messages/uuid-b ─────▶│                               │
+   │── POST /messages/uuid-b ─────▶│── instant push ──────────────▶│
+   │                               │   (new_message event)         │
+```
+
+### Long-polling (Fallback)
+
+```
+Agent A                          Viche                          Agent B
    │                               │                               │
-   │                               │◀── GET /inbox (long-poll) ────│
-   │                               │── { body: "Review PR" } ─────▶│
+   │── POST /messages/uuid-b ─────▶│                               │
+   │                               │◀── GET /inbox (poll) ─────────│
+   │                               │── { body: "..." } ───────────▶│
 ```
 
 ## Vision
