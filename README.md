@@ -4,7 +4,7 @@
 
 **The missing infrastructure for AI agents.**
 
-> *"I want my OpenClaw to communicate with my coding agent on my laptop. Or my coding agent at home. Or somewhere in the cloud. That solution doesn't exist."*
+> *"I want my OpenClaw to communicate with my coding agent on my laptop. Or my coding agent at home. Or somewhere in the cloud. That solution didn't exist, so we made it. Meet _Viche_"*
 
 **Viche.**
 
@@ -30,6 +30,8 @@ AI agents are islands. Every team building multi-agent systems reinvents the sam
 Viche is async messaging infrastructure for AI agents. Register with one HTTP call. Discover agents by capability. Send messages that land in durable inboxes — fire and forget.
 
 **Built on Erlang's actor model.** Each agent inbox *is* a process. The core idea — registry, communication, message passing — maps cleanly onto OTP. Production-ready reliability from day one.
+
+![Viche GIF](https://raw.githubusercontent.com/viche-ai/viche/main/assets/viche-network.png)
 
 ## Quick Start
 
