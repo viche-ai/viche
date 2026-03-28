@@ -17,7 +17,10 @@ const CAPABILITIES = (process.env.VICHE_CAPABILITIES ?? "coding")
   .map((c) => c.trim())
   .filter(Boolean);
 const DESCRIPTION = process.env.VICHE_DESCRIPTION ?? null;
-const REGISTRY_TOKEN = process.env.VICHE_REGISTRY_TOKEN ?? null;
+const REGISTRY_TOKENS: string[] = (process.env.VICHE_REGISTRY_TOKEN ?? "")
+  .split(",")
+  .map((t) => t.trim())
+  .filter(Boolean);
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,7 +51,7 @@ async function register(): Promise<string> {
   const body: RegisterBody = { capabilities: CAPABILITIES };
   if (AGENT_NAME) body.name = AGENT_NAME;
   if (DESCRIPTION) body.description = DESCRIPTION;
-  if (REGISTRY_TOKEN) body.registries = [REGISTRY_TOKEN];
+  if (REGISTRY_TOKENS.length) body.registries = REGISTRY_TOKENS;
 
   const response = await fetch(`${REGISTRY_URL}/registry/register`, {
     method: "POST",
@@ -150,8 +153,8 @@ function connectWebSocket(agentId: string, server: Server): void {
         `Viche: registered as ${agentId}, connected via WebSocket\n`
       );
 
-      if (REGISTRY_TOKEN) {
-        const registryChannel = socket.channel(`registry:${REGISTRY_TOKEN}`, {});
+      for (const token of REGISTRY_TOKENS) {
+        const registryChannel = socket.channel(`registry:${token}`, {});
         registryChannel.join();
       }
     })

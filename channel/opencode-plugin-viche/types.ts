@@ -19,8 +19,8 @@ export interface VicheConfig {
   agentName?: string;
   /** Optional agent description. */
   description?: string;
-  /** Registry token for private registry. Auto-generated if not set. */
-  registryToken?: string;
+  /** Registry tokens for private registries. Auto-generated (single UUID) if not set. */
+  registries?: string[];
 }
 
 // ---------------------------------------------------------------------------

@@ -32,6 +32,9 @@ type RawFileConfig = {
   capabilities?: unknown;
   agentName?: unknown;
   description?: unknown;
+  /** New multi-registry field (array of token strings). */
+  registries?: unknown;
+  /** Legacy single-token field — converted to `registries` array on load. */
   registryToken?: unknown;
 };
 
@@ -135,35 +138,60 @@ export function loadConfig(projectDir: string): VicheConfig {
     pickNonBlankString(
       process.env.VICHE_AGENT_NAME,
       fileConfig.agentName,
-      ""
+      "opencode"
     ) || undefined;
 
   const description =
     pickNonBlankString(
       process.env.VICHE_DESCRIPTION,
       fileConfig.description,
-      ""
+      "OpenCode AI coding assistant"
     ) || undefined;
 
-  // Registry token: env var → file → auto-generate + persist
-  let registryToken: string | undefined;
+  // Registries: env var (comma-separated) → file registries array → legacy file registryToken → auto-generate + persist
+  let registries: string[] | undefined;
+
+  // 1. VICHE_REGISTRY_TOKEN env var: comma-separated list of tokens.
   const envToken = process.env.VICHE_REGISTRY_TOKEN;
   if (typeof envToken === "string" && envToken.trim().length > 0) {
-    registryToken = envToken.trim();
-  } else if (
-    typeof fileConfig.registryToken === "string" &&
-    fileConfig.registryToken.trim().length > 0
-  ) {
-    registryToken = fileConfig.registryToken.trim();
-  } else {
-    // Auto-generate and persist so subsequent runs reuse the same token.
-    registryToken = crypto.randomUUID();
+    const parsed = envToken
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (parsed.length > 0) registries = parsed;
+  }
+
+  // 2. Config file: prefer `registries` array; fall back to legacy `registryToken` string.
+  if (registries === undefined) {
+    if (
+      Array.isArray(fileConfig.registries) &&
+      (fileConfig.registries as unknown[]).every((r) => typeof r === "string")
+    ) {
+      const filtered = (fileConfig.registries as string[]).filter(
+        (r) => r.trim().length > 0
+      );
+      if (filtered.length > 0) registries = filtered;
+    } else if (
+      typeof fileConfig.registryToken === "string" &&
+      fileConfig.registryToken.trim().length > 0
+    ) {
+      registries = [fileConfig.registryToken.trim()];
+    }
+  }
+
+  // 3. Auto-generate and persist so subsequent runs reuse the same token.
+  if (registries === undefined) {
+    const generated = crypto.randomUUID();
+    registries = [generated];
     const opencodeDir = join(projectDir, ".opencode");
     const configPath = join(opencodeDir, "viche.json");
     try {
       mkdirSync(opencodeDir, { recursive: true });
       // Merge with existing file content to avoid overwriting other fields.
-      const merged = { ...fileConfig, registryToken };
+      // Write as `registries` array; drop legacy `registryToken` key.
+      const { registryToken: _drop, ...rest } = fileConfig as Record<string, unknown>;
+      void _drop;
+      const merged = { ...rest, registries };
       writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
     } catch {
       // Persistence failure is non-fatal — we still return the generated token
@@ -174,7 +202,7 @@ export function loadConfig(projectDir: string): VicheConfig {
   const config: VicheConfig = { registryUrl, capabilities };
   if (agentName !== undefined) config.agentName = agentName;
   if (description !== undefined) config.description = description;
-  if (registryToken !== undefined) config.registryToken = registryToken;
+  if (registries !== undefined) config.registries = registries;
 
   return config;
 }

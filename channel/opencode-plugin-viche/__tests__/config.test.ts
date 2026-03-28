@@ -21,6 +21,7 @@ const ENV_KEYS = [
   "VICHE_AGENT_NAME",
   "VICHE_CAPABILITIES",
   "VICHE_DESCRIPTION",
+  "VICHE_REGISTRY_TOKEN",
 ] as const;
 
 type SavedEnv = Record<(typeof ENV_KEYS)[number], string | undefined>;
@@ -78,8 +79,13 @@ describe("loadConfig", () => {
 
     expect(cfg.registryUrl).toBe("http://localhost:4000");
     expect(cfg.capabilities).toEqual(["coding"]);
-    expect(cfg.agentName).toBeUndefined();
-    expect(cfg.description).toBeUndefined();
+    expect(cfg.agentName).toBe("opencode");
+    expect(cfg.description).toBe("OpenCode AI coding assistant");
+    // Registries should be auto-generated: a single-element array with a UUID.
+    expect(Array.isArray(cfg.registries)).toBe(true);
+    expect(cfg.registries).toHaveLength(1);
+    expect(typeof cfg.registries![0]).toBe("string");
+    expect(cfg.registries![0].length).toBeGreaterThan(0);
   });
 
   // ── 2. File loading ────────────────────────────────────────────────────────
@@ -199,5 +205,91 @@ describe("loadConfig", () => {
 
     expect(cfg.registryUrl).toBe("http://localhost:4000");
     expect(cfg.capabilities).toEqual(["coding"]);
+  });
+
+  // ── 10. Default agentName and description ─────────────────────────────────
+
+  it("uses 'opencode' as default agentName and 'OpenCode AI coding assistant' as default description", () => {
+    tempDir = makeTempDir();
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.agentName).toBe("opencode");
+    expect(cfg.description).toBe("OpenCode AI coding assistant");
+  });
+
+  // ── 11. VICHE_REGISTRY_TOKEN env var is parsed as comma-separated tokens ──
+
+  it("parses VICHE_REGISTRY_TOKEN as comma-separated registries", () => {
+    tempDir = makeTempDir();
+    process.env.VICHE_REGISTRY_TOKEN = "token-a, token-b , token-c";
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["token-a", "token-b", "token-c"]);
+  });
+
+  it("handles a single VICHE_REGISTRY_TOKEN without commas", () => {
+    tempDir = makeTempDir();
+    process.env.VICHE_REGISTRY_TOKEN = "solo-token";
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["solo-token"]);
+  });
+
+  // ── 12. File: registries array ────────────────────────────────────────────
+
+  it("reads registries array from .opencode/viche.json", () => {
+    tempDir = makeTempDir({
+      registries: ["reg-one", "reg-two"],
+    });
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["reg-one", "reg-two"]);
+  });
+
+  // ── 13. Backwards compat: legacy registryToken string in file ─────────────
+
+  it("converts legacy registryToken string in file to single-element registries array", () => {
+    tempDir = makeTempDir({
+      registryToken: "legacy-token",
+    });
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["legacy-token"]);
+  });
+
+  // ── 14. Env var takes precedence over file registries ─────────────────────
+
+  it("VICHE_REGISTRY_TOKEN env var overrides file registries", () => {
+    tempDir = makeTempDir({
+      registries: ["file-token"],
+    });
+    process.env.VICHE_REGISTRY_TOKEN = "env-token-1,env-token-2";
+
+    const cfg = loadConfig(tempDir);
+
+    expect(cfg.registries).toEqual(["env-token-1", "env-token-2"]);
+  });
+
+  // ── 15. Auto-generation persists registries key (not registryToken) ───────
+
+  it("auto-generates a UUID registry token and persists it as registries array in viche.json", () => {
+    tempDir = makeTempDir(); // no viche.json
+
+    const cfg = loadConfig(tempDir);
+
+    // Token should be a non-empty string.
+    expect(cfg.registries).toHaveLength(1);
+    const token = cfg.registries![0]!;
+    expect(typeof token).toBe("string");
+    expect(token.length).toBeGreaterThan(0);
+
+    // Subsequent call should reuse the same token.
+    const cfg2 = loadConfig(tempDir);
+    expect(cfg2.registries).toEqual([token]);
   });
 });

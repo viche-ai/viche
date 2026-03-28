@@ -46,7 +46,7 @@ async function registerOnce(config: VicheConfig): Promise<string> {
   };
   if (config.agentName) body.name = config.agentName;
   if (config.description) body.description = config.description;
-  if (config.registryToken) body.registries = [config.registryToken];
+  if (config.registries?.length) body.registries = config.registries;
 
   const resp = await fetch(`${config.registryUrl}/registry/register`, {
     method: "POST",
@@ -128,8 +128,8 @@ function connectWebSocket(
       channel
         .join()
         .receive("ok", () => {
-          if (config.registryToken) {
-            const registryChannel = socket.channel(`registry:${config.registryToken}`, {});
+          for (const token of config.registries ?? []) {
+            const registryChannel = socket.channel(`registry:${token}`, {});
             registryChannel.join();
           }
           resolve({ socket, channel });

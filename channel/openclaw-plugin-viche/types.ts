@@ -20,8 +20,8 @@ export interface VicheConfig {
   agentName?: string;
   /** Optional agent description. */
   description?: string;
-  /** Optional registry token for joining a private registry. */
-  registryToken?: string;
+  /** Optional registry tokens for joining private registries. */
+  registries?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,17 @@ export const VicheConfigSchema = {
       return issue(["description"], "must be a string");
     }
 
-    // registryToken
+    // registries (new array form)
+    if (raw.registries !== undefined) {
+      if (
+        !Array.isArray(raw.registries) ||
+        !raw.registries.every((r) => typeof r === "string")
+      ) {
+        return issue(["registries"], "must be an array of strings");
+      }
+    }
+
+    // registryToken (legacy string — converted to single-element array)
     if (raw.registryToken !== undefined && typeof raw.registryToken !== "string") {
       return issue(["registryToken"], "must be a string");
     }
@@ -110,7 +120,13 @@ export const VicheConfigSchema = {
     // Only assign optional string properties when present to satisfy exactOptionalPropertyTypes.
     if (typeof raw.agentName === "string") normalized.agentName = raw.agentName;
     if (typeof raw.description === "string") normalized.description = raw.description;
-    if (typeof raw.registryToken === "string") normalized.registryToken = raw.registryToken;
+
+    // Resolve registries: prefer `registries` array; fall back to legacy `registryToken` string.
+    if (Array.isArray(raw.registries) && raw.registries.length > 0) {
+      normalized.registries = raw.registries as string[];
+    } else if (typeof raw.registryToken === "string" && raw.registryToken.length > 0) {
+      normalized.registries = [raw.registryToken];
+    }
 
     return { success: true, data: normalized };
   },
@@ -138,9 +154,14 @@ export const VicheConfigSchema = {
         type: "string",
         description: "Short description of this agent",
       },
+      registries: {
+        type: "array",
+        items: { type: "string" },
+        description: "Registry tokens to join one or more private registries for scoped discovery and messaging",
+      },
       registryToken: {
         type: "string",
-        description: "Registry token to join a private registry for scoped discovery and messaging",
+        description: "Legacy: single registry token (converted to registries array). Use registries instead.",
       },
     },
   },

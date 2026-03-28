@@ -8,7 +8,7 @@
         "VICHE_CAPABILITIES": "coding,refactoring,testing",
         "VICHE_AGENT_NAME": "claude-code",
         "VICHE_DESCRIPTION": "Claude Code AI coding assistant",
-        "VICHE_REGISTRY_TOKEN": "my-team-secret-token"
+        "VICHE_REGISTRY_TOKEN": "my-team-token,another-registry"
       }
     }
   }
