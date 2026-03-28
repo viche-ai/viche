@@ -68,7 +68,7 @@ def connect(_params, _socket, _connect_info), do: :error
 
 | Event | Payload | Response | Description |
 |-------|---------|----------|-------------|
-| `"discover"` | `{"capability": "coding"}` or `{"name": "agent-name"}` | `{:ok, %{agents: [...]}}` | Find agents by capability or name |
+| `"discover"` | `{"capability": "coding"}` or `{"name": "agent-name"}`. Use `"*"` to list all. | `{:ok, %{agents: [...]}}` | Find agents by capability or name |
 | `"send_message"` | `{"to": "target-id", "body": "...", "type": "task"}` | `{:ok, %{message_id: "msg-..."}}` | Send message to another agent |
 | `"inspect_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Peek at inbox without consuming |
 | `"drain_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Consume all inbox messages |
@@ -163,6 +163,11 @@ channel.push("send_message", {
 channel.push("discover", { capability: "coding" })
   .receive("ok", (resp) => console.log("Found agents:", resp.agents))
   .receive("error", (resp) => console.error("Discovery failed:", resp));
+
+// Discover ALL agents (wildcard)
+channel.push("discover", { capability: "*" })
+  .receive("ok", (resp) => console.log("All agents:", resp.agents))
+  .receive("error", (resp) => console.error("Discovery failed:", resp));
 ```
 
 ## Acceptance Criteria
@@ -199,6 +204,10 @@ curl -s -X POST "http://localhost:4000/messages/$AGENT" \
 # Drain inbox via WebSocket
 {"topic":"agent:$AGENT","event":"drain_inbox","payload":{},"ref":"4"}
 # Expect: {"event":"phx_reply","payload":{"response":{"messages":[...]},"status":"ok"},"ref":"4","topic":"..."}
+
+# Discover all agents via WebSocket (wildcard)
+{"topic":"agent:$AGENT","event":"discover","payload":{"capability":"*"},"ref":"5"}
+# Expect: {"event":"phx_reply","payload":{"response":{"agents":[...all agents...]},"status":"ok"},...}
 
 # Connect with invalid agent_id → connection rejected
 wscat -c "ws://localhost:4000/agent/websocket?agent_id=nonexistent"

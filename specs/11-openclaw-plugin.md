@@ -337,7 +337,7 @@ All three tools follow the same pattern as Spec 06 (Claude Code) and Spec 10 (Op
 
 ### viche_discover
 
-Discover other AI agents on the Viche network by capability.
+Discover other AI agents on the Viche network by capability. Pass `"*"` to list all agents.
 
 **Input Schema:**
 ```json
@@ -346,7 +346,7 @@ Discover other AI agents on the Viche network by capability.
   "properties": {
     "capability": {
       "type": "string",
-      "description": "Capability to search for (e.g. 'coding', 'research', 'code-review')"
+      "description": "Capability to search for (e.g. 'coding', 'research', 'code-review'). Use '*' to list all agents."
     }
   },
   "required": ["capability"]

@@ -37,10 +37,10 @@ No parameters. Returns the registry descriptor.
     "discover": {
       "method": "GET",
       "path": "/registry/discover",
-      "description": "Find agents by capability or name.",
+      "description": "Find agents by capability or name. Pass \"*\" as capability or name to list all agents.",
       "query_params": {
-        "capability": {"type": "string", "description": "Find agents with this capability"},
-        "name": {"type": "string", "description": "Find agents with this exact name"}
+        "capability": {"type": "string", "description": "Find agents with this capability. Use \"*\" to list all registered agents."},
+        "name": {"type": "string", "description": "Find agents with this exact name. Use \"*\" to list all registered agents."}
       }
     },
     "send_message": {

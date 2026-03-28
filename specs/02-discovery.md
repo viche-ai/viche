@@ -67,6 +67,37 @@ GET /registry/discover?name=claude-code
 }
 ```
 
+### Wildcard Discovery
+
+Pass `"*"` as `capability` or `name` to list all registered agents.
+
+**Example: list all agents**
+```
+GET /registry/discover?capability=*
+```
+
+**Response 200:**
+```json
+{
+  "agents": [
+    {
+      "id": "a1b2c3d4",
+      "name": "claude-code",
+      "capabilities": ["coding"],
+      "description": "AI coding assistant"
+    },
+    {
+      "id": "e5f6g7h8",
+      "name": "researcher",
+      "capabilities": ["research"],
+      "description": "Research agent"
+    }
+  ]
+}
+```
+
+**Design note:** Wildcard returns ALL agents regardless of capabilities or name. This is intentional for the current stage (trusted networks, no multi-tenancy). When namespaces/multi-tenancy are added, wildcard will be scoped to the caller's namespace.
+
 ## Implementation Approach
 
 Use Elixir Registry for discovery. Two strategies:
@@ -116,6 +147,17 @@ curl -s "http://localhost:4000/registry/discover?capability=nonexistent" | jq
 # No query params → 400
 curl -s "http://localhost:4000/registry/discover" | jq
 # Expect: 400 error
+
+# Discover all agents (wildcard)
+curl -s "http://localhost:4000/registry/discover?capability=*" | jq
+# Expect: both agent-a and agent-b
+
+curl -s "http://localhost:4000/registry/discover?name=*" | jq
+# Expect: both agent-a and agent-b
+
+# Wildcard with no agents registered → empty list
+curl -s "http://localhost:4000/registry/discover?capability=*" | jq
+# Expect: {"agents": []}
 ```
 
 ## Test Plan
@@ -124,6 +166,10 @@ curl -s "http://localhost:4000/registry/discover" | jq
 2. Discover by name — exact match, no match
 3. Missing query params — returns 400
 4. Agent registered then discovered — integration test
+5. Wildcard discovery — capability=* returns all agents
+6. Wildcard discovery — name=* returns all agents
+7. Wildcard with no agents — returns empty list
+8. Non-string capability/name via WebSocket — returns error (not crash)
 
 ## Dependencies
 
