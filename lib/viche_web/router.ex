@@ -23,7 +23,7 @@ defmodule VicheWeb.Router do
   scope "/", VicheWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", DashboardLive
     live "/dashboard", DashboardLive
     live "/agents", AgentsLive
     live "/agents/:id", AgentDetailLive
