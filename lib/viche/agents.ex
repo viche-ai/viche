@@ -15,9 +15,14 @@ defmodule Viche.Agents do
 
   require Logger
 
+  import Ecto.Query
+
   alias Viche.Agent
   alias Viche.AgentServer
+  alias Viche.Agents.AgentRecord
+  alias Viche.Agents.MessageRecord
   alias Viche.Message
+  alias Viche.Repo
 
   @typedoc "Agent map returned by list/discover functions."
   @type agent_info :: %{
@@ -173,6 +178,13 @@ defmodule Viche.Agents do
       [{pid, meta}] ->
         broadcast_agent_left(agent_id, meta.registries || [])
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+
+        # Soft-delete in database
+        case Repo.get(AgentRecord, agent_id) do
+          nil -> :ok
+          record -> Repo.update!(AgentRecord.changeset(record, %{deregistered_at: DateTime.utc_now()}))
+        end
+
         Logger.info("Agent #{agent_id} deregistered")
         :ok
 
@@ -244,6 +256,18 @@ defmodule Viche.Agents do
       via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
       AgentServer.receive_message(via, message)
 
+      # Persist message to database
+      %MessageRecord{}
+      |> MessageRecord.changeset(%{
+        id: message.id,
+        type: message.type,
+        from: message.from,
+        body: message.body,
+        sent_at: message.sent_at,
+        agent_id: agent_id
+      })
+      |> Repo.insert!()
+
       Viche.MessageCounter.increment()
       VicheWeb.Endpoint.broadcast("agent:#{agent_id}", "new_message", %{
         id: message.id,
@@ -301,8 +325,73 @@ defmodule Viche.Agents do
 
       :found ->
         via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
-        {:ok, AgentServer.drain_inbox(via)}
+        messages = AgentServer.drain_inbox(via)
+
+        # Mark drained messages as delivered in the database
+        if messages != [] do
+          message_ids = Enum.map(messages, & &1.id)
+
+          from(m in MessageRecord, where: m.id in ^message_ids)
+          |> Repo.update_all(set: [delivered: true])
+        end
+
+        {:ok, messages}
     end
+  end
+
+  @doc """
+  Restores active agents from the database on application boot.
+
+  Queries all agents without a `deregistered_at` timestamp, loads their
+  undelivered messages, and starts a GenServer for each one. Called from
+  `Viche.Application` after the supervision tree is up.
+  """
+  @spec restore_from_db() :: :ok
+  def restore_from_db do
+    agents =
+      from(a in AgentRecord, where: is_nil(a.deregistered_at))
+      |> Repo.all()
+
+    Enum.each(agents, fn record ->
+      # Load undelivered messages for this agent
+      messages =
+        from(m in MessageRecord,
+          where: m.agent_id == ^record.id and m.delivered == false,
+          order_by: [asc: m.sent_at]
+        )
+        |> Repo.all()
+        |> Enum.map(fn m ->
+          %Message{
+            id: m.id,
+            type: m.type,
+            from: m.from,
+            body: m.body,
+            sent_at: m.sent_at
+          }
+        end)
+
+      child_opts = [
+        id: record.id,
+        name: record.name,
+        capabilities: record.capabilities,
+        description: record.description,
+        registries: record.registries,
+        polling_timeout_ms: record.polling_timeout_ms,
+        registered_at: record.registered_at,
+        inbox: messages
+      ]
+
+      case DynamicSupervisor.start_child(Viche.AgentSupervisor, {AgentServer, child_opts}) do
+        {:ok, _pid} ->
+          Logger.info("Restored agent #{record.id} with #{length(messages)} pending messages")
+
+        {:error, reason} ->
+          Logger.error("Failed to restore agent #{record.id}: #{inspect(reason)}")
+      end
+    end)
+
+    Logger.info("Boot restoration complete: #{length(agents)} agents restored")
+    :ok
   end
 
   @token_regex ~r/^[a-zA-Z0-9._-]+$/
@@ -452,6 +541,19 @@ defmodule Viche.Agents do
 
     via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
     agent = AgentServer.get_state(via)
+
+    # Persist to database
+    %AgentRecord{}
+    |> AgentRecord.changeset(%{
+      id: agent.id,
+      name: agent.name,
+      capabilities: agent.capabilities,
+      description: agent.description,
+      registries: agent.registries,
+      polling_timeout_ms: agent.polling_timeout_ms,
+      registered_at: agent.registered_at
+    })
+    |> Repo.insert!()
 
     Logger.info(
       "Agent #{agent.id} registered (name: #{inspect(agent.name)}, " <>

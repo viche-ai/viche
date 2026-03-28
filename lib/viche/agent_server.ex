@@ -29,7 +29,9 @@ defmodule Viche.AgentServer do
           capabilities: [String.t()],
           description: String.t() | nil,
           registries: [String.t()] | nil,
-          polling_timeout_ms: pos_integer() | nil
+          polling_timeout_ms: pos_integer() | nil,
+          inbox: [Message.t()],
+          registered_at: DateTime.t() | nil
         ]
 
   # Never restart — dynamic agents re-register with a new ID on crash
@@ -97,8 +99,9 @@ defmodule Viche.AgentServer do
     description = Keyword.get(opts, :description)
     registries = Keyword.get(opts, :registries, ["global"])
     polling_timeout_ms = Keyword.get(opts, :polling_timeout_ms, 60_000)
+    inbox = Keyword.get(opts, :inbox, [])
 
-    registered_at = DateTime.utc_now()
+    registered_at = Keyword.get(opts, :registered_at) || DateTime.utc_now()
 
     agent = %Agent{
       id: agent_id,
@@ -106,7 +109,7 @@ defmodule Viche.AgentServer do
       capabilities: capabilities,
       description: description,
       registries: registries,
-      inbox: [],
+      inbox: inbox,
       registered_at: registered_at,
       last_activity: registered_at,
       polling_timeout_ms: polling_timeout_ms

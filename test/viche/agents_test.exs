@@ -3,6 +3,13 @@ defmodule Viche.AgentsTest do
 
   alias Viche.Agents
 
+  setup do
+    # Start the Ecto sandbox so DB calls from agent GenServers work
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Viche.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
+
   defp clear_all_agents do
     Viche.AgentSupervisor
     |> DynamicSupervisor.which_children()
