@@ -122,6 +122,15 @@ defmodule Viche.Agents do
 
       via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
       AgentServer.receive_message(via, message)
+
+      VicheWeb.Endpoint.broadcast("agent:#{agent_id}", "new_message", %{
+        id: message.id,
+        type: message.type,
+        from: message.from,
+        body: message.body,
+        sent_at: DateTime.to_iso8601(message.sent_at)
+      })
+
       {:ok, message.id}
     else
       false -> {:error, :invalid_message}

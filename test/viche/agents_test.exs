@@ -9,6 +9,14 @@ defmodule Viche.AgentsTest do
     |> Enum.each(fn {_, pid, _, _} ->
       DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
     end)
+
+    # Synchronize with all Registry partition processes to ensure :DOWN messages
+    # have been processed and ETS entries removed before returning.
+    Viche.AgentRegistry
+    |> Supervisor.which_children()
+    |> Enum.each(fn {_, pid, _, _} -> _ = :sys.get_state(pid) end)
+
+    :ok
   end
 
   describe "list_agents/0" do
