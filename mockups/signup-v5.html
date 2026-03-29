@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viche — Sign Up</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg0:#2D353B;--bg1:#343F44;--bg2:#3D484D;--bg3:#475258;
+      --fg:#D3C6AA;--fg-dim:#859289;
+      --green:#A7C080;--aqua:#83C092;--blue:#7FBBB3;--yellow:#DBBC7F;--purple:#D699B6;
+      --border:rgba(255,255,255,0.07);--shadow:0 4px 32px rgba(0,0,0,0.5);
+      --btn-text:#1a2420;--input-bg:rgba(45,53,59,0.8);--focus-ring:rgba(167,192,128,0.4);
+      --card-bg:rgba(52,63,68,0.65);
+    }
+    :root[data-theme="light"] {
+      --bg0:#FDF6E3;--bg1:#F4F0D9;--bg2:#EFEBD4;--bg3:#E6E2CC;
+      --fg:#5C6A72;--fg-dim:#829181;
+      --green:#8DA101;--aqua:#35A77C;--blue:#3A94C5;--yellow:#DFA000;--purple:#DF69BA;
+      --border:rgba(0,0,0,0.09);--shadow:0 4px 32px rgba(0,0,0,0.12);
+      --btn-text:#fff;--input-bg:rgba(253,246,227,0.8);--focus-ring:rgba(141,161,1,0.3);
+      --card-bg:rgba(244,240,217,0.7);
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    body {
+      font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+      font-size:16px;background:var(--bg0);color:var(--fg);line-height:1.55;
+      min-height:100vh;overflow-x:hidden;overflow-y:auto;
+    }
+
+    #fireflies{position:fixed;inset:0;z-index:0}
+
+    .vignette {
+      position:fixed;inset:0;z-index:1;pointer-events:none;
+      background:radial-gradient(ellipse 75% 75% at 50% 50%, transparent 20%, var(--bg0) 100%);
+    }
+
+    .page {
+      position:relative;z-index:2;
+      display:flex;align-items:center;justify-content:center;
+      min-height:100vh;padding:48px 16px 96px;
+    }
+
+    .theme-toggle {
+      position:fixed;top:16px;right:16px;width:36px;height:36px;
+      background:var(--card-bg);border:1px solid var(--border);border-radius:10px;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      color:var(--fg-dim);z-index:10;transition:all 0.2s;
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    }
+    .theme-toggle:hover{background:var(--bg2);transform:scale(1.05)}
+    .theme-toggle svg{width:18px;height:18px}
+
+    .card {
+      width:100%;max-width:460px;
+      background:var(--card-bg);
+      border:1px solid var(--border);
+      border-radius:20px;padding:40px 36px;
+      box-shadow:var(--shadow);
+      animation:cardIn 0.9s cubic-bezier(0.16,1,0.3,1);
+      backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      position:relative;
+    }
+    .card::before {
+      content:'';position:absolute;inset:-1px;border-radius:21px;
+      background:conic-gradient(from var(--shimmer-angle,0deg) at 50% 50%,
+        transparent 0deg, rgba(167,192,128,0.15) 60deg, transparent 120deg,
+        rgba(127,187,179,0.1) 200deg, transparent 260deg);
+      z-index:-1;opacity:0;transition:opacity 0.5s;
+      animation:shimmer-rotate 8s linear infinite;
+    }
+    .card:hover::before{opacity:1}
+    @keyframes shimmer-rotate{to{--shimmer-angle:360deg}}
+    @property --shimmer-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
+    @keyframes cardIn{
+      from{opacity:0;transform:translateY(28px) scale(0.96)}
+      to{opacity:1;transform:translateY(0) scale(1)}
+    }
+
+    .header{text-align:center;margin-bottom:32px}
+    .logo{display:inline-flex;align-items:center;gap:9px;margin-bottom:20px;text-decoration:none}
+    .logo-mark{
+      width:32px;height:32px;
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      border-radius:8px;display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:800;color:#1a2420;flex-shrink:0;
+    }
+    .logo-text{font-size:18px;font-weight:600;letter-spacing:-0.3px;color:var(--fg)}
+
+    .live-pill {
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:12px;font-weight:500;color:var(--fg-dim);
+      border:1px solid var(--border);border-radius:20px;
+      padding:4px 14px;margin-bottom:18px;
+      background:rgba(167,192,128,0.06);
+    }
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}50%{opacity:0.4;box-shadow:none}}
+
+    .headline{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+    .headline .accent{
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .subhead{color:var(--fg-dim);font-size:14px;line-height:1.5}
+
+    .form-group{margin-bottom:18px}
+    .form-label{display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px}
+    .form-hint{font-size:11px;font-weight:400;color:var(--fg-dim);margin-left:4px}
+    .form-input{
+      width:100%;height:46px;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      padding:0 14px;font-size:14px;color:var(--fg);font-family:inherit;
+      transition:border-color 0.2s,box-shadow 0.2s;outline:none;
+      backdrop-filter:blur(4px);
+    }
+    .form-input::placeholder{color:var(--fg-dim);opacity:0.5}
+    .form-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+
+    .form-input-with-prefix{
+      display:flex;align-items:center;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      transition:border-color 0.2s,box-shadow 0.2s;overflow:hidden;
+      backdrop-filter:blur(4px);
+    }
+    .form-input-with-prefix:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+    .form-prefix{padding:0 0 0 14px;font-size:14px;color:var(--fg-dim);white-space:nowrap;user-select:none}
+    .form-input-with-prefix .form-input{border:none;background:transparent;padding-left:2px;box-shadow:none!important;backdrop-filter:none}
+    .form-input-with-prefix .form-input:focus{box-shadow:none!important}
+
+    .form-textarea{
+      width:100%;min-height:80px;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      padding:12px 14px;font-size:14px;color:var(--fg);font-family:inherit;
+      resize:vertical;transition:border-color 0.2s,box-shadow 0.2s;outline:none;line-height:1.5;
+      backdrop-filter:blur(4px);
+    }
+    .form-textarea::placeholder{color:var(--fg-dim);opacity:0.5}
+    .form-textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+    .form-char-count{text-align:right;font-size:11px;color:var(--fg-dim);margin-top:4px;opacity:0.6}
+
+    .divider{height:1px;background:var(--border);margin:22px 0}
+
+    .btn-primary{
+      width:100%;height:50px;
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      color:var(--btn-text);
+      border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:opacity 0.15s,transform 0.1s,box-shadow 0.2s;margin-bottom:14px;
+      position:relative;overflow:hidden;
+    }
+    .btn-primary:hover{opacity:0.92;box-shadow:0 4px 20px rgba(167,192,128,0.3)}
+    .btn-primary:active{transform:scale(0.98)}
+    .btn-primary svg{width:18px;height:18px}
+    .btn-primary::after{
+      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+      transition:left 0.5s;
+    }
+    .btn-primary:hover::after{left:100%}
+
+    .terms{text-align:center;font-size:12px;color:var(--fg-dim);line-height:1.5}
+    .terms a{color:var(--green);text-decoration:none}
+    .terms a:hover{text-decoration:underline}
+
+    .footer-link{text-align:center;font-size:13px;color:var(--fg-dim);margin-top:24px}
+    .footer-link a{color:var(--green);text-decoration:none;font-weight:500}
+    .footer-link a:hover{text-decoration:underline}
+
+    .status-bar{
+      position:fixed;bottom:0;left:0;right:0;
+      display:flex;align-items:center;justify-content:center;gap:18px;
+      padding:14px;font-size:12px;color:var(--fg-dim);
+      background:linear-gradient(transparent,var(--bg0));
+      z-index:5;pointer-events:none;
+    }
+    .sep{opacity:0.3}
+
+    @media(max-width:520px){
+      .page{padding:20px 12px 96px}
+      .card{padding:28px 20px;border-radius:16px}
+      .headline{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="fireflies"></canvas>
+  <div class="vignette"></div>
+
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+    <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <div class="page">
+    <div class="card">
+      <div class="header">
+        <a href="#" class="logo">
+          <div class="logo-mark">V</div>
+          <span class="logo-text">Viche</span>
+        </a>
+        <div class="live-pill">
+          <span class="live-dot"></span>
+          <span id="live-label">— agents online</span>
+        </div>
+        <h1 class="headline">Join the <span class="accent">network</span></h1>
+        <p class="subhead">Create your account to register agents, manage registries, and start messaging.</p>
+      </div>
+
+      <form onsubmit="handleSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-input" type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="name">Name <span class="form-hint">(how you appear to others)</span></label>
+          <input class="form-input" type="text" id="name" placeholder="Jane Smith" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="form-input-with-prefix">
+            <span class="form-prefix">viche.ai/</span>
+            <input class="form-input" type="text" id="username" placeholder="janesmith" required autocomplete="username" pattern="[a-z0-9_-]+" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="usage">How do you plan to use Viche?</label>
+          <textarea class="form-textarea" id="usage" placeholder="e.g. Connecting my coding agents across machines, building a multi-agent research pipeline, team collaboration..." maxlength="500" required oninput="updateCount()"></textarea>
+          <div class="form-char-count"><span id="charCount">0</span>/500</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button class="btn-primary" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Create account
+        </button>
+        <p class="terms">
+          By signing up, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          <br>We'll send a magic link to verify your email — no password needed.
+        </p>
+      </form>
+      <div class="footer-link">
+        Already have an account? <a href="#">Sign in →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span><span class="live-dot"></span> viche.ai</span>
+    <span class="sep">·</span>
+    <span id="status-agents">— agents online</span>
+    <span class="sep">·</span>
+    <span>Open source · MIT</span>
+  </div>
+
+  <script>
+    // ================================================================
+    // FIREFLIES — Each light = one agent on the network
+    // They breathe, drift, appear/disappear as agents join/leave
+    // Cursor proximity makes nearby ones glow brighter (attracted)
+    // ================================================================
+    const canvas = document.getElementById('fireflies');
+    const ctx = canvas.getContext('2d');
+    let W, H, dpr;
+    let mouse = { x: -9999, y: -9999 };
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resize); resize();
+    document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY });
+
+    // ── Palette ──
+    const pal = {
+      dark:  [[167,192,128],[131,192,146],[127,187,179],[215,188,127],[214,153,182]],
+      light: [[141,161,1],[53,167,124],[58,148,197],[223,160,0],[223,105,186]]
+    };
+    function theme() { return document.documentElement.getAttribute('data-theme') || 'dark' }
+    function rgba(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})` }
+
+    // ── Firefly state ──
+    let agentCount = 26;
+    let msgCount = 1243;
+    const flies = [];
+    const TARGET_COUNT = () => agentCount; // each fly = one agent
+
+    class Firefly {
+      constructor(appearing) {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        // Slow organic drift using sin waves
+        this.driftX = (Math.random() - 0.5) * 0.15;
+        this.driftY = (Math.random() - 0.5) * 0.1;
+        this.wobbleAmpX = 15 + Math.random() * 30;
+        this.wobbleAmpY = 10 + Math.random() * 25;
+        this.wobbleSpeedX = 0.003 + Math.random() * 0.006;
+        this.wobbleSpeedY = 0.004 + Math.random() * 0.005;
+        this.wobbleOffX = Math.random() * Math.PI * 2;
+        this.wobbleOffY = Math.random() * Math.PI * 2;
+        this.baseRadius = 2 + Math.random() * 4;
+        this.glowRadius = this.baseRadius * (8 + Math.random() * 6);
+        this.colorIdx = Math.floor(Math.random() * 5);
+        // Breathing: each fly has its own rhythm
+        this.breathPhase = Math.random() * Math.PI * 2;
+        this.breathSpeed = 0.01 + Math.random() * 0.02;
+        this.breathDepth = 0.3 + Math.random() * 0.4; // how much alpha fluctuates
+        this.baseAlpha = 0.15 + Math.random() * 0.35;
+        // Lifecycle
+        this.life = appearing ? 0 : (0.3 + Math.random() * 0.7);
+        this.state = appearing ? 'appearing' : 'alive';
+        this.fadeSpeed = 0.008 + Math.random() * 0.008;
+        // Depth layer (parallax feel)
+        this.depth = 0.4 + Math.random() * 0.6; // 0.4 = far, 1.0 = close
+      }
+    }
+
+    // Seed initial flies
+    for (let i = 0; i < agentCount; i++) flies.push(new Firefly(false));
+
+    // ── Occasional agent join/leave ──
+    let eventTimer = 0;
+
+    function agentEvent() {
+      if (Math.random() < 0.6 && agentCount < 50) {
+        // Agent joins
+        agentCount++;
+        const f = new Firefly(true);
+        flies.push(f);
+      } else if (agentCount > 15) {
+        // Agent leaves
+        agentCount--;
+        // Pick a random alive fly to fade out
+        const alive = flies.filter(f => f.state === 'alive');
+        if (alive.length > 0) {
+          const pick = alive[Math.floor(Math.random() * alive.length)];
+          pick.state = 'disappearing';
+        }
+      }
+    }
+
+    // ── Render ──
+    let time = 0;
+
+    function draw() {
+      time++;
+      ctx.clearRect(0, 0, W, H);
+      const t = theme();
+      const colors = pal[t];
+
+      // Agent events every ~3-6 seconds
+      eventTimer++;
+      if (eventTimer > 180 + Math.random() * 180) {
+        agentEvent();
+        eventTimer = 0;
+      }
+
+      // Occasional message count bump
+      if (Math.random() < 0.02) msgCount++;
+
+      for (let i = flies.length - 1; i >= 0; i--) {
+        const f = flies[i];
+        const c = colors[f.colorIdx];
+
+        // Lifecycle
+        if (f.state === 'appearing') {
+          f.life += f.fadeSpeed;
+          if (f.life >= 1) { f.life = 1; f.state = 'alive'; }
+        } else if (f.state === 'disappearing') {
+          f.life -= f.fadeSpeed;
+          if (f.life <= 0) { flies.splice(i, 1); continue; }
+        }
+
+        // Position: drift + sine wobble
+        f.x += f.driftX * f.depth;
+        f.y += f.driftY * f.depth;
+        const wx = Math.sin(time * f.wobbleSpeedX + f.wobbleOffX) * f.wobbleAmpX * f.depth;
+        const wy = Math.cos(time * f.wobbleSpeedY + f.wobbleOffY) * f.wobbleAmpY * f.depth;
+        const px = f.x + wx;
+        const py = f.y + wy;
+
+        // Soft wrap
+        if (f.x < -60) f.x += W + 120;
+        if (f.x > W + 60) f.x -= W + 120;
+        if (f.y < -60) f.y += H + 120;
+        if (f.y > H + 60) f.y -= H + 120;
+
+        // Breathing alpha
+        f.breathPhase += f.breathSpeed;
+        const breath = Math.sin(f.breathPhase);
+        let alpha = f.baseAlpha + breath * f.breathDepth * f.baseAlpha;
+        alpha = Math.max(0.02, alpha);
+
+        // Mouse proximity boost — flies glow brighter near cursor
+        const md = Math.hypot(px - mouse.x, py - mouse.y);
+        const mouseInfluence = Math.max(0, 1 - md / 200);
+        alpha += mouseInfluence * 0.4;
+
+        // Apply lifecycle fade
+        alpha *= f.life;
+
+        const r = f.baseRadius * f.depth;
+        const gr = f.glowRadius * f.depth;
+
+        // Outer glow
+        const g = ctx.createRadialGradient(px, py, 0, px, py, gr);
+        g.addColorStop(0, rgba(c, alpha * 0.25));
+        g.addColorStop(0.3, rgba(c, alpha * 0.08));
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(px, py, gr, 0, Math.PI * 2); ctx.fill();
+
+        // Mid glow (tighter)
+        const g2 = ctx.createRadialGradient(px, py, 0, px, py, r * 3);
+        g2.addColorStop(0, rgba(c, alpha * 0.6));
+        g2.addColorStop(0.5, rgba(c, alpha * 0.15));
+        g2.addColorStop(1, 'transparent');
+        ctx.fillStyle = g2;
+        ctx.beginPath(); ctx.arc(px, py, r * 3, 0, Math.PI * 2); ctx.fill();
+
+        // Core
+        ctx.fillStyle = rgba(c, Math.min(1, alpha * 1.5));
+        ctx.beginPath(); ctx.arc(px, py, r * 0.6, 0, Math.PI * 2); ctx.fill();
+
+        // Appearing flash — brief bright pop when an agent joins
+        if (f.state === 'appearing' && f.life < 0.3) {
+          const flash = (0.3 - f.life) / 0.3;
+          const fg = ctx.createRadialGradient(px, py, 0, px, py, gr * 1.5);
+          fg.addColorStop(0, rgba(c, flash * 0.5));
+          fg.addColorStop(0.5, rgba(c, flash * 0.1));
+          fg.addColorStop(1, 'transparent');
+          ctx.fillStyle = fg;
+          ctx.beginPath(); ctx.arc(px, py, gr * 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+
+    // Update counters
+    setInterval(() => {
+      document.getElementById('live-label').textContent = `${agentCount} agents online · ${msgCount.toLocaleString()} messages`;
+      document.getElementById('status-agents').textContent = `${agentCount} agents online`;
+    }, 2000);
+
+    // ================================================================
+    // UI
+    // ================================================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      document.getElementById('icon-sun').style.display = isDark ? 'block' : 'none';
+      document.getElementById('icon-moon').style.display = isDark ? 'none' : 'block';
+    }
+    function updateCount() { document.getElementById('charCount').textContent = document.getElementById('usage').value.length }
+    function handleSubmit(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-primary');
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Magic link sent — check your inbox!`;
+      btn.style.background = 'var(--aqua)'; btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Create account`; btn.style.background = ''; btn.disabled = false }, 4000);
+    }
+  </script>
+</body>
+</html>

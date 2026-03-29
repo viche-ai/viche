@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viche — Sign Up</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg0:#2D353B;--bg1:#343F44;--bg2:#3D484D;--bg3:#475258;
+      --fg:#D3C6AA;--fg-dim:#859289;
+      --green:#A7C080;--aqua:#83C092;--blue:#7FBBB3;--yellow:#DBBC7F;--purple:#D699B6;
+      --border:rgba(255,255,255,0.07);--shadow:0 4px 32px rgba(0,0,0,0.5);
+      --btn-text:#1a2420;--input-bg:rgba(45,53,59,0.8);--focus-ring:rgba(167,192,128,0.4);
+      --card-bg:rgba(52,63,68,0.65);
+      --ring-color:rgba(167,192,128,0.18);
+    }
+    :root[data-theme="light"] {
+      --bg0:#FDF6E3;--bg1:#F4F0D9;--bg2:#EFEBD4;--bg3:#E6E2CC;
+      --fg:#5C6A72;--fg-dim:#829181;
+      --green:#8DA101;--aqua:#35A77C;--blue:#3A94C5;--yellow:#DFA000;--purple:#DF69BA;
+      --border:rgba(0,0,0,0.09);--shadow:0 4px 32px rgba(0,0,0,0.12);
+      --btn-text:#fff;--input-bg:rgba(253,246,227,0.8);--focus-ring:rgba(141,161,1,0.3);
+      --card-bg:rgba(244,240,217,0.7);
+      --ring-color:rgba(141,161,1,0.14);
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    body {
+      font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+      font-size:16px;background:var(--bg0);color:var(--fg);line-height:1.55;
+      min-height:100vh;overflow:hidden;
+    }
+
+    /* ── Pulse rings ── */
+    .rings {
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      pointer-events:none;z-index:0;
+    }
+    .ring {
+      position:absolute;border:1.5px solid var(--ring-color);border-radius:50%;
+      opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);
+      animation:pulse-ring 8s ease-out infinite;
+    }
+    .ring:nth-child(1){width:300px;height:300px;animation-delay:0s}
+    .ring:nth-child(2){width:500px;height:500px;animation-delay:1.3s}
+    .ring:nth-child(3){width:700px;height:700px;animation-delay:2.6s}
+    .ring:nth-child(4){width:900px;height:900px;animation-delay:3.9s}
+    .ring:nth-child(5){width:1100px;height:1100px;animation-delay:5.2s}
+    .ring:nth-child(6){width:1400px;height:1400px;animation-delay:6.5s}
+
+    @keyframes pulse-ring {
+      0%   { opacity:0; transform:translate(-50%,-50%) scale(0.85) }
+      10%  { opacity:1 }
+      80%  { opacity:0.15 }
+      100% { opacity:0; transform:translate(-50%,-50%) scale(1.15) }
+    }
+
+    .vignette {
+      position:fixed;inset:0;z-index:1;pointer-events:none;
+      background:radial-gradient(ellipse 65% 65% at 50% 50%, transparent 15%, var(--bg0) 100%);
+    }
+
+    /* ── Page ── */
+    .page {
+      position:relative;z-index:2;
+      display:flex;align-items:center;justify-content:center;
+      min-height:100vh;padding:48px 16px 96px;
+    }
+
+    /* ── Theme toggle ── */
+    .theme-toggle {
+      position:fixed;top:16px;right:16px;width:36px;height:36px;
+      background:var(--card-bg);border:1px solid var(--border);border-radius:10px;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      color:var(--fg-dim);z-index:10;transition:all 0.2s;
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    }
+    .theme-toggle:hover{background:var(--bg2);transform:scale(1.05)}
+    .theme-toggle svg{width:18px;height:18px}
+
+    /* ── Card with conic gradient border ── */
+    .card {
+      width:100%;max-width:460px;
+      background:var(--card-bg);
+      border:1px solid var(--border);
+      border-radius:20px;padding:40px 36px;
+      box-shadow:var(--shadow);
+      animation:cardIn 0.9s cubic-bezier(0.16,1,0.3,1);
+      backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      position:relative;
+    }
+    /* Conic gradient shimmer — fills entire card background */
+    .card::before {
+      content:'';position:absolute;inset:0;border-radius:20px;
+      background:conic-gradient(from var(--shimmer-angle,0deg) at 50% 50%,
+        transparent 0deg,
+        rgba(167,192,128,0.12) 45deg,
+        rgba(131,192,146,0.08) 90deg,
+        transparent 135deg,
+        rgba(127,187,179,0.1) 200deg,
+        rgba(215,188,127,0.06) 250deg,
+        transparent 315deg);
+      z-index:-1;
+      opacity:0.6;
+      transition:opacity 0.4s ease;
+      animation:shimmer-rotate 6s linear infinite;
+    }
+    .card:hover::before { opacity:1 }
+    @keyframes shimmer-rotate{to{--shimmer-angle:360deg}}
+    @property --shimmer-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
+    @keyframes cardIn{
+      from{opacity:0;transform:translateY(28px) scale(0.96)}
+      to{opacity:1;transform:translateY(0) scale(1)}
+    }
+
+    /* ── Header ── */
+    .header{text-align:center;margin-bottom:32px}
+    .logo{display:inline-flex;align-items:center;gap:9px;margin-bottom:20px;text-decoration:none}
+    .logo-mark{
+      width:32px;height:32px;
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      border-radius:8px;display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:800;color:#1a2420;flex-shrink:0;
+    }
+    .logo-text{font-size:18px;font-weight:600;letter-spacing:-0.3px;color:var(--fg)}
+
+    .live-pill {
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:12px;font-weight:500;color:var(--fg-dim);
+      border:1px solid var(--border);border-radius:20px;
+      padding:4px 14px;margin-bottom:18px;
+      background:rgba(167,192,128,0.06);
+    }
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}50%{opacity:0.4;box-shadow:none}}
+
+    .headline{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+    .headline .accent{
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .subhead{color:var(--fg-dim);font-size:14px;line-height:1.5}
+
+    /* ── Form ── */
+    .form-group{margin-bottom:18px}
+    .form-label{display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px}
+    .form-hint{font-size:11px;font-weight:400;color:var(--fg-dim);margin-left:4px}
+    .form-input{
+      width:100%;height:46px;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      padding:0 14px;font-size:14px;color:var(--fg);font-family:inherit;
+      transition:border-color 0.2s,box-shadow 0.2s;outline:none;
+      backdrop-filter:blur(4px);
+    }
+    .form-input::placeholder{color:var(--fg-dim);opacity:0.5}
+    .form-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+
+    .form-input-with-prefix{
+      display:flex;align-items:center;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      transition:border-color 0.2s,box-shadow 0.2s;overflow:hidden;
+      backdrop-filter:blur(4px);
+    }
+    .form-input-with-prefix:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+    .form-prefix{padding:0 0 0 14px;font-size:14px;color:var(--fg-dim);white-space:nowrap;user-select:none}
+    .form-input-with-prefix .form-input{border:none;background:transparent;padding-left:2px;box-shadow:none!important;backdrop-filter:none}
+    .form-input-with-prefix .form-input:focus{box-shadow:none!important}
+
+    .form-textarea{
+      width:100%;min-height:80px;background:var(--input-bg);
+      border:1px solid var(--border);border-radius:10px;
+      padding:12px 14px;font-size:14px;color:var(--fg);font-family:inherit;
+      resize:vertical;transition:border-color 0.2s,box-shadow 0.2s;outline:none;line-height:1.5;
+      backdrop-filter:blur(4px);
+    }
+    .form-textarea::placeholder{color:var(--fg-dim);opacity:0.5}
+    .form-textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--focus-ring)}
+    .form-char-count{text-align:right;font-size:11px;color:var(--fg-dim);margin-top:4px;opacity:0.6}
+
+    .divider{height:1px;background:var(--border);margin:22px 0}
+
+    .btn-primary{
+      width:100%;height:50px;
+      background:linear-gradient(135deg,var(--green),var(--aqua));
+      color:var(--btn-text);
+      border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:opacity 0.15s,transform 0.1s,box-shadow 0.2s;margin-bottom:14px;
+      position:relative;overflow:hidden;
+    }
+    .btn-primary:hover{opacity:0.92;box-shadow:0 4px 20px rgba(167,192,128,0.3)}
+    .btn-primary:active{transform:scale(0.98)}
+    .btn-primary svg{width:18px;height:18px}
+    .btn-primary::after{
+      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+      transition:left 0.5s;
+    }
+    .btn-primary:hover::after{left:100%}
+
+    .terms{text-align:center;font-size:12px;color:var(--fg-dim);line-height:1.5}
+    .terms a{color:var(--green);text-decoration:none}
+    .terms a:hover{text-decoration:underline}
+
+    .footer-link{text-align:center;font-size:13px;color:var(--fg-dim);margin-top:24px}
+    .footer-link a{color:var(--green);text-decoration:none;font-weight:500}
+    .footer-link a:hover{text-decoration:underline}
+
+    .status-bar{
+      position:fixed;bottom:0;left:0;right:0;
+      display:flex;align-items:center;justify-content:center;gap:18px;
+      padding:14px;font-size:12px;color:var(--fg-dim);
+      background:linear-gradient(transparent,var(--bg0));
+      z-index:5;pointer-events:none;
+    }
+    .sep{opacity:0.3}
+
+    @media(max-width:520px){
+      .page{padding:20px 12px 96px}
+      .card{padding:28px 20px;border-radius:16px}
+      .headline{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Pulse rings radiating from center -->
+  <div class="rings">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+  </div>
+  <div class="vignette"></div>
+
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+    <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <div class="page">
+    <div class="card">
+      <div class="header">
+        <a href="#" class="logo">
+          <div class="logo-mark">V</div>
+          <span class="logo-text">Viche</span>
+        </a>
+        <div class="live-pill">
+          <span class="live-dot"></span>
+          <span id="live-label">— agents online</span>
+        </div>
+        <h1 class="headline">Join the <span class="accent">network</span></h1>
+        <p class="subhead">Create your account to register agents, manage registries, and start messaging.</p>
+      </div>
+
+      <form onsubmit="handleSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-input" type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="name">Name <span class="form-hint">(how you appear to others)</span></label>
+          <input class="form-input" type="text" id="name" placeholder="Jane Smith" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="form-input-with-prefix">
+            <span class="form-prefix">viche.ai/</span>
+            <input class="form-input" type="text" id="username" placeholder="janesmith" required autocomplete="username" pattern="[a-z0-9_-]+" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="usage">How do you plan to use Viche?</label>
+          <textarea class="form-textarea" id="usage" placeholder="e.g. Connecting my coding agents across machines, building a multi-agent research pipeline, team collaboration..." maxlength="500" required oninput="updateCount()"></textarea>
+          <div class="form-char-count"><span id="charCount">0</span>/500</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button class="btn-primary" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Create account
+        </button>
+        <p class="terms">
+          By signing up, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          <br>We'll send a magic link to verify your email — no password needed.
+        </p>
+      </form>
+      <div class="footer-link">
+        Already have an account? <a href="#">Sign in →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span><span class="live-dot"></span> viche.ai</span>
+    <span class="sep">·</span>
+    <span id="status-agents">— agents online</span>
+    <span class="sep">·</span>
+    <span>Open source · MIT</span>
+  </div>
+
+  <script>
+    let agentCount = 22 + Math.floor(Math.random() * 10);
+    let msgCount = 1180 + Math.floor(Math.random() * 200);
+
+    setInterval(() => {
+      if (Math.random() < 0.3) agentCount += Math.random() > 0.5 ? 1 : -1;
+      if (Math.random() < 0.5) msgCount++;
+      document.getElementById('live-label').textContent = `${agentCount} agents online · ${msgCount.toLocaleString()} messages`;
+      document.getElementById('status-agents').textContent = `${agentCount} agents online`;
+    }, 2000);
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      document.getElementById('icon-sun').style.display = isDark ? 'block' : 'none';
+      document.getElementById('icon-moon').style.display = isDark ? 'none' : 'block';
+    }
+    function updateCount() { document.getElementById('charCount').textContent = document.getElementById('usage').value.length }
+    function handleSubmit(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-primary');
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Magic link sent — check your inbox!`;
+      btn.style.background = 'var(--aqua)'; btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Create account`; btn.style.background = ''; btn.disabled = false }, 4000);
+    }
+  </script>
+</body>
+</html>
