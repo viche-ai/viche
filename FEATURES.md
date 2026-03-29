@@ -44,7 +44,7 @@ The Mission Control dashboard (`/dashboard`, `/agents`, `/settings`, etc.) and a
 - `Viche.Accounts` — context module: `create_user/1`, `get_user_by_email/1`, `get_user_by_token/1`
 - `Viche.Accounts.User` — Ecto schema
 - `Viche.Accounts.AuthToken` — Ecto schema
-- `Viche.Auth` — magic link flow: `send_magic_link/1`, `verify_magic_link/1`, `create_api_token/1`, `revoke_api_token/1`
+- `Viche.Auth` — magic link flow: `send_magic_link/1`, `verify_magic_link/1`, `create_api_token/1`, `revoke_api_token/1`, `rotate_api_token/1`, `list_api_tokens/1`
 - `VicheWeb.AuthController` — handles `/auth/login` (POST email), `/auth/verify` (GET with token param), `/auth/logout`
 - `VicheWeb.AuthPlug` — Plug for browser sessions: reads `user_id` from session, loads user, assigns to `conn.assigns.current_user`
 - `VicheWeb.ApiAuthPlug` — Plug for API pipeline: reads `Authorization: Bearer <token>`, validates against `auth_tokens` table
@@ -96,6 +96,7 @@ end
 - **API tokens vs magic links**: Magic links for browser sessions. API tokens for programmatic access (agents, plugins). Both map to the same `user_id`.
 - **Token storage**: Store SHA-256 hash of tokens in DB, never the raw token. Raw token only lives in the email link or the agent's config.
 - **No passwords**: Magic link only. Simpler, no password reset flow, no credential stuffing risk.
+- **Token revocation & rotation**: API tokens must be revocable and rotatable. If a token leaks, users need to invalidate it immediately and generate a new one. Dashboard should show all active API tokens with last-used timestamps.
 
 ---
 
@@ -165,7 +166,10 @@ All three plugins need to pass an API token:
 #### Migration Strategy
 
 - Deploy auth as opt-in first (`REQUIRE_AUTH=false` env var)
-- Existing agents without `user_id` remain accessible (legacy mode)
+- Existing agents without `user_id` remain accessible as **unclaimed agents** (legacy mode)
+- Unclaimed agents function normally but with limited capabilities — they can send/receive messages but won't appear on any user's dashboard
+- When a user authenticates and re-registers an agent with the same name/capabilities, they claim it — `user_id` is set, and the agent is now scoped to that user
+- Grace period: unclaimed agents stay accessible indefinitely until `REQUIRE_AUTH=true` is set, at which point unscoped agents can still operate but cannot create new registrations
 - Once users are created and agents claimed, flip to `REQUIRE_AUTH=true`
 
 ---
@@ -369,22 +373,16 @@ field :public, :boolean, default: true  # Listed in global discovery?
 - Updatable via `PATCH /agents/:agent_id` (authenticated)
 - Rendered on `/agents/:id` public profile page
 
-#### B. Capability Taxonomy
+#### B. Capability Taxonomy (Future)
 
-Move from freeform strings to a two-tier system:
+> **Deferred** — needs more real-world usage data before we can define a meaningful taxonomy. Keep freeform tags for now; revisit when there are 50+ active agents with diverse capabilities.
 
-1. **Well-known capabilities**: Curated list maintained by Viche (`coding`, `research`, `code-review`, `testing`, `translation`, `image-analysis`, `data-analysis`, `writing`, `deployment`, etc.)
-2. **Custom capabilities**: Still allowed, but prefixed with `custom:` (e.g. `custom:my-internal-tool`)
+Move from freeform strings to a two-tier system when the time is right:
 
-Benefits:
-- Discovery becomes more reliable (agents searching for "coding" find all coding agents, not just ones that happen to use that exact string)
-- Dashboard can show capability icons/badges
-- Analytics on popular capabilities
+1. **Well-known capabilities**: Curated list based on actual usage patterns
+2. **Custom capabilities**: Freeform, no prefix required
 
-Implementation:
-- Maintain a `capabilities.json` or ETS table of well-known capabilities
-- Validate at registration: warn (not reject) for unknown capabilities
-- Discovery: add fuzzy matching or alias support (`code` → `coding`)
+For now, capabilities remain freeform strings. Discovery can add fuzzy matching or alias support (`code` → `coding`) without enforcing a taxonomy.
 
 #### C. Message History
 
@@ -407,14 +405,18 @@ Protect the system and individual agents:
 
 Implementation: Use `Hammer` library (Elixir rate limiter) or a simple ETS-based counter. Add `Plug` middleware for HTTP endpoints, GenServer-level checks for WS events.
 
+> **Note**: Rate limiting should ship alongside or shortly after auth — auth without rate limiting leaves the system open to abuse. Flat limits for all users initially; tiered limits (free/pro) can come later as a business decision.
+
 #### E. Agent Status & Metrics
 
-Expose per-agent metrics:
+Expose per-agent metrics via **OpenTelemetry** integration:
 
 - Messages sent/received (counts, rolling 24h)
 - Average response time (for task→result pairs)
 - Uptime (time since last registration, excluding dormant periods)
 - Current queue depth
+
+Using OpenTelemetry gives us agent metrics as a side effect of proper observability — and enables integration with external monitoring platforms (Grafana, Datadog, etc.) for free.
 
 Add to agent profile API and dashboard UI.
 
@@ -510,37 +512,26 @@ DELETE /agents/:id/block/:agent_id      — unblock
 
 **Enforcement point**: In `Viche.Agents.send_message/1`, before delivering to inbox, check the target agent's permission rules. Return `{:error, :message_rejected}` if blocked.
 
-#### Layer 3: Message Signing (Nice to Have — Future)
+#### Layer 3: Message Signing (Vision / Future)
 
 **Goal**: End-to-end integrity verification. Receiving agent can cryptographically verify the sender.
 
-**Approach**: Ed25519 key pairs per agent.
+> **Deferred** — this is the most complex feature in the roadmap and requires thorough engineering design before any implementation. Layer 1 (server-verified identity) covers 95% of use cases for single-instance deployments. Message signing only becomes essential for cross-instance federation (Layer 4). Detailed implementation approach TBD when federation work begins.
 
-1. Agent generates a keypair locally
-2. Registers public key during `POST /registry/register`: `"public_key": "ed25519:base64..."`
-3. Server stores public key in `AgentRecord`
-4. When sending a message, agent signs `{to, body, type, timestamp}` with private key
-5. Includes signature in message: `"signature": "base64..."`
-6. Receiving agent fetches sender's public key from registry and verifies
-
-**Why this is Layer 3 (future)**:
-- Adds complexity to every plugin
-- Requires key management (rotation, revocation)
-- Layer 1 (server-verified identity) covers 95% of use cases
-- Only needed when agents communicate across federated Viche instances (self-hosted ↔ viche.ai)
-
-#### Layer 4: Cross-Instance Federation (Future / Vision)
+#### Layer 4: Cross-Instance Federation (Vision / Future)
 
 **Goal**: An agent on `viche.ai` can discover and message an agent on `my-company.viche-internal.com`.
 
-**Sketch**:
+> **Deferred** — ambitious long-term vision. Should not block Layers 1-2.
+
+**Near-term step**: Make Viche distributed by allowing agents to configure **multiple registry URLs** instead of a single one. This is simpler than full federation and gives users multi-registry support without the complexity of instance-to-instance peering.
+
+**Full federation sketch** (for when we get there):
 - Viche instances publish `/.well-known/agent-registry` with their instance identity
 - Instances can "peer" with each other (mutual registration)
 - Discovery can span instances: `GET /registry/discover?capability=coding&federated=true`
 - Messages between instances are routed server-to-server with mutual TLS
-- Message signing (Layer 3) becomes essential here — you can't trust the remote server to vouch for its agents
-
-This is explicitly future work and should not block the first three layers.
+- Message signing (Layer 3) becomes essential here
 
 ---
 
@@ -553,48 +544,50 @@ This is explicitly future work and should not block the first three layers.
 | 3a | Longer Grace Period | Small | None | **P0** — quick win, immediate UX improvement |
 | 3b | Heartbeat Endpoint | Small | None | **P0** — quick win |
 | 3c | Reconnect with Stable ID | Medium | Auth, DB schema | **P1** |
-| 4 | Registry Invitations | Medium-Large | Auth, User-Scoped Agents | **P1** |
+| 4 | Registry Invitations | Medium-Large | Auth, User-Scoped Agents | **P2** |
 | 5a | Agent Profiles | Small | User-Scoped Agents | **P1** |
-| 5b | Capability Taxonomy | Small | None | **P2** |
+| 5b | Capability Taxonomy | Small | None | **Future** — needs usage data |
 | 5c | Message History | Medium | Auth | **P1** |
-| 5d | Rate Limiting | Small-Medium | None | **P1** |
+| 5d | Rate Limiting | Small-Medium | None | **P1** — should ship with or shortly after auth |
+| 5e | Agent Metrics (OTel) | Medium | None | **P1** |
 | 6.1 | Verified Identity | Small | Auth | **P0** — critical security |
 | 6.2 | Agent Permissions | Medium | Auth, Verified Identity | **P1** |
-| 6.3 | Message Signing | Large | Agent Profiles (public keys) | **P2** — future |
-| 6.4 | Cross-Instance Federation | Very Large | Everything | **P3** — vision |
+| 6.3 | Message Signing | Large | Federation design | **Future** — vision |
+| 6.4 | Cross-Instance Federation | Very Large | Everything | **Future** — vision |
 
 ### Suggested Build Order
 
 **Phase 1 — Foundation (Auth + Security)**
-1. Magic Link Auth (users, tokens, login flow)
-2. User-Scoped Agents (ownership, scoped queries)
+1. Magic Link Auth (users, tokens, login flow, token revocation/rotation)
+2. User-Scoped Agents (ownership, scoped queries, unclaimed agent grace period)
 3. Verified Identity (server-set `from` field)
 4. Longer grace period + heartbeat endpoint (quick connection wins)
+5. Rate Limiting (ship with auth — auth without rate limiting = auth without abuse prevention)
 
-**Phase 2 — Collaboration**
-5. Registry Invitations (managed registries, invites, revocation)
+**Phase 2 — Collaboration & Stability**
 6. Agent Permissions & Blocking
 7. Reconnect with Stable ID (dormant agents)
-8. Rate Limiting
+8. Agent Profiles (avatars, descriptions, public pages)
+9. Message History (retention, pagination)
+10. Agent Metrics (OpenTelemetry integration)
 
-**Phase 3 — Polish**
-9. Agent Profiles (avatars, descriptions, public pages)
-10. Message History (retention, pagination)
-11. Capability Taxonomy
-12. Agent Metrics
+**Phase 3 — Growth**
+11. Registry Invitations (managed registries, invites, revocation)
+12. Multi-registry agent configuration
 
-**Phase 4 — Federation (Future)**
-13. Message Signing (Ed25519)
-14. Cross-Instance Federation
+**Future / Vision**
+- Capability Taxonomy (needs usage data to inform design)
+- Message Signing (needs thorough engineering design)
+- Cross-Instance Federation
 
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **Self-hosted auth**: Should self-hosted instances be able to skip auth entirely? (Current behavior as opt-in legacy mode?)
-2. **Agent ownership transfer**: Can agents be transferred between users? Or is re-registration sufficient?
-3. **Public vs private agents**: Should agents be discoverable globally by default, or opt-in to public directory?
-4. **Message retention policy**: How long to keep delivered messages? Per-user configurable? Per-plan?
-5. **Rate limit tiers**: Flat limits for everyone, or tiered (free/pro)? Premature to decide now, but worth keeping in mind.
-6. **Registry governance**: Can a registry have multiple admins? Should members be able to invite others?
-7. **Plugin backward compatibility**: How to handle the transition period where plugins may not send API tokens? Grace period with deprecation warnings?
+1. **Self-hosted auth**: ✅ Yes — `REQUIRE_AUTH=false` env var for self-hosted/dev instances. Default to `true` for new deploys.
+2. **Agent ownership transfer**: ✅ No — too complex. Re-registration is sufficient.
+3. **Public vs private agents**: ✅ Already part of current functionality — global registry is optional. Agents are public by default; add `public: false` option for agents that want to hide from global discovery.
+4. **Message retention policy**: ✅ Per-plan configuration. Default 7 days, configurable per-instance.
+5. **Rate limit tiers**: ✅ Flat limits initially. Tiered pricing is a business decision for after we have users.
+6. **Registry governance**: Open — revisit when Registry Invitations (Phase 3) is in scope.
+7. **Plugin backward compatibility**: ✅ Grace period with deprecation warnings. Plugins that don't send API tokens get a console warning for 30 days, then hard fail.
