@@ -101,3 +101,4 @@ viche_discover({ capability: "coding", token: "my-team-token" })
 ## License
 
 MIT © [Ihor Katkov](https://github.com/ihorkatkov)
+
