@@ -1,0 +1,485 @@
+#!/bin/bash
+# wt - Viche worktree management
+#
+# Creates isolated development worktrees with dedicated ports and databases.
+# Each worktree gets its own config/dev.secret.exs and config/test.secret.exs.
+#
+# Usage:
+#   ./scripts/wt --new <name> [branch]   Create new worktree
+#   ./scripts/wt --list                   List worktrees
+#   ./scripts/wt --remove <name>          Remove worktree
+#   ./scripts/wt --prune                  Prune stale references
+#   ./scripts/wt --help                   Show help
+#
+# Environment:
+#   VICHE_WORKTREES_DIR   Override worktrees directory (default: ../ relative to repo)
+
+set -e
+
+# ---------------------------------------------------------------------------
+# Colors
+# ---------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# ---------------------------------------------------------------------------
+# Resolve directories
+# ---------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Worktrees directory: sibling of the repo root (i.e. ../worktrees/main -> ../worktrees)
+DEFAULT_WORKTREES_DIR="$(cd "$REPO_ROOT/.." && pwd)"
+WORKTREES_DIR="${VICHE_WORKTREES_DIR:-$DEFAULT_WORKTREES_DIR}"
+
+# Default base ports
+DEV_BASE_PORT=4000
+TEST_BASE_PORT=4002
+
+# ---------------------------------------------------------------------------
+# Helper: print helpers
+# ---------------------------------------------------------------------------
+info()    { echo -e "${BLUE}[wt]${NC} $*"; }
+success() { echo -e "${GREEN}[wt]${NC} $*"; }
+warn()    { echo -e "${YELLOW}[wt]${NC} $*"; }
+error()   { echo -e "${RED}[wt]${NC} $*" >&2; }
+
+# ---------------------------------------------------------------------------
+# sanitize_db_name <worktree_name>
+#   Returns a sanitized segment suitable for use in DB names.
+#   - Takes the last path segment
+#   - Replaces non-alphanumeric (except _) with _
+#   - Truncates to 20 chars
+# ---------------------------------------------------------------------------
+sanitize_db_name() {
+  local name="$1"
+  # Take last path segment
+  local segment
+  segment="$(basename "$name")"
+  # Replace [^a-zA-Z0-9] with _
+  segment="${segment//[^a-zA-Z0-9]/_}"
+  # Truncate to 20 chars
+  segment="${segment:0:20}"
+  echo "$segment"
+}
+
+# ---------------------------------------------------------------------------
+# find_free_port_offset
+#   Probes offsets 10, 20, 30, ... 100
+#   Returns the first offset where BOTH dev_port and test_port are free.
+#   Exits non-zero if none found.
+# ---------------------------------------------------------------------------
+find_free_port_offset() {
+  local offset
+  for offset in 10 20 30 40 50 60 70 80 90 100; do
+    local dev_port=$(( DEV_BASE_PORT + offset ))
+    local test_port=$(( TEST_BASE_PORT + offset ))
+    local dev_free=true
+    local test_free=true
+
+    # Check dev port
+    if (echo >/dev/tcp/127.0.0.1/$dev_port) 2>/dev/null; then
+      dev_free=false
+    fi
+
+    # Check test port
+    if (echo >/dev/tcp/127.0.0.1/$test_port) 2>/dev/null; then
+      test_free=false
+    fi
+
+    if $dev_free && $test_free; then
+      echo "$offset"
+      return 0
+    fi
+  done
+
+  error "No free port offset found (tried 10-100). Free up some ports and retry."
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# list_worktrees
+# ---------------------------------------------------------------------------
+list_worktrees() {
+  info "Worktrees in $WORKTREES_DIR:"
+  echo ""
+
+  local found=false
+  for dir in "$WORKTREES_DIR"/*/; do
+    [[ -d "$dir" ]] || continue
+    # Must be a valid git worktree (has .git file or dir)
+    [[ -e "$dir/.git" ]] || continue
+
+    found=true
+    local name
+    name="$(basename "$dir")"
+    local branch
+    branch="$(git -C "$dir" branch --show-current 2>/dev/null || echo "(detached)")"
+
+    if [[ "$name" == "main" ]]; then
+      echo -e "  ${GREEN}${name}${NC} [default]  branch: ${branch}  path: ${dir}"
+    else
+      echo -e "  ${BLUE}${name}${NC}            branch: ${branch}  path: ${dir}"
+    fi
+  done
+
+  if ! $found; then
+    warn "No worktrees found in $WORKTREES_DIR"
+  fi
+  echo ""
+}
+
+# ---------------------------------------------------------------------------
+# create_worktree <name> [branch]
+# ---------------------------------------------------------------------------
+create_worktree() {
+  local name="$1"
+  local branch="${2:-}"
+
+  # Validate name
+  if [[ -z "$name" ]]; then
+    error "Worktree name is required."
+    show_help
+    exit 1
+  fi
+
+  if [[ "$name" == "main" ]]; then
+    error "Cannot create a worktree named 'main' — it is reserved."
+    exit 1
+  fi
+
+  # Sanitize and validate DB name
+  local sanitized
+  sanitized="$(sanitize_db_name "$name")"
+
+  if [[ -z "$sanitized" ]]; then
+    error "Sanitized DB name is empty. Please use a name with at least one alphanumeric character."
+    exit 1
+  fi
+
+  local db_dev="viche_wt_${sanitized}_dev"
+  local db_test="viche_wt_${sanitized}_test"
+
+  # PostgreSQL identifier limit: 63 chars
+  if [[ ${#db_dev} -gt 63 ]] || [[ ${#db_test} -gt 63 ]]; then
+    error "Database name too long (>63 chars): $db_dev / $db_test"
+    error "Use a shorter worktree name."
+    exit 1
+  fi
+
+  local worktree_path="$WORKTREES_DIR/$name"
+
+  if [[ -e "$worktree_path" ]]; then
+    error "Path already exists: $worktree_path"
+    exit 1
+  fi
+
+  # Find free ports
+  info "Finding free port offset..."
+  local offset
+  offset="$(find_free_port_offset)"
+  local dev_port=$(( DEV_BASE_PORT + offset ))
+  local test_port=$(( TEST_BASE_PORT + offset ))
+
+  info "Using ports: dev=$dev_port  test=$test_port  (offset +$offset)"
+  info "Using databases: dev=$db_dev  test=$db_test"
+
+  # Determine branch argument for git worktree
+  if [[ -z "$branch" ]]; then
+    branch="$name"
+  fi
+
+  # Create git worktree
+  info "Creating git worktree at $worktree_path ..."
+
+  # Note: git worktree add may return non-zero if a post-checkout hook exits
+  # non-zero (e.g. the beads hook when no DB is initialised). The worktree is
+  # still created correctly.  We verify success by checking the worktree list.
+  # Check if branch exists locally
+  if git -C "$REPO_ROOT" rev-parse --verify "$branch" &>/dev/null; then
+    info "Branch '$branch' exists locally — checking out."
+    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
+  # Check if branch exists on remote
+  elif git -C "$REPO_ROOT" ls-remote --exit-code --heads origin "$branch" &>/dev/null; then
+    info "Branch '$branch' exists on remote — tracking."
+    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
+  else
+    info "Creating new branch '$branch'."
+    git -C "$REPO_ROOT" worktree add -b "$branch" "$worktree_path" || true
+  fi
+
+  # Verify the worktree was actually created
+  if ! git -C "$REPO_ROOT" worktree list | grep -qF "$worktree_path"; then
+    error "Failed to create git worktree at $worktree_path"
+    exit 1
+  fi
+
+  # --- Rollback function ---
+  rollback() {
+    error "Rolling back worktree creation..."
+    dropdb "$db_dev" 2>/dev/null || true
+    dropdb "$db_test" 2>/dev/null || true
+    git -C "$REPO_ROOT" worktree remove --force "$worktree_path" 2>/dev/null || true
+    git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+    error "Rollback complete. Exiting."
+    exit 1
+  }
+
+  # Generate config/dev.secret.exs
+  info "Writing config/dev.secret.exs ..."
+  cat > "$worktree_path/config/dev.secret.exs" <<ELIXIR
+import Config
+
+# Generated by scripts/wt — do not commit
+config :viche, Viche.Repo, database: "$db_dev"
+config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $dev_port]
+ELIXIR
+
+  # Generate config/test.secret.exs
+  info "Writing config/test.secret.exs ..."
+  cat > "$worktree_path/config/test.secret.exs" <<ELIXIR
+import Config
+
+# Generated by scripts/wt — do not commit
+config :viche, Viche.Repo, database: "$db_test"
+config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $test_port]
+ELIXIR
+
+  # Ensure config files have the import_config lines for secret overrides.
+  # The worktree is checked out from HEAD, which may not yet have these lines
+  # committed (e.g. during bootstrap before the first commit of this script).
+  if ! grep -q 'import_config "dev.secret.exs"' "$worktree_path/config/dev.exs" 2>/dev/null; then
+    info "Patching config/dev.exs with import_config line..."
+    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("dev.secret.exs", __DIR__)) do\n  import_config "dev.secret.exs"\nend\n' >> "$worktree_path/config/dev.exs"
+  fi
+  if ! grep -q 'import_config "test.secret.exs"' "$worktree_path/config/test.exs" 2>/dev/null; then
+    info "Patching config/test.exs with import_config line..."
+    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("test.secret.exs", __DIR__)) do\n  import_config "test.secret.exs"\nend\n' >> "$worktree_path/config/test.exs"
+  fi
+
+  # Run mix setup — rollback on failure.
+  # Disable set -e here so that a failing subshell exits cleanly via the explicit
+  # exit-code check rather than killing the script before rollback can run.
+  info "Running mix setup in $worktree_path ..."
+  set +e
+  (cd "$worktree_path" && mix setup)
+  if [[ $? -ne 0 ]]; then
+    set -e
+    rollback
+  fi
+  set -e
+
+  # Run mix precommit — rollback on failure
+  info "Running mix precommit in $worktree_path ..."
+  set +e
+  (cd "$worktree_path" && mix precommit)
+  if [[ $? -ne 0 ]]; then
+    set -e
+    rollback
+  fi
+  set -e
+
+  echo ""
+  success "Worktree '$name' created successfully!"
+  echo ""
+  echo -e "  ${BLUE}Path:${NC}       $worktree_path"
+  echo -e "  ${BLUE}Branch:${NC}     $branch"
+  echo -e "  ${BLUE}Dev port:${NC}   $dev_port  (start server: iex -S mix phx.server)"
+  echo -e "  ${BLUE}Test port:${NC}  $test_port"
+  echo -e "  ${BLUE}Dev DB:${NC}     $db_dev"
+  echo -e "  ${BLUE}Test DB:${NC}    $db_test"
+  echo ""
+  echo -e "  ${YELLOW}Next steps:${NC}"
+  echo -e "    cd $worktree_path"
+  echo -e "    iex -S mix phx.server"
+  echo ""
+}
+
+# ---------------------------------------------------------------------------
+# remove_worktree <name> [--force]
+# ---------------------------------------------------------------------------
+remove_worktree() {
+  local name="$1"
+  local force="${2:-}"
+
+  if [[ -z "$name" ]]; then
+    error "Worktree name is required for --remove."
+    show_help
+    exit 1
+  fi
+
+  if [[ "$name" == "main" ]]; then
+    error "Cannot remove the 'main' worktree."
+    exit 1
+  fi
+
+  local worktree_path="$WORKTREES_DIR/$name"
+
+  if [[ ! -e "$worktree_path" ]]; then
+    error "Worktree not found: $worktree_path"
+    exit 1
+  fi
+
+  # Detect databases from secret config if present
+  local db_dev=""
+  local db_test=""
+  local dev_secret="$worktree_path/config/dev.secret.exs"
+  local test_secret="$worktree_path/config/test.secret.exs"
+
+  if [[ -f "$dev_secret" ]]; then
+    db_dev="$(sed -n 's/.*database: "\([^"]*\)".*/\1/p' "$dev_secret" 2>/dev/null || true)"
+  fi
+  if [[ -f "$test_secret" ]]; then
+    db_test="$(sed -n 's/.*database: "\([^"]*\)".*/\1/p' "$test_secret" 2>/dev/null || true)"
+  fi
+
+  if [[ "$force" != "--force" ]]; then
+    warn "About to remove worktree '$name' at $worktree_path"
+    [[ -n "$db_dev" ]]  && warn "  Will attempt to drop database: $db_dev"
+    [[ -n "$db_test" ]] && warn "  Will attempt to drop database: $db_test"
+    read -r -p "$(echo -e "${YELLOW}[wt]${NC} Confirm removal? [y/N] ")" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      info "Aborted."
+      exit 0
+    fi
+  fi
+
+  info "Removing worktree '$name' ..."
+  git -C "$REPO_ROOT" worktree remove --force "$worktree_path" 2>/dev/null || true
+
+  if [[ -n "$db_dev" ]]; then
+    info "Dropping database $db_dev ..."
+    dropdb "$db_dev" 2>/dev/null && success "Dropped $db_dev" || warn "Could not drop $db_dev (may not exist)"
+  fi
+  if [[ -n "$db_test" ]]; then
+    info "Dropping database $db_test ..."
+    dropdb "$db_test" 2>/dev/null && success "Dropped $db_test" || warn "Could not drop $db_test (may not exist)"
+  fi
+
+  git -C "$REPO_ROOT" worktree prune
+  success "Worktree '$name' removed."
+}
+
+# ---------------------------------------------------------------------------
+# prune_worktrees
+# ---------------------------------------------------------------------------
+prune_worktrees() {
+  info "Pruning stale worktree references..."
+  git -C "$REPO_ROOT" worktree prune -v
+  echo ""
+  info "Remaining worktrees:"
+  git -C "$REPO_ROOT" worktree list
+  echo ""
+}
+
+# ---------------------------------------------------------------------------
+# show_help
+# ---------------------------------------------------------------------------
+show_help() {
+  echo ""
+  echo -e "${BLUE}wt${NC} — Viche worktree management"
+  echo ""
+  echo "USAGE:"
+  echo "  ./scripts/wt --new <name> [branch]   Create new isolated worktree"
+  echo "  ./scripts/wt --list                   List all worktrees"
+  echo "  ./scripts/wt -l                       (alias for --list)"
+  echo "  ./scripts/wt --remove <name>          Remove worktree (prompts for confirmation)"
+  echo "  ./scripts/wt --remove <name> --force  Remove without confirmation"
+  echo "  ./scripts/wt -r <name>                (alias for --remove)"
+  echo "  ./scripts/wt --prune                  Prune stale worktree references"
+  echo "  ./scripts/wt --help                   Show this help"
+  echo "  ./scripts/wt -h                       (alias for --help)"
+  echo ""
+  echo "ENVIRONMENT:"
+  echo "  VICHE_WORKTREES_DIR   Override worktrees directory"
+  echo "                        Default: $DEFAULT_WORKTREES_DIR"
+  echo ""
+  echo "EXAMPLES:"
+  echo "  ./scripts/wt --new ihor/neo-123-fix-login"
+  echo "  ./scripts/wt --new feature-x feature/new-thing"
+  echo "  ./scripts/wt --list"
+  echo "  ./scripts/wt --remove ihor/neo-123-fix-login"
+  echo "  ./scripts/wt --remove feature-x --force"
+  echo ""
+  echo "NOTES:"
+  echo "  - Each worktree gets its own config/dev.secret.exs and config/test.secret.exs"
+  echo "  - Ports are auto-assigned (dev base: $DEV_BASE_PORT, test base: $TEST_BASE_PORT)"
+  echo "  - Databases are named: viche_wt_<sanitized_name>_{dev,test}"
+  echo "  - mix setup + mix precommit are run automatically on --new"
+  echo "  - On failure, databases and the worktree directory are rolled back"
+  echo ""
+}
+
+# ---------------------------------------------------------------------------
+# Main argument parsing
+# ---------------------------------------------------------------------------
+if [[ $# -eq 0 ]]; then
+  show_help
+  exit 0
+fi
+
+COMMAND=""
+WT_NAME=""
+WT_BRANCH=""
+FORCE_FLAG=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --new)
+      COMMAND="new"
+      shift
+      WT_NAME="${1:-}"
+      [[ -n "$WT_NAME" ]] && shift || true
+      WT_BRANCH="${1:-}"
+      # If next arg starts with --, it's another flag, not a branch
+      if [[ "$WT_BRANCH" == --* ]]; then
+        WT_BRANCH=""
+      else
+        [[ -n "$WT_BRANCH" ]] && shift || true
+      fi
+      ;;
+    --list|-l)
+      COMMAND="list"
+      shift
+      ;;
+    --remove|-r)
+      COMMAND="remove"
+      shift
+      WT_NAME="${1:-}"
+      [[ -n "$WT_NAME" ]] && shift || true
+      if [[ "${1:-}" == "--force" ]]; then
+        FORCE_FLAG="--force"
+        shift
+      fi
+      ;;
+    --prune)
+      COMMAND="prune"
+      shift
+      ;;
+    --help|-h)
+      COMMAND="help"
+      shift
+      ;;
+    *)
+      error "Unknown argument: $1"
+      show_help
+      exit 1
+      ;;
+  esac
+done
+
+case "$COMMAND" in
+  new)    create_worktree "$WT_NAME" "$WT_BRANCH" ;;
+  list)   list_worktrees ;;
+  remove) remove_worktree "$WT_NAME" "$FORCE_FLAG" ;;
+  prune)  prune_worktrees ;;
+  help)   show_help ;;
+  *)
+    error "No command specified."
+    show_help
+    exit 1
+    ;;
+esac

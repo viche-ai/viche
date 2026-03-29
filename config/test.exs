@@ -42,3 +42,8 @@ config :phoenix,
 
 # Use very short grace period in tests to avoid slow tests
 config :viche, grace_period_ms: 150
+
+# Import local secret config for worktree-specific overrides (ports, database)
+if File.exists?(Path.expand("test.secret.exs", __DIR__)) do
+  import_config "test.secret.exs"
+end
