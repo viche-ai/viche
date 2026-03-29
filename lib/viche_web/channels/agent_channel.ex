@@ -154,6 +154,16 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
+  def handle_in("heartbeat", _params, socket) do
+    case Viche.Agents.heartbeat(socket.assigns.agent_id) do
+      :ok ->
+        {:reply, {:ok, %{status: "ok"}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason), message: to_string(reason)}}, socket}
+    end
+  end
+
   def handle_in("drain_inbox", _params, socket) do
     case Viche.Agents.drain_inbox(socket.assigns.agent_id) do
       {:ok, messages} ->

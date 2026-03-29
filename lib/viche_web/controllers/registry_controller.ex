@@ -10,18 +10,22 @@ defmodule VicheWeb.RegistryController do
   alias Viche.Agents
 
   @min_polling_timeout_ms 5_000
+  @min_grace_period_ms 1_000
 
   @spec register(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def register(conn, params) do
     polling_timeout_ms = Map.get(params, "polling_timeout_ms")
+    grace_period_ms = Map.get(params, "grace_period_ms")
     registries = Map.get(params, "registries")
 
     with :ok <- validate_polling_timeout(polling_timeout_ms),
+         :ok <- validate_grace_period(grace_period_ms),
          attrs = %{
            capabilities: Map.get(params, "capabilities"),
            name: Map.get(params, "name"),
            description: Map.get(params, "description"),
            polling_timeout_ms: polling_timeout_ms,
+           grace_period_ms: grace_period_ms,
            registries: registries
          },
          {:ok, agent} <- Agents.register_agent(attrs) do
@@ -35,13 +39,19 @@ defmodule VicheWeb.RegistryController do
         registries: agent.registries,
         inbox_url: "/inbox/#{agent.id}",
         registered_at: DateTime.to_iso8601(agent.registered_at),
-        polling_timeout_ms: agent.polling_timeout_ms
+        polling_timeout_ms: agent.polling_timeout_ms,
+        grace_period_ms: agent.grace_period_ms
       })
     else
       {:error, :invalid_polling_timeout} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "invalid_polling_timeout"})
+
+      {:error, :invalid_grace_period} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "invalid_grace_period"})
 
       {:error, :capabilities_required} ->
         conn
@@ -113,6 +123,15 @@ defmodule VicheWeb.RegistryController do
     do: :ok
 
   defp validate_polling_timeout(_), do: {:error, :invalid_polling_timeout}
+
+  @spec validate_grace_period(nil | integer() | term()) ::
+          :ok | {:error, :invalid_grace_period}
+  defp validate_grace_period(nil), do: :ok
+
+  defp validate_grace_period(ms) when is_integer(ms) and ms >= @min_grace_period_ms,
+    do: :ok
+
+  defp validate_grace_period(_), do: {:error, :invalid_grace_period}
 
   @spec validate_discover_token(nil | String.t()) ::
           :ok | {:error, :invalid_token}

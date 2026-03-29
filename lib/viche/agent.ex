@@ -18,7 +18,8 @@ defmodule Viche.Agent do
           registered_at: DateTime.t(),
           connection_type: connection_type(),
           last_activity: DateTime.t() | nil,
-          polling_timeout_ms: pos_integer()
+          polling_timeout_ms: pos_integer(),
+          grace_period_ms: pos_integer() | nil
         }
 
   @default_polling_timeout_ms 60_000
@@ -33,6 +34,7 @@ defmodule Viche.Agent do
     inbox: [],
     connection_type: :long_poll,
     last_activity: nil,
-    polling_timeout_ms: @default_polling_timeout_ms
+    polling_timeout_ms: @default_polling_timeout_ms,
+    grace_period_ms: nil
   ]
 end

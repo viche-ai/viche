@@ -305,6 +305,26 @@ defmodule Viche.Agents do
     end
   end
 
+  @doc """
+  Sends a heartbeat for the given agent, resetting its `last_activity` timestamp
+  and polling timeout timer without consuming messages.
+
+  ## Returns
+    - `:ok` — heartbeat acknowledged
+    - `{:error, :agent_not_found}`
+  """
+  @spec heartbeat(String.t()) :: :ok | {:error, :agent_not_found}
+  def heartbeat(agent_id) do
+    case lookup_agent(agent_id) do
+      :not_found ->
+        {:error, :agent_not_found}
+
+      :found ->
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        AgentServer.heartbeat(via)
+    end
+  end
+
   @token_regex ~r/^[a-zA-Z0-9._-]+$/
 
   @doc """
@@ -432,6 +452,7 @@ defmodule Viche.Agents do
     name = Map.get(attrs, :name)
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
+    grace_period_ms = Map.get(attrs, :grace_period_ms)
     agent_id = generate_unique_id()
 
     child_opts = [
@@ -445,6 +466,11 @@ defmodule Viche.Agents do
     child_opts =
       if polling_timeout_ms,
         do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
+        else: child_opts
+
+    child_opts =
+      if grace_period_ms,
+        do: Keyword.put(child_opts, :grace_period_ms, grace_period_ms),
         else: child_opts
 
     child_spec = {AgentServer, child_opts}

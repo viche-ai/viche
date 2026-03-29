@@ -29,7 +29,8 @@ defmodule Viche.AgentServer do
           capabilities: [String.t()],
           description: String.t() | nil,
           registries: [String.t()] | nil,
-          polling_timeout_ms: pos_integer() | nil
+          polling_timeout_ms: pos_integer() | nil,
+          grace_period_ms: pos_integer() | nil
         ]
 
   # Never restart — dynamic agents re-register with a new ID on crash
@@ -85,6 +86,11 @@ defmodule Viche.AgentServer do
     GenServer.call(server, :inspect_inbox)
   end
 
+  @spec heartbeat(GenServer.server()) :: :ok
+  def heartbeat(server) do
+    GenServer.call(server, :heartbeat)
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer callbacks
   # ---------------------------------------------------------------------------
@@ -97,6 +103,7 @@ defmodule Viche.AgentServer do
     description = Keyword.get(opts, :description)
     registries = Keyword.get(opts, :registries, ["global"])
     polling_timeout_ms = Keyword.get(opts, :polling_timeout_ms, 60_000)
+    grace_period_ms = Keyword.get(opts, :grace_period_ms)
 
     registered_at = DateTime.utc_now()
 
@@ -109,7 +116,8 @@ defmodule Viche.AgentServer do
       inbox: [],
       registered_at: registered_at,
       last_activity: registered_at,
-      polling_timeout_ms: polling_timeout_ms
+      polling_timeout_ms: polling_timeout_ms,
+      grace_period_ms: grace_period_ms
     }
 
     Process.send_after(self(), :check_polling_timeout, polling_timeout_ms)
@@ -147,6 +155,14 @@ defmodule Viche.AgentServer do
   end
 
   @impl GenServer
+  def handle_call(:heartbeat, _from, {%Agent{} = agent, meta}) do
+    updated = %Agent{agent | last_activity: DateTime.utc_now()}
+    reschedule_polling_timeout(updated)
+    Logger.debug("Agent #{agent.id} heartbeat received, last_activity updated")
+    {:reply, :ok, {updated, meta}}
+  end
+
+  @impl GenServer
   def handle_info(:websocket_connected, {%Agent{} = agent, %{grace_timer_ref: ref} = meta}) do
     cancel_grace_timer(ref)
     updated_agent = %Agent{agent | connection_type: :websocket}
@@ -162,7 +178,7 @@ defmodule Viche.AgentServer do
 
   @impl GenServer
   def handle_info(:websocket_disconnected, {%Agent{} = agent, meta}) do
-    grace_ms = grace_period_ms()
+    grace_ms = grace_period_ms(agent)
     ref = Process.send_after(self(), :deregister_grace_expired, grace_ms)
     Logger.debug("Agent #{agent.id} WebSocket disconnected, grace period started (#{grace_ms}ms)")
     {:noreply, {agent, %{meta | grace_timer_ref: ref}}}
@@ -231,6 +247,7 @@ defmodule Viche.AgentServer do
     :ok
   end
 
-  @spec grace_period_ms() :: pos_integer()
-  defp grace_period_ms, do: Application.get_env(:viche, :grace_period_ms, 5_000)
+  @spec grace_period_ms(Agent.t()) :: pos_integer()
+  defp grace_period_ms(%Agent{grace_period_ms: ms}) when is_integer(ms) and ms > 0, do: ms
+  defp grace_period_ms(_agent), do: Application.get_env(:viche, :grace_period_ms, 60_000)
 end

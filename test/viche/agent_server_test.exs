@@ -225,17 +225,17 @@ defmodule Viche.AgentServerTest do
     end
 
     test "inbox read resets the polling timer and keeps agent alive" do
-      # Register with 200ms timeout
-      {_id, pid} = start_agent(polling_timeout_ms: 200)
+      # Register with 500ms timeout
+      {_id, pid} = start_agent(polling_timeout_ms: 500)
 
-      # Poll at 150ms (before timeout)
-      Process.sleep(150)
+      # Poll at 350ms (before timeout)
+      Process.sleep(350)
       AgentServer.drain_inbox(pid)
 
-      # Wait 100ms more (total ~250ms but timer was reset at 150ms)
-      Process.sleep(100)
+      # Wait 300ms more (total ~650ms but timer was reset at 350ms)
+      Process.sleep(300)
 
-      # Agent should still be alive (new timeout of 200ms from poll time has not expired)
+      # Agent should still be alive (new timeout of 500ms from poll time has not expired)
       assert Process.alive?(pid)
     end
 
@@ -267,6 +267,65 @@ defmodule Viche.AgentServerTest do
 
       state_after = AgentServer.get_state(pid)
       assert DateTime.compare(state_after.last_activity, initial_activity) == :gt
+    end
+  end
+
+  describe "heartbeat/1" do
+    test "heartbeat updates last_activity to current time" do
+      {_id, pid} = start_agent()
+      state_before = AgentServer.get_state(pid)
+      initial_activity = state_before.last_activity
+
+      Process.sleep(10)
+      assert :ok = AgentServer.heartbeat(pid)
+
+      state_after = AgentServer.get_state(pid)
+      assert DateTime.compare(state_after.last_activity, initial_activity) == :gt
+    end
+
+    test "heartbeat keeps long-poll agent alive past original timeout" do
+      {_id, pid} = start_agent(polling_timeout_ms: 500)
+
+      # Wait 350ms (close to timeout), then heartbeat
+      Process.sleep(350)
+      AgentServer.heartbeat(pid)
+
+      # Wait another 300ms — total 650ms but timer was reset at 350ms
+      Process.sleep(300)
+
+      assert Process.alive?(pid)
+    end
+
+    test "heartbeat does not consume inbox messages" do
+      {_id, pid} = start_agent()
+
+      message = %Viche.Message{
+        id: "msg-test",
+        type: "task",
+        from: "sender",
+        body: "hello",
+        sent_at: DateTime.utc_now()
+      }
+
+      AgentServer.receive_message(pid, message)
+      AgentServer.heartbeat(pid)
+
+      inbox = AgentServer.inspect_inbox(pid)
+      assert length(inbox) == 1
+    end
+  end
+
+  describe "grace_period_ms per-agent override" do
+    test "agent stores grace_period_ms from opts" do
+      {_id, pid} = start_agent(grace_period_ms: 300_000)
+      state = AgentServer.get_state(pid)
+      assert state.grace_period_ms == 300_000
+    end
+
+    test "grace_period_ms defaults to nil when not provided" do
+      {_id, pid} = start_agent()
+      state = AgentServer.get_state(pid)
+      assert state.grace_period_ms == nil
     end
   end
 end
