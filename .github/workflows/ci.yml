@@ -2,17 +2,17 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
-    branches: ["**"]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  MIX_ENV: test
+  ELIXIR_VERSION: "1.17"
+  OTP_VERSION: "27"
 
 jobs:
-  validate:
-    name: mix precommit
+  ci:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     services:
@@ -30,41 +30,55 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      MIX_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost/viche_test
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.19"
-          otp-version: "28"
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
 
-      - name: Restore deps cache
+      - name: Cache deps
         uses: actions/cache@v4
-        id: deps-cache
         with:
           path: deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
+          key: deps-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: deps-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
 
-      - name: Restore build cache
+      - name: Cache _build
         uses: actions/cache@v4
         with:
           path: _build
-          key: ${{ runner.os }}-build-${{ hashFiles('mix.lock') }}-${{ hashFiles('lib/**/*.ex') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ hashFiles('mix.lock') }}-
-            ${{ runner.os }}-build-
+          key: build-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ env.MIX_ENV }}-${{ hashFiles('mix.lock') }}
+          restore-keys: build-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ env.MIX_ENV }}-
+
+      - name: Cache PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: plts-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: plts-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
 
       - name: Install dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
         run: mix deps.get
 
-      - name: Run mix precommit
-        run: mix precommit
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Check unused deps
+        run: mix deps.unlock --check-unused
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Credo
+        run: mix credo --strict
+
+      - name: Run tests
+        run: mix test
+
+      - name: Dialyzer
+        run: |
+          mkdir -p priv/plts
+          mix dialyzer

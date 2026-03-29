@@ -1,0 +1,42 @@
+name: "CI: OpenCode Plugin"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "channel/opencode-plugin-viche/**"
+  pull_request:
+    paths:
+      - "channel/opencode-plugin-viche/**"
+
+defaults:
+  run:
+    working-directory: channel/opencode-plugin-viche
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Build
+        run: bun run build
+
+      - name: Run tests
+        run: bun run test
