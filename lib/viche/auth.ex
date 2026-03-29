@@ -40,7 +40,7 @@ defmodule Viche.Auth do
     {:ok, raw_token, _auth_token} = create_magic_link_token(user.id)
 
     base = Application.get_env(:viche, :app_url, "http://localhost:4000")
-    url = "#{base}/auth/verify?token=#{raw_token}"
+    url = "#{base}/verify?token=#{raw_token}"
 
     Email.magic_link(email, url)
     |> Mailer.deliver()
@@ -60,6 +60,32 @@ defmodule Viche.Auth do
   @spec create_magic_link_token(Ecto.UUID.t()) :: {:ok, String.t(), AuthToken.t()}
   def create_magic_link_token(user_id) do
     create_token(user_id, "magic_link", @magic_link_ttl_minutes, :minutes)
+  end
+
+  @doc """
+  Checks whether a magic link token is valid (not expired, not yet used)
+  without consuming it. Useful for previewing validity before the user
+  confirms.
+
+  Returns `:ok` or `:error`.
+  """
+  @spec check_magic_link_token(String.t()) :: :ok | :error
+  def check_magic_link_token(raw_token) do
+    hash = hash_token(raw_token)
+    now = DateTime.utc_now()
+
+    query =
+      from t in AuthToken,
+        where:
+          t.token_hash == ^hash and
+            t.context == "magic_link" and
+            is_nil(t.used_at) and
+            t.expires_at > ^now
+
+    case Repo.one(query) do
+      nil -> :error
+      _token -> :ok
+    end
   end
 
   @doc """

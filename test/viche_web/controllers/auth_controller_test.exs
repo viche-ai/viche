@@ -24,39 +24,39 @@ defmodule VicheWeb.AuthControllerTest do
     end
   end
 
-  describe "GET /auth/verify" do
+  describe "GET /auth/confirm" do
     test "sets session and redirects for a valid token", %{conn: conn} do
       {:ok, user} = Accounts.create_user(%{email: "verify@example.com"})
       {:ok, raw_token, _} = Auth.create_magic_link_token(user.id)
 
-      conn = get(conn, ~p"/auth/verify", %{"token" => raw_token})
+      conn = get(conn, ~p"/auth/confirm", %{"token" => raw_token})
 
       assert redirected_to(conn) == ~p"/dashboard"
       assert get_session(conn, :user_id) == user.id
     end
 
-    test "returns 401 for invalid token", %{conn: conn} do
-      conn = get(conn, ~p"/auth/verify", %{"token" => "bogus"})
+    test "redirects to login for invalid token", %{conn: conn} do
+      conn = get(conn, ~p"/auth/confirm", %{"token" => "bogus"})
 
-      assert json_response(conn, 401)["error"] =~ "Invalid or expired"
+      assert redirected_to(conn) == ~p"/login"
     end
 
-    test "returns 401 for already-used token", %{conn: conn} do
+    test "redirects to login for already-used token", %{conn: conn} do
       {:ok, user} = Accounts.create_user(%{email: "used@example.com"})
       {:ok, raw_token, _} = Auth.create_magic_link_token(user.id)
 
       # Use the token once
-      _conn1 = get(conn, ~p"/auth/verify", %{"token" => raw_token})
+      _conn1 = get(conn, ~p"/auth/confirm", %{"token" => raw_token})
 
-      # Second attempt should fail
-      conn2 = get(build_conn(), ~p"/auth/verify", %{"token" => raw_token})
-      assert json_response(conn2, 401)["error"] =~ "Invalid or expired"
+      # Second attempt should redirect to login
+      conn2 = get(build_conn(), ~p"/auth/confirm", %{"token" => raw_token})
+      assert redirected_to(conn2) == ~p"/login"
     end
 
-    test "returns 422 when token param is missing", %{conn: conn} do
-      conn = get(conn, ~p"/auth/verify")
+    test "redirects to login when token param is missing", %{conn: conn} do
+      conn = get(conn, ~p"/auth/confirm")
 
-      assert json_response(conn, 422)["error"] =~ "token is required"
+      assert redirected_to(conn) == ~p"/login"
     end
   end
 

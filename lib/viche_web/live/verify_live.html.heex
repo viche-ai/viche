@@ -1,0 +1,190 @@
+<style>
+  /* Rings */
+  .vfy-rings{position:fixed;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;width:0;height:0}
+  .vfy-ring{position:absolute;border:1px solid var(--color-ef-green);border-radius:50%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);animation:vfy-pulse-ring 8s ease-out infinite}
+  .vfy-ring:nth-child(1){width:400px;height:400px;animation-delay:0s}
+  .vfy-ring:nth-child(2){width:700px;height:700px;animation-delay:2s}
+  .vfy-ring:nth-child(3){width:1000px;height:1000px;animation-delay:4s}
+  .vfy-ring:nth-child(4){width:1300px;height:1300px;animation-delay:6s}
+  @keyframes vfy-pulse-ring{0%{opacity:0.08;transform:translate(-50%,-50%) scale(0.88)}50%{opacity:0.03}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12)}}
+
+  .vfy-glow-overlay{position:fixed;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 30%,color-mix(in srgb, var(--color-ef-green) 13%, transparent) 0%,transparent 70%);pointer-events:none;z-index:0}
+  [data-theme="light"] .vfy-glow-overlay{background:radial-gradient(ellipse 70% 60% at 50% 30%,color-mix(in srgb, var(--color-efl-green) 10%, transparent) 0%,transparent 70%)}
+
+  /* Particles */
+  .vfy-particle{position:fixed;width:3px;height:3px;background:var(--color-ef-green);border-radius:50%;opacity:0;pointer-events:none;z-index:0;animation:vfy-float-up linear infinite}
+  @keyframes vfy-float-up{0%{opacity:0;transform:translateY(0) scale(0.5)}10%{opacity:0.6}90%{opacity:0.3}100%{opacity:0;transform:translateY(-120px) scale(1.2)}}
+
+  /* Nav */
+  .vfy-nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
+  .vfy-nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
+  .vfy-logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .vfy-logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
+
+  /* Page */
+  .vfy-page{position:relative;z-index:1;min-height:calc(100vh - 52px);display:flex;align-items:flex-start;justify-content:center;padding:56px 16px 80px;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;background:var(--bg);color:var(--fg)}
+
+  /* Card */
+  .vfy-card{width:100%;max-width:420px;background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:40px 36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.4);text-align:center;opacity:0;transform:translateY(28px);animation:vfy-card-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.1s forwards}
+  @keyframes vfy-card-in{to{opacity:1;transform:translateY(0)}}
+
+  /* Mascot */
+  .vfy-mascot-wrap{position:relative;display:inline-block;margin-bottom:24px}
+  .vfy-mascot{width:120px;height:120px;object-fit:contain;filter:drop-shadow(0 8px 24px rgba(167,192,128,0.25))}
+  .vfy-mascot-halo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb, var(--color-ef-green) 18%, transparent) 0%,transparent 70%);animation:vfy-halo-pulse 3.5s ease-in-out infinite;pointer-events:none}
+  @keyframes vfy-halo-pulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.7}50%{transform:translate(-50%,-50%) scale(1.25);opacity:1}}
+  .vfy-mascot-spinner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:144px;height:144px;border-radius:50%;border:1.5px dashed color-mix(in srgb, var(--color-ef-green) 35%, transparent);animation:vfy-spin 8s linear infinite;pointer-events:none}
+  @keyframes vfy-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+  /* Text */
+  .vfy-title{font-size:22px;font-weight:700;letter-spacing:-0.4px;margin-bottom:8px}
+  .vfy-sub{font-size:14px;color:var(--fg-dim);max-width:300px;margin:0 auto 24px;line-height:1.6}
+
+  /* Typewriter status line */
+  .vfy-status-line{font-size:13px;color:var(--color-ef-green);font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;min-height:20px;margin-bottom:24px}
+  .vfy-cursor{display:inline-block;width:8px;height:13px;background:var(--color-ef-green);vertical-align:middle;margin-left:2px;animation:vfy-blink 0.9s step-end infinite}
+  @keyframes vfy-blink{0%,100%{opacity:1}50%{opacity:0}}
+
+  /* Progress dots */
+  .vfy-progress-dots{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:28px}
+  .vfy-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background 0.4s,transform 0.4s}
+  .vfy-dot.done{background:var(--color-ef-green)}
+  .vfy-dot.active{background:var(--color-ef-aqua);transform:scale(1.3)}
+
+  /* Steps list */
+  .vfy-steps-list{display:flex;flex-direction:column;gap:8px;text-align:left;margin-bottom:28px}
+  .vfy-step-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--fg-dim);transition:color 0.3s}
+  .vfy-step-row.done{color:var(--fg)}
+  .vfy-step-row.active{color:var(--fg)}
+  .vfy-step-icon{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;background:var(--bg-2);transition:all 0.3s}
+  .vfy-step-row.done .vfy-step-icon{background:var(--color-ef-green);border-color:var(--color-ef-green);color:#1a2420}
+  .vfy-step-row.active .vfy-step-icon{border-color:var(--color-ef-aqua);color:var(--color-ef-aqua);animation:vfy-spin-icon 1s linear infinite}
+  @keyframes vfy-spin-icon{to{transform:rotate(360deg)}}
+
+  /* Success state */
+  .vfy-success-overlay{display:none;flex-direction:column;align-items:center;gap:14px}
+  .vfy-success-overlay.active{display:flex;animation:vfy-fade-in 0.4s ease forwards}
+  @keyframes vfy-fade-in{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+  .vfy-success-badge{display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--color-ef-green) 10%, transparent);border:1px solid color-mix(in srgb, var(--color-ef-green) 30%, transparent);border-radius:20px;padding:5px 14px;font-size:12px;color:var(--color-ef-green);font-weight:500}
+  .vfy-success-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--color-ef-green)}
+  .vfy-btn-dashboard{background:var(--color-ef-green);border:none;border-radius:9px;padding:11px 24px;font-size:14px;font-weight:600;color:#1a2420;cursor:pointer;font-family:inherit;transition:filter 0.15s,transform 0.12s;width:100%;position:relative;overflow:hidden;text-decoration:none;display:inline-block}
+  .vfy-btn-dashboard:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .vfy-btn-dashboard::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:vfy-btn-shimmer 3.5s ease infinite 1s}
+  @keyframes vfy-btn-shimmer{0%{left:-100%}30%{left:150%}100%{left:150%}}
+  [data-theme="light"] .vfy-btn-dashboard{color:#fff;background:var(--color-efl-green)}
+
+  /* Error state */
+  .vfy-error-overlay{display:none;flex-direction:column;align-items:center;gap:12px}
+  .vfy-error-overlay.active{display:flex;animation:vfy-fade-in 0.4s ease forwards}
+  .vfy-error-icon{font-size:40px}
+  .vfy-error-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
+  .vfy-error-sub{font-size:13px;color:var(--fg-dim);max-width:280px;line-height:1.6}
+  .vfy-btn-retry{background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:10px 24px;font-size:14px;font-weight:500;color:var(--fg);cursor:pointer;font-family:inherit;transition:background 0.15s;width:100%;text-decoration:none;display:inline-block;text-align:center}
+  .vfy-btn-retry:hover{background:color-mix(in srgb, var(--bg-2) 80%, var(--fg) 20%)}
+
+  /* Card footer */
+  .vfy-card-footer{margin-top:20px;font-size:12px;color:var(--fg-dim)}
+  .vfy-card-footer a{color:var(--fg-dim);text-decoration:underline;text-underline-offset:2px}
+  .vfy-card-footer a:hover{color:var(--fg)}
+
+  /* Status bar */
+  .vfy-status-bar{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;padding:10px;font-size:12px;color:var(--fg-dim);background:linear-gradient(transparent,rgba(45,53,59,0.92));z-index:5;pointer-events:none}
+  [data-theme="light"] .vfy-status-bar{background:linear-gradient(transparent,rgba(253,246,227,0.95))}
+  .vfy-status-dot{width:6px;height:6px;border-radius:50%;background:var(--color-ef-green);display:inline-block;margin-right:5px;animation:vfy-dot-pulse 2s ease infinite;vertical-align:middle}
+  @keyframes vfy-dot-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  .vfy-status-sep{opacity:0.3}
+</style>
+
+<div class="vfy-rings">
+  <div class="vfy-ring"></div>
+  <div class="vfy-ring"></div>
+  <div class="vfy-ring"></div>
+  <div class="vfy-ring"></div>
+</div>
+<div class="vfy-glow-overlay"></div>
+
+<nav class="vfy-nav">
+  <a href="/" class="vfy-nav-logo">
+    <div class="vfy-logo-mark">V</div>
+    <div class="vfy-logo-text">Viche</div>
+  </a>
+</nav>
+
+<div class="vfy-page">
+  <div class="vfy-card">
+
+    <!-- Mascot -->
+    <div class="vfy-mascot-wrap">
+      <div class="vfy-mascot-halo"></div>
+      <%= if @status == :verifying do %>
+        <div class="vfy-mascot-spinner"></div>
+      <% end %>
+      <img class="vfy-mascot" src={~p"/images/logo-transparent.png"} alt="Viche mascot" />
+    </div>
+
+    <!-- Verifying view -->
+    <%= if @status == :verifying do %>
+      <div id="verifyingView">
+        <div class="vfy-title">One sec, we're on it…</div>
+        <div class="vfy-sub">
+          Waving your magic link at the server.<br />
+          This usually takes less than a heartbeat.
+        </div>
+
+        <div class="vfy-status-line">
+          {@status_text}<span class="vfy-cursor"></span>
+        </div>
+
+        <div class="vfy-progress-dots">
+          <div :for={i <- 1..4} class={dot_class(i, @current_step, @completed_steps)}></div>
+        </div>
+
+        <div class="vfy-steps-list">
+          <div
+            :for={{label, i} <- Enum.with_index(@step_labels, 1)}
+            class={["vfy-step-row", step_class(i, @current_step, @completed_steps)]}
+          >
+            <div class="vfy-step-icon">{step_icon(i, @completed_steps)}</div>
+            <span>{label}</span>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Success view -->
+    <div class={["vfy-success-overlay", @status == :success && "active"]}>
+      <div class="vfy-success-badge">Identity confirmed</div>
+      <div class="vfy-title" style="margin-bottom:6px">You're in</div>
+      <div class="vfy-sub" style="margin-bottom:16px">
+        All agents standing by. Taking you to your dashboard…
+      </div>
+      <a href={~p"/auth/confirm?token=#{@token || ""}"} class="vfy-btn-dashboard">
+        Open dashboard →
+      </a>
+    </div>
+
+    <!-- Error view -->
+    <div class={["vfy-error-overlay", @status == :error && "active"]}>
+      <div class="vfy-error-icon">🔗</div>
+      <div class="vfy-error-title">Link expired</div>
+      <div class="vfy-error-sub">
+        Magic links are single-use and expire after 15 minutes. Request a fresh one below.
+      </div>
+      <a href={~p"/login"} class="vfy-btn-retry">← Back to sign in</a>
+    </div>
+
+    <%= if @status == :verifying do %>
+      <div class="vfy-card-footer">
+        Didn't request this? <a href={~p"/login"}>Ignore it safely</a>
+      </div>
+    <% end %>
+
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="vfy-status-bar">
+  <span><span class="vfy-status-dot"></span>network live</span>
+  <span class="vfy-status-sep">·</span>
+  <span>viche agent mesh</span>
+</div>

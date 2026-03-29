@@ -24,7 +24,7 @@ defmodule VicheWeb.Router do
     pipe_through :browser
 
     post "/login", AuthController, :login
-    get "/verify", AuthController, :verify
+    get "/confirm", AuthController, :confirm
     delete "/logout", AuthController, :logout
   end
 
@@ -33,6 +33,7 @@ defmodule VicheWeb.Router do
 
     live "/", LandingLive
     live "/login", LoginLive
+    live "/verify", VerifyLive
     live "/dashboard", DashboardLive
     live "/agents", AgentsLive
     live "/agents/:id", AgentDetailLive

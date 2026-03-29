@@ -23,10 +23,12 @@ defmodule VicheWeb.AuthController do
   end
 
   @doc """
-  GET /auth/verify?token=<raw_token> — verifies the magic link token,
+  GET /auth/confirm?token=<raw_token> — consumes the magic link token,
   sets the user_id in the session, and redirects to the dashboard.
+
+  Called by VerifyLive after the verification animation completes.
   """
-  def verify(conn, %{"token" => raw_token}) do
+  def confirm(conn, %{"token" => raw_token}) do
     case Auth.verify_magic_link_token(raw_token) do
       {:ok, auth_token} ->
         user = Accounts.get_user_by_token_record(auth_token)
@@ -38,15 +40,14 @@ defmodule VicheWeb.AuthController do
 
       {:error, :invalid_token} ->
         conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "Invalid or expired link"})
+        |> put_flash(:error, "Invalid or expired link — please request a new one.")
+        |> redirect(to: ~p"/login")
     end
   end
 
-  def verify(conn, _params) do
+  def confirm(conn, _params) do
     conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: "token is required"})
+    |> redirect(to: ~p"/login")
   end
 
   @doc """

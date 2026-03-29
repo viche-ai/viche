@@ -41,6 +41,37 @@ defmodule Viche.AuthTest do
     end
   end
 
+  describe "check_magic_link_token/1" do
+    test "returns :ok for a valid token", %{user: user} do
+      {:ok, raw_token, _} = Auth.create_magic_link_token(user.id)
+
+      assert :ok = Auth.check_magic_link_token(raw_token)
+    end
+
+    test "returns :error for an invalid token" do
+      assert :error = Auth.check_magic_link_token("bogus-token")
+    end
+
+    test "returns :error for an expired token", %{user: user} do
+      {:ok, raw_token, auth_token} = Auth.create_magic_link_token(user.id)
+
+      past = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+      auth_token
+      |> Ecto.Changeset.change(expires_at: DateTime.truncate(past, :second))
+      |> Repo.update!()
+
+      assert :error = Auth.check_magic_link_token(raw_token)
+    end
+
+    test "returns :ok even after check (does not consume)", %{user: user} do
+      {:ok, raw_token, _} = Auth.create_magic_link_token(user.id)
+
+      assert :ok = Auth.check_magic_link_token(raw_token)
+      assert :ok = Auth.check_magic_link_token(raw_token)
+    end
+  end
+
   describe "verify_magic_link_token/1" do
     test "verifies a valid token and marks it as used", %{user: user} do
       {:ok, raw_token, _auth_token} = Auth.create_magic_link_token(user.id)
