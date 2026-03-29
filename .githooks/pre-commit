@@ -1,11 +1,109 @@
 #!/bin/sh
-# Pre-commit hook: runs `mix precommit` to validate the project before every commit.
+# Pre-commit hook: runs plugin checks and `mix precommit` before every commit.
 #
 # This hook is version-controlled in .githooks/ and auto-configured by `mix setup`
 # via: git config core.hooksPath .githooks
 
 set -e
 
+STAGED_FILES=$(git diff --cached --name-only)
+
+# ── OpenCode plugin checks ────────────────────────────────────────────────────
+if echo "$STAGED_FILES" | grep -q "^channel/opencode-plugin-viche/"; then
+  echo "------------------------------------------------------------"
+  echo "  Pre-commit: opencode-plugin-viche files changed"
+  echo "  (bun install, tsc, build, test)"
+  echo "------------------------------------------------------------"
+
+  cd channel/opencode-plugin-viche
+
+  echo "  → bun install --frozen-lockfile"
+  if ! bun install --frozen-lockfile; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: bun install failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bunx tsc --noEmit"
+  if ! bunx tsc --noEmit; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: TypeScript check failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bun run build"
+  if ! bun run build; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: build failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bun run test"
+  if ! bun run test; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: tests failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo ""
+  echo "  opencode-plugin-viche checks passed."
+  echo "------------------------------------------------------------"
+
+  cd ../..
+fi
+
+# ── OpenClaw plugin checks ────────────────────────────────────────────────────
+if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
+  echo "------------------------------------------------------------"
+  echo "  Pre-commit: openclaw-plugin-viche files changed"
+  echo "  (npm install, tsc, build)"
+  echo "------------------------------------------------------------"
+
+  cd channel/openclaw-plugin-viche
+
+  echo "  → npm install"
+  if ! npm install; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: npm install failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → npx tsc --noEmit"
+  if ! npx tsc --noEmit; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: TypeScript check failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → npm run build"
+  if ! npm run build; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: build failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo ""
+  echo "  openclaw-plugin-viche checks passed."
+  echo "------------------------------------------------------------"
+
+  cd ../..
+fi
+
+# ── Elixir checks ─────────────────────────────────────────────────────────────
 echo "------------------------------------------------------------"
 echo "  Pre-commit: running mix precommit"
 echo "  (compile, deps check, format, credo, tests, dialyzer)"
