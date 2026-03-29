@@ -33,6 +33,7 @@ defmodule VicheWeb.Router do
 
     live "/", LandingLive
     live "/login", LoginLive
+    live "/signup", SignupLive
     live "/verify", VerifyLive
     live "/dashboard", DashboardLive
     live "/agents", AgentsLive

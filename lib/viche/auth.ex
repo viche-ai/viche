@@ -21,22 +21,33 @@ defmodule Viche.Auth do
   Sends a magic link email for the given email address.
 
   If no user exists with this email, one is created automatically.
-  Returns `{:ok, user}` on success.
+  An optional `attrs` map can supply additional fields (e.g. `:name`,
+  `:username`) used when creating a new user.
+
+  Returns `{:ok, user}` on success or `{:error, changeset}` if user
+  creation fails (e.g. duplicate username).
   """
-  @spec send_magic_link(String.t()) :: {:ok, Accounts.User.t()}
-  def send_magic_link(email) do
+  @spec send_magic_link(String.t(), map()) ::
+          {:ok, Accounts.User.t()} | {:error, Ecto.Changeset.t()}
+  def send_magic_link(email, attrs \\ %{}) do
     email = String.downcase(email)
 
-    user =
-      case Accounts.get_user_by_email(email) do
-        nil ->
-          {:ok, user} = Accounts.create_user(%{email: email})
-          user
+    case Accounts.get_user_by_email(email) do
+      nil ->
+        case Accounts.create_user(Map.put(attrs, :email, email)) do
+          {:ok, user} ->
+            send_magic_link_email(user, email)
 
-        user ->
-          user
-      end
+          {:error, changeset} ->
+            {:error, changeset}
+        end
 
+      user ->
+        send_magic_link_email(user, email)
+    end
+  end
+
+  defp send_magic_link_email(user, email) do
     {:ok, raw_token, _auth_token} = create_magic_link_token(user.id)
 
     base = Application.get_env(:viche, :app_url, "http://localhost:4000")

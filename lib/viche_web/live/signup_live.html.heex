@@ -1,0 +1,346 @@
+<style>
+  /* ── Rings & glow ── */
+  .su-rings{position:fixed;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;width:0;height:0}
+  .su-ring{position:absolute;border:1px solid var(--color-ef-green);border-radius:50%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);animation:su-pulse-ring 8s ease-out infinite}
+  .su-ring:nth-child(1){width:400px;height:400px;animation-delay:0s}
+  .su-ring:nth-child(2){width:700px;height:700px;animation-delay:2s}
+  .su-ring:nth-child(3){width:1000px;height:1000px;animation-delay:4s}
+  .su-ring:nth-child(4){width:1300px;height:1300px;animation-delay:6s}
+  @keyframes su-pulse-ring{0%{opacity:0.08;transform:translate(-50%,-50%) scale(0.88)}50%{opacity:0.03}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12)}}
+
+  .su-glow-overlay{position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% -10%,color-mix(in srgb, var(--color-ef-green) 14%, transparent) 0%,transparent 70%);pointer-events:none;z-index:0}
+  [data-theme="light"] .su-glow-overlay{background:radial-gradient(ellipse 70% 50% at 50% -10%,color-mix(in srgb, var(--color-efl-green) 10%, transparent) 0%,transparent 70%)}
+
+  /* ── Nav ── */
+  .su-nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
+  .su-nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
+  .su-logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .su-logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
+  .su-nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px}
+  .su-nav-link{color:var(--fg-dim);text-decoration:none;transition:color 0.15s}
+  .su-nav-link:hover{color:var(--fg)}
+
+  /* ── Page ── */
+  .su-page{position:relative;z-index:1;min-height:calc(100vh - 52px);display:flex;align-items:flex-start;justify-content:center;padding:56px 16px 80px;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;background:var(--bg);color:var(--fg)}
+
+  /* ── Card ── */
+  .su-card{width:100%;max-width:460px;background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:36px 36px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.4);opacity:0;transform:translateY(28px);animation:su-card-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.1s forwards}
+  @keyframes su-card-in{to{opacity:1;transform:translateY(0)}}
+
+  .su-card-header{text-align:center;margin-bottom:28px}
+  .su-card-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg);margin-bottom:18px}
+  .su-card-logo-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1a2420;animation:su-logo-glow 3s ease-in-out infinite}
+  @keyframes su-logo-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 8px rgba(167,192,128,0.15)}}
+  .su-card-logo-text{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+  .su-card-title{font-size:20px;font-weight:600;letter-spacing:-0.3px;margin-bottom:6px}
+  .su-card-subtitle{font-size:13px;color:var(--fg-dim)}
+
+  /* ── Steps indicator ── */
+  .su-steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:24px}
+  .su-step{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--fg-dim);transition:color 0.3s}
+  .su-step.active{color:var(--color-ef-green)}
+  .su-step-dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--bg-2);transition:background 0.3s,border-color 0.3s,color 0.3s;color:var(--fg-dim)}
+  .su-step.active .su-step-dot{background:var(--color-ef-green);border-color:var(--color-ef-green);color:#1a2420}
+  .su-step.done .su-step-dot{background:var(--bg-2);border-color:var(--color-ef-aqua);color:var(--color-ef-aqua)}
+  .su-step-line{width:32px;height:1px;background:var(--border);transition:background 0.3s}
+  .su-step-line.done{background:var(--color-ef-aqua)}
+
+  /* ── Progress bar ── */
+  .su-progress-bar-wrap{height:2px;background:var(--border);border-radius:2px;margin-bottom:24px;overflow:hidden}
+  .su-progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:2px;transition:width 0.4s cubic-bezier(0.22,1,0.36,1)}
+
+  /* ── Form steps ── */
+  .su-form-step{display:none;flex-direction:column;gap:14px;animation:su-step-in 0.35s cubic-bezier(0.22,1,0.36,1) forwards}
+  .su-form-step.active{display:flex}
+  @keyframes su-step-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+
+  /* ── Fields ── */
+  .su-field{display:flex;flex-direction:column;gap:5px}
+  .su-field label{font-size:12px;font-weight:600;color:var(--fg-dim);letter-spacing:0.5px;text-transform:uppercase}
+  .su-label-required{color:var(--color-ef-green);margin-left:2px}
+
+  .su-field input[type="text"],.su-field input[type="email"]{background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--fg);font-family:inherit;outline:none;transition:border-color 0.18s,box-shadow 0.18s;width:100%}
+  .su-field input[type="text"]:focus,.su-field input[type="email"]:focus{border-color:color-mix(in srgb, var(--color-ef-green) 45%, transparent);box-shadow:0 0 0 3px rgba(167,192,128,0.10)}
+  .su-field input::placeholder{color:var(--fg-dim);opacity:0.55}
+
+  .su-username-wrap{position:relative}
+  .su-username-prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--fg-dim);pointer-events:none;user-select:none}
+  .su-username-wrap input{padding-left:28px}
+  .su-input-hint{font-size:11px;color:var(--fg-dim);margin-top:1px}
+
+  .su-field-error{font-size:11px;color:#E67E80;margin-top:2px}
+  .su-field.has-error input{border-color:rgba(230,126,128,0.5)}
+
+  /* ── Use-case grid ── */
+  .su-usecase-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .su-usecase-opt{border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color 0.18s,background 0.18s,transform 0.15s;background:var(--bg-2);display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden}
+  .su-usecase-opt::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(167,192,128,0.06),transparent);opacity:0;transition:opacity 0.18s}
+  .su-usecase-opt:hover{border-color:rgba(167,192,128,0.3);background:var(--bg-2);transform:translateY(-1px)}
+  .su-usecase-opt:hover::after{opacity:1}
+  .su-usecase-opt.selected{border-color:var(--color-ef-green);background:var(--bg-2)}
+  .su-usecase-opt.selected::after{opacity:1}
+  .su-usecase-icon{font-size:18px}
+  .su-usecase-title{font-size:13px;font-weight:600;color:var(--fg)}
+  .su-usecase-desc{font-size:11px;color:var(--fg-dim);line-height:1.4}
+  .su-check-icon{position:absolute;top:8px;right:8px;width:16px;height:16px;border-radius:50%;background:var(--color-ef-green);display:flex;align-items:center;justify-content:center;font-size:9px;color:#1a2420;font-weight:800;opacity:0;transform:scale(0);transition:opacity 0.18s,transform 0.18s}
+  .su-usecase-opt.selected .su-check-icon{opacity:1;transform:scale(1)}
+  .su-usecase-other{grid-column:1/-1}
+
+  /* ── Buttons ── */
+  .su-btn-row{display:flex;gap:10px;margin-top:6px}
+  .su-btn-back{background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:10px 18px;font-size:14px;font-weight:500;color:var(--fg-dim);cursor:pointer;transition:background 0.15s,color 0.15s;font-family:inherit}
+  .su-btn-back:hover{background:color-mix(in srgb, var(--bg-2) 80%, var(--fg) 20%);color:var(--fg)}
+  .su-btn-next,.su-btn-submit{flex:1;background:var(--color-ef-green);border:none;border-radius:9px;padding:10px 24px;font-size:14px;font-weight:600;color:#1a2420;cursor:pointer;transition:filter 0.15s,transform 0.12s;font-family:inherit;position:relative;overflow:hidden}
+  .su-btn-next:hover,.su-btn-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .su-btn-next:active,.su-btn-submit:active{transform:translateY(0);filter:brightness(0.96)}
+  .su-btn-next:disabled,.su-btn-submit:disabled{opacity:0.45;cursor:not-allowed;transform:none;filter:none}
+  .su-btn-next::before,.su-btn-submit::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:su-btn-shimmer 3.5s ease infinite 1.5s}
+  @keyframes su-btn-shimmer{0%{left:-100%}30%{left:150%}100%{left:150%}}
+  [data-theme="light"] .su-btn-next,[data-theme="light"] .su-btn-submit{color:#fff;background:var(--color-efl-green)}
+
+  /* ── Success view ── */
+  .su-success-view{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:12px 0;animation:su-step-in 0.4s ease forwards}
+  .su-success-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(167,192,128,0.15),rgba(131,192,146,0.1));border:2px solid var(--color-ef-green);display:flex;align-items:center;justify-content:center;font-size:30px;animation:su-success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards,su-success-glow 2s ease-in-out 0.5s infinite}
+  @keyframes su-success-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes su-success-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 12px rgba(167,192,128,0.12)}}
+  .su-success-title{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+  .su-success-sub{font-size:13px;color:var(--fg-dim);max-width:300px;line-height:1.6}
+
+  /* ── Error banner ── */
+  .su-error-banner{background:rgba(230,126,128,0.12);border:1px solid rgba(230,126,128,0.3);border-radius:9px;padding:10px 14px;font-size:13px;color:#E67E80;animation:su-shake 0.35s ease}
+  @keyframes su-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+
+  /* ── Footer ── */
+  .su-card-footer{text-align:center;margin-top:20px;font-size:12px;color:var(--fg-dim)}
+  .su-card-footer a{color:var(--fg-dim);text-decoration:underline;text-underline-offset:2px}
+  .su-card-footer a:hover{color:var(--fg)}
+
+  /* ── Status bar ── */
+  .su-status-bar{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;padding:10px;font-size:12px;color:var(--fg-dim);background:linear-gradient(transparent,rgba(45,53,59,0.92));z-index:5;pointer-events:none}
+  [data-theme="light"] .su-status-bar{background:linear-gradient(transparent,rgba(253,246,227,0.95))}
+  .su-status-dot{width:6px;height:6px;border-radius:50%;background:var(--color-ef-green);display:inline-block;margin-right:5px;animation:su-dot-pulse 2s ease infinite;vertical-align:middle}
+  @keyframes su-dot-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  .su-status-sep{opacity:0.3}
+</style>
+
+<div class="su-rings">
+  <div class="su-ring"></div>
+  <div class="su-ring"></div>
+  <div class="su-ring"></div>
+  <div class="su-ring"></div>
+</div>
+<div class="su-glow-overlay"></div>
+
+<nav class="su-nav">
+  <a href="/" class="su-nav-logo">
+    <div class="su-logo-mark">V</div>
+    <div class="su-logo-text">Viche</div>
+  </a>
+  <div class="su-nav-right">
+    <a href="/login" class="su-nav-link">Sign in</a>
+  </div>
+</nav>
+
+<div class="su-page">
+  <div class="su-card">
+    <%= if @state == :form do %>
+      <div class="su-card-header">
+        <a href="/" class="su-card-logo">
+          <div class="su-card-logo-mark">V</div>
+          <div class="su-card-logo-text">Viche</div>
+        </a>
+        <div class="su-card-title">Create your account</div>
+        <div class="su-card-subtitle">Join the agent network. Takes 60 seconds.</div>
+      </div>
+
+      <div class="su-progress-bar-wrap">
+        <div class="su-progress-bar-fill" style={"width:#{div(@step * 100, 3)}%"}></div>
+      </div>
+
+      <div class="su-steps">
+        <div class={"su-step #{if @step == 1, do: "active"} #{if @step > 1, do: "done"}"}>
+          <div class="su-step-dot">{if @step > 1, do: raw("&#10003;"), else: "1"}</div>
+          <span>You</span>
+        </div>
+        <div class={"su-step-line #{if @step > 1, do: "done"}"}></div>
+        <div class={"su-step #{if @step == 2, do: "active"} #{if @step > 2, do: "done"}"}>
+          <div class="su-step-dot">{if @step > 2, do: raw("&#10003;"), else: "2"}</div>
+          <span>Handle</span>
+        </div>
+        <div class={"su-step-line #{if @step > 2, do: "done"}"}></div>
+        <div class={"su-step #{if @step == 3, do: "active"}"}>
+          <div class="su-step-dot">3</div>
+          <span>Purpose</span>
+        </div>
+      </div>
+
+      <%= if @errors[:general] do %>
+        <div class="su-error-banner">{@errors[:general]}</div>
+      <% end %>
+      
+<!-- Step 1: Name & Email -->
+      <%= if @step == 1 do %>
+        <div class="su-form-step active">
+          <div class={"su-field #{if @errors[:name], do: "has-error"}"}>
+            <label>Name <span class="su-label-required">*</span></label>
+            <input
+              type="text"
+              name="name"
+              value={@name}
+              placeholder="Ada Lovelace"
+              autocomplete="name"
+              phx-change="validate"
+              phx-debounce="300"
+            />
+            <%= if @errors[:name] do %>
+              <div class="su-field-error">{@errors[:name]}</div>
+            <% end %>
+          </div>
+          <div class={"su-field #{if @errors[:email], do: "has-error"}"}>
+            <label>Email <span class="su-label-required">*</span></label>
+            <input
+              type="email"
+              name="email"
+              value={@email}
+              placeholder="ada@example.com"
+              autocomplete="email"
+              phx-change="validate"
+              phx-debounce="300"
+            />
+            <%= if @errors[:email] do %>
+              <div class="su-field-error">{@errors[:email]}</div>
+            <% end %>
+          </div>
+          <div class="su-btn-row">
+            <button type="button" class="su-btn-next" phx-click="next_step">
+              Continue &rarr;
+            </button>
+          </div>
+        </div>
+      <% end %>
+      
+<!-- Step 2: Username -->
+      <%= if @step == 2 do %>
+        <div class="su-form-step active">
+          <div class={"su-field #{if @errors[:username], do: "has-error"}"}>
+            <label>Username <span class="su-label-required">*</span></label>
+            <div class="su-username-wrap">
+              <span class="su-username-prefix">@</span>
+              <input
+                type="text"
+                name="username"
+                value={@username}
+                placeholder="ada"
+                autocomplete="username"
+                maxlength="30"
+                phx-change="validate"
+                phx-debounce="300"
+              />
+            </div>
+            <div class="su-input-hint">Letters, numbers, and underscores only</div>
+            <%= if @errors[:username] do %>
+              <div class="su-field-error">{@errors[:username]}</div>
+            <% end %>
+          </div>
+          <div class="su-btn-row">
+            <button type="button" class="su-btn-back" phx-click="prev_step">&larr; Back</button>
+            <button type="button" id="next-step-2" class="su-btn-next" phx-click="next_step">
+              Continue &rarr;
+            </button>
+          </div>
+        </div>
+      <% end %>
+      
+<!-- Step 3: Use case -->
+      <%= if @step == 3 do %>
+        <div class="su-form-step active">
+          <div class="su-field">
+            <label>How do you plan to use Viche? <span class="su-label-required">*</span></label>
+            <div class="su-usecase-grid">
+              <div
+                class={"su-usecase-opt #{if @usecase == "personal", do: "selected"}"}
+                phx-click="select_usecase"
+                phx-value-value="personal"
+              >
+                <div class="su-check-icon">&#10003;</div>
+                <div class="su-usecase-icon">&#129302;</div>
+                <div class="su-usecase-title">Personal agents</div>
+                <div class="su-usecase-desc">Automations &amp; workflows for myself</div>
+              </div>
+              <div
+                class={"su-usecase-opt #{if @usecase == "product", do: "selected"}"}
+                phx-click="select_usecase"
+                phx-value-value="product"
+              >
+                <div class="su-check-icon">&#10003;</div>
+                <div class="su-usecase-icon">&#128640;</div>
+                <div class="su-usecase-title">Building a product</div>
+                <div class="su-usecase-desc">Integrate agents into my app or service</div>
+              </div>
+              <div
+                class={"su-usecase-opt #{if @usecase == "enterprise", do: "selected"}"}
+                phx-click="select_usecase"
+                phx-value-value="enterprise"
+              >
+                <div class="su-check-icon">&#10003;</div>
+                <div class="su-usecase-icon">&#127970;</div>
+                <div class="su-usecase-title">Enterprise / team</div>
+                <div class="su-usecase-desc">Internal tools, ops, or org-wide agents</div>
+              </div>
+              <div
+                class={"su-usecase-opt #{if @usecase == "research", do: "selected"}"}
+                phx-click="select_usecase"
+                phx-value-value="research"
+              >
+                <div class="su-check-icon">&#10003;</div>
+                <div class="su-usecase-icon">&#128300;</div>
+                <div class="su-usecase-title">Research</div>
+                <div class="su-usecase-desc">Exploring agent infra or AI protocols</div>
+              </div>
+              <div
+                class={"su-usecase-opt su-usecase-other #{if @usecase == "other", do: "selected"}"}
+                phx-click="select_usecase"
+                phx-value-value="other"
+              >
+                <div class="su-check-icon">&#10003;</div>
+                <div class="su-usecase-icon">&#10024;</div>
+                <div class="su-usecase-title">Something else</div>
+                <div class="su-usecase-desc">Tell us more below</div>
+              </div>
+            </div>
+            <%= if @errors[:usecase] do %>
+              <div class="su-field-error" style="margin-top:6px">{@errors[:usecase]}</div>
+            <% end %>
+          </div>
+          <div class="su-btn-row">
+            <button type="button" class="su-btn-back" phx-click="prev_step">&larr; Back</button>
+            <button type="button" class="su-btn-submit" phx-click="submit">
+              Create account &rarr;
+            </button>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="su-card-footer">
+        Already have an account? <a href="/login">Sign in</a>
+        <br />By signing up you agree to our <a href="#">Terms</a>
+      </div>
+    <% end %>
+
+    <%= if @state == :success do %>
+      <div class="su-success-view">
+        <div class="su-success-ring">&#10003;</div>
+        <div class="su-success-title">Check your email</div>
+        <div class="su-success-sub">
+          We sent you a magic link. Click it to finish creating your account &mdash; it expires in 15 minutes.
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="su-status-bar">
+  <span><span class="su-status-dot"></span>network live</span>
+  <span class="su-status-sep">&middot;</span>
+  <span>viche agent mesh</span>
+</div>

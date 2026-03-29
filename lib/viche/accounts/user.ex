@@ -14,6 +14,7 @@ defmodule Viche.Accounts.User do
           id: binary() | nil,
           email: String.t() | nil,
           name: String.t() | nil,
+          username: String.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -21,6 +22,7 @@ defmodule Viche.Accounts.User do
   schema "users" do
     field :email, :string
     field :name, :string
+    field :username, :string
 
     has_many :auth_tokens, Viche.Accounts.AuthToken
 
@@ -30,10 +32,14 @@ defmodule Viche.Accounts.User do
   @doc false
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :name])
+    |> cast(attrs, [:email, :name, :username])
     |> validate_required([:email])
     |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_format(:username, ~r/^[a-zA-Z0-9_]{1,30}$/,
+      message: "must be 1–30 characters, letters, numbers, and underscores only"
+    )
     |> update_change(:email, &String.downcase/1)
     |> unique_constraint(:email)
+    |> unique_constraint(:username)
   end
 end
