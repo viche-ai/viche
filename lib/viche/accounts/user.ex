@@ -10,6 +10,14 @@ defmodule Viche.Accounts.User do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @type t :: %__MODULE__{
+          id: binary() | nil,
+          email: String.t() | nil,
+          name: String.t() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   schema "users" do
     field :email, :string
     field :name, :string

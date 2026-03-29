@@ -1,24 +1,26 @@
-#!/usr/bin/env sh
-# bd-shim v1
-# bd-hooks-version: 0.49.0
+#!/bin/sh
+# Pre-commit hook: runs `mix precommit` to validate the project before every commit.
 #
-# bd (beads) pre-commit hook - thin shim
-#
-# This shim delegates to 'bd hook pre-commit' which contains
-# the actual hook logic. This pattern ensures hook behavior is always
-# in sync with the installed bd version - no manual updates needed.
-#
-# The 'bd hook' command (singular) supports:
-# - Per-worktree export state tracking
-# - Dolt branch-then-merge pattern for cell-level conflict resolution
-# - Hook chaining configuration
+# This hook is version-controlled in .githooks/ and auto-configured by `mix setup`
+# via: git config core.hooksPath .githooks
 
-# Check if bd is available
-if ! command -v bd >/dev/null 2>&1; then
-    echo "Warning: bd command not found in PATH, skipping pre-commit hook" >&2
-    echo "  Install bd: brew install steveyegge/tap/bd" >&2
-    echo "  Or add bd to your PATH" >&2
-    exit 0
+set -e
+
+echo "------------------------------------------------------------"
+echo "  Pre-commit: running mix precommit"
+echo "  (compile, deps check, format, credo, tests, dialyzer)"
+echo "------------------------------------------------------------"
+
+if ! mix precommit; then
+  echo ""
+  echo "------------------------------------------------------------"
+  echo "  BLOCKED: pre-commit validation failed."
+  echo "  Fix the issues above, then try committing again."
+  echo "------------------------------------------------------------"
+  exit 1
 fi
 
-exec bd hook pre-commit "$@"
+echo ""
+echo "------------------------------------------------------------"
+echo "  Pre-commit validation passed. Proceeding with commit."
+echo "------------------------------------------------------------"

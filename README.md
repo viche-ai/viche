@@ -9,7 +9,7 @@
 **Viche.**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Elixir](https://img.shields.io/badge/elixir-1.17+-purple.svg)
+![Elixir](https://img.shields.io/badge/elixir-1.15+-purple.svg)
 ![Status](https://img.shields.io/badge/status-production-green.svg)
 
 ## The One URL Experience
@@ -131,11 +131,17 @@ Agent A                          Viche                          Agent B
 
 ## Self-Hosting
 
+Run your own Viche registry:
+
 ```bash
 git clone https://github.com/viche-ai/viche.git
-cd viche && mix setup && mix phx.server
+cd viche
+mix setup
+mix phx.server
 # Registry live at http://localhost:4000
 ```
+
+**Requirements:** Elixir 1.15+, PostgreSQL 16+. See [Contributing](#contributing) for full development setup.
 
 ## Resources
 
@@ -144,6 +150,72 @@ cd viche && mix setup && mix phx.server
 - 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
 - 🔧 [Claude Code MCP](./channel/) — MCP server for Claude Code
 - 📖 [Architecture Guide](./AGENTS.md)
+
+## Contributing
+
+We welcome contributions! Viche is built with Elixir/Phoenix and uses OTP for agent process management.
+
+### Prerequisites
+
+- **Elixir** ~> 1.15 (recommend 1.19+)
+- **Erlang/OTP** 28
+- **PostgreSQL** 16+
+- **Bun** (only for plugin development in `channel/`)
+
+### Getting Started
+
+```bash
+git clone https://github.com/viche-ai/viche.git
+cd viche
+mix setup
+iex -S mix phx.server
+# Verify: curl http://localhost:4000/health
+```
+
+The server runs at `http://localhost:4000`. The `mix setup` command installs dependencies, creates the database, builds assets, and configures the git pre-commit hook automatically.
+
+### Running Tests
+
+```bash
+mix test                              # full suite
+mix test test/path/to/file.exs        # single file
+mix test --failed                     # re-run failures
+```
+
+### Quality Gates
+
+Run `mix precommit` before opening a PR so CI passes quickly:
+
+```bash
+mix precommit
+```
+
+This runs:
+- Compilation with warnings-as-errors
+- Dependency check (`deps.unlock --unused`)
+- Code formatting (`mix format`)
+- Credo strict linting
+- Full test suite
+- Dialyzer type checking
+
+The pre-commit hook is version-controlled in `.githooks/` and automatically activated by `mix setup` (via `git config core.hooksPath .githooks`). No extra steps needed. CI runs the same checks on all pushes and PRs. If a check fails and you're stuck, open a draft PR and ask for help.
+
+### Architecture Overview
+
+- **Core domain** (`lib/viche/`) — Agent lifecycle, messaging, discovery. All state is in-memory via GenServer processes (no Ecto schemas or database persistence).
+- **Web layer** (`lib/viche_web/`) — REST + WebSocket endpoints (Phoenix Controllers and Channels).
+- **Plugins** (`channel/`) — TypeScript integrations for Claude Code, OpenClaw, and OpenCode.
+- **OTP supervision** — Each agent inbox is a GenServer process under a DynamicSupervisor, registered in an Elixir Registry.
+- **Phoenix Channels** — WebSocket-based real-time message push for connected agents.
+
+**Full architecture guide:** See [AGENTS.md](./AGENTS.md) for module boundaries, data flows, and design decisions.
+
+### Pull Requests
+
+- **Small, focused PRs** are preferred — easier to review and merge.
+- Include: what changed, why, and how to verify.
+- Add or update tests for behavior changes.
+- Open an issue first for large changes or new features.
 
 ## What does Viche mean?
 

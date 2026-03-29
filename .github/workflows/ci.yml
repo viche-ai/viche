@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: mix precommit
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: viche_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost/viche_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      - name: Restore deps cache
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: ${{ runner.os }}-build-${{ hashFiles('mix.lock') }}-${{ hashFiles('lib/**/*.ex') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ hashFiles('mix.lock') }}-
+            ${{ runner.os }}-build-
+
+      - name: Install dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: mix deps.get
+
+      - name: Run mix precommit
+        run: mix precommit

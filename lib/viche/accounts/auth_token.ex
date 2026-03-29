@@ -13,6 +13,16 @@ defmodule Viche.Accounts.AuthToken do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @type t :: %__MODULE__{
+          id: binary() | nil,
+          token_hash: String.t() | nil,
+          context: String.t() | nil,
+          expires_at: DateTime.t() | nil,
+          used_at: DateTime.t() | nil,
+          user_id: binary() | nil,
+          inserted_at: DateTime.t() | nil
+        }
+
   schema "auth_tokens" do
     field :token_hash, :string
     field :context, :string
