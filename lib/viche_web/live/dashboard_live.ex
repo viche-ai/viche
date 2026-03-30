@@ -10,6 +10,7 @@ defmodule VicheWeb.DashboardLive do
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, Application.get_env(:viche, :public_mode, false))
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> load_and_assign_agents()
 
     if connected?(socket) do
@@ -21,6 +22,7 @@ defmodule VicheWeb.DashboardLive do
 
     socket =
       socket
+      |> assign(:feed_by_registry, %{})
       |> assign(:feed, [])
       |> assign(:messages_today, 0)
       |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
@@ -43,6 +45,7 @@ defmodule VicheWeb.DashboardLive do
       socket
       |> assign(:selected_registry, registry)
       |> load_and_assign_agents()
+      |> recompute_feed()
 
     {:noreply, socket}
   end
@@ -67,7 +70,14 @@ defmodule VicheWeb.DashboardLive do
         },
         socket
       ) do
+    Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{payload.id}")
+
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
+    registries = RegistryScope.registries_for_agent(new_agent_registry_map, payload.id)
+
     event = %{
+      id: Ecto.UUID.generate(),
+      inserted_at: DateTime.utc_now(),
       type: "join",
       from: payload.name,
       to: "registry",
@@ -75,13 +85,16 @@ defmodule VicheWeb.DashboardLive do
       at: "just now"
     }
 
-    Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{payload.id}")
+    feed_by_registry =
+      RegistryScope.push_event_by_registry(socket.assigns.feed_by_registry, registries, event)
 
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
+      |> assign(:feed_by_registry, feed_by_registry)
       |> load_and_assign_agents()
-      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+      |> recompute_feed()
 
     {:noreply, socket}
   end
@@ -94,7 +107,12 @@ defmodule VicheWeb.DashboardLive do
         },
         socket
       ) do
+    leaving_registries =
+      RegistryScope.registries_for_agent(socket.assigns.agent_registry_map, payload.id)
+
     event = %{
+      id: Ecto.UUID.generate(),
+      inserted_at: DateTime.utc_now(),
       type: "leave",
       from: payload.id,
       to: "registry",
@@ -102,44 +120,91 @@ defmodule VicheWeb.DashboardLive do
       at: "just now"
     }
 
+    feed_by_registry =
+      RegistryScope.push_event_by_registry(
+        socket.assigns.feed_by_registry,
+        leaving_registries,
+        event
+      )
+
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
+
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
+      |> assign(:feed_by_registry, feed_by_registry)
       |> load_and_assign_agents()
-      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+      |> recompute_feed()
 
     {:noreply, socket}
   end
 
   def handle_info(
         %Phoenix.Socket.Broadcast{
-          topic: "agent:" <> _agent_id,
+          topic: "agent:" <> agent_id,
           event: "new_message",
           payload: message
         },
         socket
       ) do
-    event = %{
-      type: message.type,
-      from: message.from,
-      to: message[:to] || "unknown",
-      body: message.body,
-      at: "just now"
-    }
+    registries =
+      RegistryScope.registries_for_agent(socket.assigns.agent_registry_map, agent_id)
 
-    socket =
-      socket
-      |> update(:messages_today, &(&1 + 1))
-      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+    if registries == [] do
+      {:noreply, socket}
+    else
+      event = %{
+        id: Ecto.UUID.generate(),
+        inserted_at: DateTime.utc_now(),
+        type: message.type,
+        from: message.from,
+        to: message[:to] || "unknown",
+        body: message.body,
+        at: "just now"
+      }
 
-    {:noreply, socket}
+      feed_by_registry =
+        RegistryScope.push_event_by_registry(
+          socket.assigns.feed_by_registry,
+          registries,
+          event
+        )
+
+      socket =
+        socket
+        |> update(:messages_today, &(&1 + 1))
+        |> assign(:feed_by_registry, feed_by_registry)
+        |> recompute_feed()
+
+      {:noreply, socket}
+    end
   end
 
   def handle_info({:feed_event, event}, socket) do
     if socket.assigns.paused do
       {:noreply, socket}
     else
-      {:noreply, update(socket, :feed, fn feed -> [event | Enum.take(feed, 49)] end)}
+      event_with_meta =
+        event
+        |> Map.put_new(:id, Ecto.UUID.generate())
+        |> Map.put_new(:inserted_at, DateTime.utc_now())
+
+      all_registries = socket.assigns.registries
+
+      feed_by_registry =
+        RegistryScope.push_event_by_registry(
+          socket.assigns.feed_by_registry,
+          all_registries,
+          event_with_meta
+        )
+
+      socket =
+        socket
+        |> assign(:feed_by_registry, feed_by_registry)
+        |> recompute_feed()
+
+      {:noreply, socket}
     end
   end
 
@@ -157,6 +222,16 @@ defmodule VicheWeb.DashboardLive do
   end
 
   # -- Helpers --
+
+  defp recompute_feed(socket) do
+    feed =
+      RegistryScope.selected_feed(
+        socket.assigns.feed_by_registry,
+        socket.assigns.selected_registry
+      )
+
+    assign(socket, :feed, feed)
+  end
 
   defp load_and_assign_agents(socket) do
     filter = RegistryScope.to_filter(socket.assigns.selected_registry)

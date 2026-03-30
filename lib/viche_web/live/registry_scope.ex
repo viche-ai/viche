@@ -77,4 +77,42 @@ defmodule VicheWeb.Live.RegistryScope do
     Phoenix.PubSub.unsubscribe(Viche.PubSub, "registry:#{registry}")
     :ok
   end
+
+  @doc "Look up registries for an agent from the preloaded map."
+  @spec registries_for_agent(%{String.t() => [String.t()]}, String.t()) :: [String.t()]
+  def registries_for_agent(agent_registry_map, agent_id) do
+    Map.get(agent_registry_map, agent_id, [])
+  end
+
+  @doc "Push an event into per-registry feed buffers for each of the given registries."
+  @spec push_event_by_registry(%{String.t() => [map()]}, [String.t()], map(), pos_integer()) ::
+          %{String.t() => [map()]}
+  def push_event_by_registry(feed_by_registry, registries, event, cap \\ 50) do
+    registries
+    |> Enum.uniq()
+    |> Enum.reduce(feed_by_registry, fn registry, acc ->
+      Map.update(acc, registry, [event], fn feed -> [event | Enum.take(feed, cap - 1)] end)
+    end)
+  end
+
+  @doc "Get the feed for the selected registry. For 'all', merge and sort by inserted_at descending."
+  @spec selected_feed(%{String.t() => [map()]}, String.t()) :: [map()]
+  def selected_feed(feed_by_registry, "all") do
+    feed_by_registry
+    |> Enum.flat_map(fn {_registry, events} -> events end)
+    |> Enum.reduce(%{}, fn event, acc ->
+      Map.update(acc, event.id, event, &keep_newer(event, &1))
+    end)
+    |> Map.values()
+    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+  end
+
+  def selected_feed(feed_by_registry, registry) do
+    Map.get(feed_by_registry, registry, [])
+  end
+
+  @spec keep_newer(map(), map()) :: map()
+  defp keep_newer(a, b) do
+    if DateTime.compare(a.inserted_at, b.inserted_at) == :gt, do: a, else: b
+  end
 end

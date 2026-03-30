@@ -96,6 +96,14 @@ defmodule Viche.Agents do
     |> Enum.sort()
   end
 
+  @doc "Returns a map of agent_id => list of registry tokens for all live agents."
+  @spec list_agent_registries() :: %{String.t() => [String.t()]}
+  def list_agent_registries do
+    Viche.AgentRegistry
+    |> all_agents()
+    |> Map.new(fn {id, meta} -> {id, meta.registries || ["global"]} end)
+  end
+
   @doc """
   Returns a single agent enriched with live status data.
   """

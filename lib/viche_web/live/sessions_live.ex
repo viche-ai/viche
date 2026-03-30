@@ -19,6 +19,7 @@ defmodule VicheWeb.SessionsLive do
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, Application.get_env(:viche, :public_mode, false))
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> load_inboxes()
 
     {:ok, socket}
@@ -69,28 +70,50 @@ defmodule VicheWeb.SessionsLive do
   def handle_info(%Phoenix.Socket.Broadcast{event: "agent_joined", payload: payload}, socket) do
     Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{payload.id}")
 
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
+
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
       |> load_inboxes()
 
     {:noreply, socket}
   end
 
   def handle_info(%Phoenix.Socket.Broadcast{event: "agent_left"}, socket) do
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
+
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
       |> load_inboxes()
 
     {:noreply, socket}
   end
 
-  def handle_info(%Phoenix.Socket.Broadcast{event: "new_message"}, socket) do
-    {:noreply,
-     socket
-     |> update(:messages_today, &(&1 + 1))
-     |> load_inboxes()}
+  def handle_info(
+        %Phoenix.Socket.Broadcast{
+          topic: "agent:" <> agent_id,
+          event: "new_message"
+        },
+        socket
+      ) do
+    registries =
+      RegistryScope.registries_for_agent(socket.assigns.agent_registry_map, agent_id)
+
+    selected = socket.assigns.selected_registry
+    in_scope? = selected == "all" or selected in registries
+
+    if in_scope? do
+      {:noreply,
+       socket
+       |> update(:messages_today, &(&1 + 1))
+       |> load_inboxes()}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Catch-all for other broadcasts

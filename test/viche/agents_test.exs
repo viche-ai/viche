@@ -796,6 +796,64 @@ defmodule Viche.AgentsTest do
     end
   end
 
+  describe "list_agent_registries/0" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "returns empty map when no agents are registered" do
+      assert Agents.list_agent_registries() == %{}
+    end
+
+    test "returns map of agent_id => registries for single-registry agents" do
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global"]})
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{capabilities: ["testing"], registries: ["team-alpha"]})
+
+      result = Agents.list_agent_registries()
+
+      assert Map.get(result, agent_a.id) == ["global"]
+      assert Map.get(result, agent_b.id) == ["team-alpha"]
+      assert map_size(result) == 2
+    end
+
+    test "returns all registries for an agent in multiple registries" do
+      {:ok, agent} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          registries: ["global", "team-x", "team-y"]
+        })
+
+      result = Agents.list_agent_registries()
+
+      assert Map.get(result, agent.id) == ["global", "team-x", "team-y"]
+    end
+
+    test "agents with different registries are all in the map" do
+      {:ok, agent_a} =
+        Agents.register_agent(%{capabilities: ["a"], registries: ["global"]})
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{capabilities: ["b"], registries: ["team-beta"]})
+
+      {:ok, agent_multi} =
+        Agents.register_agent(%{
+          capabilities: ["c"],
+          registries: ["global", "team-beta"]
+        })
+
+      result = Agents.list_agent_registries()
+
+      assert Map.get(result, agent_a.id) == ["global"]
+      assert Map.get(result, agent_b.id) == ["team-beta"]
+      assert Map.get(result, agent_multi.id) == ["global", "team-beta"]
+      assert map_size(result) == 3
+    end
+  end
+
   describe "register_agent/1 with polling_timeout_ms" do
     test "accepts custom polling_timeout_ms and returns it in agent struct" do
       assert {:ok, agent} =

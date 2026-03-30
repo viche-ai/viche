@@ -17,6 +17,8 @@ defmodule VicheWeb.NetworkLive do
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, Application.get_env(:viche, :public_mode, false))
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
+      |> assign(:feed_by_registry, %{})
       |> assign(:feed, [])
       |> assign(:paused, false)
       |> assign(:session_count, 3)
@@ -40,6 +42,7 @@ defmodule VicheWeb.NetworkLive do
       socket
       |> assign(:selected_registry, registry)
       |> load_graph_and_push()
+      |> recompute_feed()
 
     {:noreply, socket}
   end
@@ -59,13 +62,29 @@ defmodule VicheWeb.NetworkLive do
         },
         socket
       ) do
-    event = %{type: "join", from: payload.name, to: "registry", color: "#A7C080", at: "just now"}
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
+    registries = RegistryScope.registries_for_agent(new_agent_registry_map, payload.id)
+
+    event = %{
+      id: Ecto.UUID.generate(),
+      inserted_at: DateTime.utc_now(),
+      type: "join",
+      from: payload.name,
+      to: "registry",
+      color: "#A7C080",
+      at: "just now"
+    }
+
+    feed_by_registry =
+      RegistryScope.push_event_by_registry(socket.assigns.feed_by_registry, registries, event)
 
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
+      |> assign(:feed_by_registry, feed_by_registry)
       |> load_graph_and_push()
-      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+      |> recompute_feed()
 
     {:noreply, socket}
   end
@@ -78,13 +97,35 @@ defmodule VicheWeb.NetworkLive do
         },
         socket
       ) do
-    event = %{type: "task", from: payload.id, to: "registry", color: "#E67E80", at: "just now"}
+    leaving_registries =
+      RegistryScope.registries_for_agent(socket.assigns.agent_registry_map, payload.id)
+
+    event = %{
+      id: Ecto.UUID.generate(),
+      inserted_at: DateTime.utc_now(),
+      type: "task",
+      from: payload.id,
+      to: "registry",
+      color: "#E67E80",
+      at: "just now"
+    }
+
+    feed_by_registry =
+      RegistryScope.push_event_by_registry(
+        socket.assigns.feed_by_registry,
+        leaving_registries,
+        event
+      )
+
+    new_agent_registry_map = Viche.Agents.list_agent_registries()
 
     socket =
       socket
       |> assign(:registries, Viche.Agents.list_registries())
+      |> assign(:agent_registry_map, new_agent_registry_map)
+      |> assign(:feed_by_registry, feed_by_registry)
       |> load_graph_and_push()
-      |> update(:feed, fn feed -> [event | Enum.take(feed, 49)] end)
+      |> recompute_feed()
 
     {:noreply, socket}
   end
@@ -97,36 +138,56 @@ defmodule VicheWeb.NetworkLive do
         },
         socket
       ) do
-    color =
-      case Enum.find(socket.assigns.agents, &(&1.id == agent_id)) do
-        nil -> "#A7C080"
-        agent -> agent.color
-      end
+    registries =
+      RegistryScope.registries_for_agent(socket.assigns.agent_registry_map, agent_id)
 
-    from_id =
-      case Enum.find(socket.assigns.agents, &(&1.name == message.from || &1.id == message.from)) do
-        nil -> nil
-        agent -> agent.id
-      end
+    if registries == [] do
+      {:noreply, socket}
+    else
+      color =
+        case Enum.find(socket.assigns.agents, &(&1.id == agent_id)) do
+          nil -> "#A7C080"
+          agent -> agent.color
+        end
 
-    socket =
-      socket
-      |> update(:messages_today, &(&1 + 1))
-      |> update(:feed, fn feed ->
-        [
-          %{type: message.type, from: message.from, to: agent_id, color: color, at: "just now"}
-          | Enum.take(feed, 49)
-        ]
-      end)
+      from_id =
+        case Enum.find(socket.assigns.agents, &(&1.name == message.from || &1.id == message.from)) do
+          nil -> nil
+          agent -> agent.id
+        end
 
-    socket =
-      if from_id do
-        push_event(socket, "graph_pulse", %{from: from_id, to: agent_id, color: color})
-      else
+      event = %{
+        id: Ecto.UUID.generate(),
+        inserted_at: DateTime.utc_now(),
+        type: message.type,
+        from: message.from,
+        to: agent_id,
+        color: color,
+        at: "just now"
+      }
+
+      feed_by_registry =
+        RegistryScope.push_event_by_registry(
+          socket.assigns.feed_by_registry,
+          registries,
+          event
+        )
+
+      socket =
         socket
-      end
+        |> update(:messages_today, &(&1 + 1))
+        |> assign(:feed_by_registry, feed_by_registry)
+        |> recompute_feed()
 
-    {:noreply, socket}
+      socket =
+        if from_id do
+          push_event(socket, "graph_pulse", %{from: from_id, to: agent_id, color: color})
+        else
+          socket
+        end
+
+      {:noreply, socket}
+    end
   end
 
   def handle_info({:messages_today, n}, socket),
@@ -146,6 +207,16 @@ defmodule VicheWeb.NetworkLive do
   end
 
   # -- Helpers --
+
+  defp recompute_feed(socket) do
+    feed =
+      RegistryScope.selected_feed(
+        socket.assigns.feed_by_registry,
+        socket.assigns.selected_registry
+      )
+
+    assign(socket, :feed, feed)
+  end
 
   # Reloads agent graph data from the selected registry and updates assigns.
   defp load_graph(socket) do
