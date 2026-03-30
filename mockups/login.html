@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viche — Sign in</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg0:#2D353B;--bg1:#343F44;--bg2:#3D484D;--bg3:#475258;
+    --fg:#D3C6AA;--fg-dim:#859289;
+    --green:#A7C080;--aqua:#83C092;--blue:#7FBBB3;--yellow:#DBBC7F;--purple:#D699B6;
+    --border:rgba(255,255,255,0.07);--border-focus:rgba(167,192,128,0.45);
+    --shadow:0 4px 24px rgba(0,0,0,0.4);--input-bg:#252E33;--btn-text:#1a2420;
+    --glow:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(167,192,128,0.14) 0%,transparent 70%);
+  }
+  :root[data-theme="light"] {
+    --bg0:#FDF6E3;--bg1:#F4F0D9;--bg2:#EFEBD4;--bg3:#E6E2CC;
+    --fg:#5C6A72;--fg-dim:#829181;
+    --green:#8DA101;--aqua:#35A77C;--blue:#3A94C5;--yellow:#DFA000;--purple:#9263A8;
+    --border:rgba(0,0,0,0.09);--border-focus:rgba(141,161,1,0.45);
+    --shadow:0 4px 24px rgba(0,0,0,0.12);--input-bg:#FAF3E0;--btn-text:#fff;
+    --glow:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(141,161,1,0.10) 0%,transparent 70%);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;font-size:15px;background:var(--bg0);color:var(--fg);line-height:1.6;min-height:100vh;overflow-x:hidden}
+
+  /* Rings */
+  .rings{position:fixed;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;width:0;height:0}
+  .ring{position:absolute;border:1px solid var(--green);border-radius:50%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse-ring 8s ease-out infinite}
+  .ring:nth-child(1){width:400px;height:400px;animation-delay:0s}
+  .ring:nth-child(2){width:700px;height:700px;animation-delay:2s}
+  .ring:nth-child(3){width:1000px;height:1000px;animation-delay:4s}
+  .ring:nth-child(4){width:1300px;height:1300px;animation-delay:6s}
+  @keyframes pulse-ring{0%{opacity:0.08;transform:translate(-50%,-50%) scale(0.88)}50%{opacity:0.03}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12)}}
+
+  /* Particles */
+  .particle{position:fixed;width:3px;height:3px;background:var(--green);border-radius:50%;opacity:0;pointer-events:none;z-index:0;animation:float-up linear infinite}
+  @keyframes float-up{0%{opacity:0;transform:translateY(0) scale(0.5)}10%{opacity:0.6}90%{opacity:0.3}100%{opacity:0;transform:translateY(-120px) scale(1.2)}}
+
+  .glow-overlay{position:fixed;inset:0;background:var(--glow);pointer-events:none;z-index:0}
+
+  /* Nav */
+  nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
+  .nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
+  .logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--green),var(--aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px}
+  .nav-link{color:var(--fg-dim);text-decoration:none;transition:color 0.15s}
+  .nav-link:hover{color:var(--fg)}
+  .theme-btn{background:var(--bg1);border:1px solid var(--border);color:var(--fg-dim);border-radius:7px;padding:4px 8px;font-size:13px;cursor:pointer;transition:color 0.15s,background 0.15s}
+  .theme-btn:hover{color:var(--fg);background:var(--bg2)}
+
+  /* Page */
+  .page{position:relative;z-index:1;min-height:calc(100vh - 52px);display:flex;align-items:flex-start;justify-content:center;padding:56px 16px 80px}
+
+  /* Card */
+  .card{width:100%;max-width:400px;background:var(--bg1);border:1px solid var(--border);border-radius:18px;padding:36px 36px 28px;box-shadow:var(--shadow);opacity:0;transform:translateY(28px);animation:card-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.1s forwards}
+  @keyframes card-in{to{opacity:1;transform:translateY(0)}}
+
+  /* Header */
+  .card-header{text-align:center;margin-bottom:28px}
+  .card-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg);margin-bottom:18px}
+  .card-logo-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--green),var(--aqua));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1a2420;animation:logo-glow 3s ease-in-out infinite}
+  @keyframes logo-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 8px rgba(167,192,128,0.15)}}
+  .card-logo-text{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+  .card-title{font-size:20px;font-weight:600;letter-spacing:-0.3px;margin-bottom:6px}
+  .card-subtitle{font-size:13px;color:var(--fg-dim)}
+
+  /* Form */
+  .form-body{display:flex;flex-direction:column;gap:14px}
+
+  .field{display:flex;flex-direction:column;gap:5px}
+  label{font-size:12px;font-weight:600;color:var(--fg-dim);letter-spacing:0.5px;text-transform:uppercase}
+
+  input[type="text"],input[type="email"],input[type="password"]{background:var(--input-bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--fg);font-family:inherit;outline:none;transition:border-color 0.18s,box-shadow 0.18s;width:100%}
+  input[type="text"]:focus,input[type="email"]:focus,input[type="password"]:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(167,192,128,0.10)}
+  input::placeholder{color:var(--fg-dim);opacity:0.55}
+
+  /* Password wrapper */
+  .pw-wrap{position:relative}
+  .pw-wrap input{padding-right:42px}
+  .pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fg-dim);font-size:15px;padding:4px;line-height:1;transition:color 0.15s}
+  .pw-toggle:hover{color:var(--fg)}
+
+  /* Remember / forgot row */
+  .meta-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-top:-2px}
+  .remember-label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--fg-dim);user-select:none}
+  .remember-label input[type="checkbox"]{width:14px;height:14px;accent-color:var(--green);cursor:pointer}
+  .forgot-link{color:var(--fg-dim);text-decoration:none;transition:color 0.15s}
+  .forgot-link:hover{color:var(--green)}
+
+  /* Submit */
+  .btn-submit{width:100%;background:var(--green);border:none;border-radius:9px;padding:11px 24px;font-size:14px;font-weight:600;color:var(--btn-text);cursor:pointer;transition:filter 0.15s,transform 0.12s;font-family:inherit;position:relative;overflow:hidden;margin-top:4px}
+  .btn-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-submit:active{transform:translateY(0);filter:brightness(0.96)}
+  .btn-submit:disabled{opacity:0.45;cursor:not-allowed;transform:none;filter:none}
+  .btn-submit::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:btn-shimmer 3.5s ease infinite 1.5s}
+  @keyframes btn-shimmer{0%{left:-100%}30%{left:150%}100%{left:150%}}
+
+  /* Divider */
+  .divider{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--fg-dim);margin:4px 0}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* SSO buttons */
+  .sso-row{display:flex;gap:8px}
+  .btn-sso{flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:500;color:var(--fg-dim);cursor:pointer;font-family:inherit;transition:background 0.15s,color 0.15s,border-color 0.15s;display:flex;align-items:center;justify-content:center;gap:7px}
+  .btn-sso:hover{background:var(--bg2);color:var(--fg);border-color:rgba(167,192,128,0.25)}
+  .sso-icon{font-size:16px;line-height:1}
+
+  /* Error banner */
+  .error-banner{background:rgba(230,126,128,0.12);border:1px solid rgba(230,126,128,0.3);border-radius:9px;padding:10px 14px;font-size:13px;color:#E67E80;display:none;animation:shake 0.35s ease}
+  .error-banner.visible{display:block}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+
+  /* Success state */
+  .success-view{display:none;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:12px 0}
+  .success-view.active{display:flex;animation:step-in 0.4s ease forwards}
+  @keyframes step-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+  .success-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(167,192,128,0.15),rgba(131,192,146,0.1));border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;animation:success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards,success-glow 2s ease-in-out 0.5s infinite}
+  @keyframes success-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes success-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 12px rgba(167,192,128,0.12)}}
+  .success-title{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+  .success-sub{font-size:13px;color:var(--fg-dim);max-width:280px;line-height:1.6}
+  .btn-dashboard{background:var(--green);border:none;border-radius:9px;padding:10px 24px;font-size:14px;font-weight:600;color:var(--btn-text);cursor:pointer;font-family:inherit;transition:filter 0.15s;width:100%}
+  .btn-dashboard:hover{filter:brightness(1.08)}
+
+  /* Footer */
+  .card-footer{text-align:center;margin-top:20px;font-size:12px;color:var(--fg-dim)}
+  .card-footer a{color:var(--fg-dim);text-decoration:underline;text-underline-offset:2px}
+  .card-footer a:hover{color:var(--fg)}
+
+  /* Field validation */
+  .field-error{font-size:11px;color:#E67E80;margin-top:2px;display:none}
+  .field.has-error input{border-color:rgba(230,126,128,0.5)}
+  .field.has-error .field-error{display:block}
+
+  /* Status bar */
+  .status-bar{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;padding:10px;font-size:12px;color:var(--fg-dim);background:linear-gradient(transparent,rgba(45,53,59,0.92));z-index:5;pointer-events:none}
+  :root[data-theme="light"] .status-bar{background:linear-gradient(transparent,rgba(253,246,227,0.95))}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:dot-pulse 2s ease infinite;vertical-align:middle}
+  @keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  .status-sep{opacity:0.3}
+  .status-num{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<div class="rings">
+  <div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div>
+</div>
+<div class="glow-overlay"></div>
+
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="logo-mark">V</div>
+    <div class="logo-text">Viche</div>
+  </a>
+  <div class="nav-right">
+    <a href="signup.html" class="nav-link">Create account</a>
+    <button class="theme-btn" id="themeToggle">☀️ Light</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="card">
+
+    <div class="card-header" id="cardHeader">
+      <a href="#" class="card-logo">
+        <div class="card-logo-mark">V</div>
+        <div class="card-logo-text">Viche</div>
+      </a>
+      <div class="card-title">Welcome back</div>
+      <div class="card-subtitle">Sign in to your agent network</div>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div class="form-body" id="formBody">
+
+        <!-- Error banner -->
+        <div class="error-banner" id="errorBanner">
+          Incorrect email or password. Please try again.
+        </div>
+
+        <!-- Email -->
+        <div class="field" id="emailField">
+          <label>Email</label>
+          <input type="email" id="emailInput" placeholder="ada@example.com" autocomplete="email" />
+          <div class="field-error" id="emailError">Please enter a valid email address</div>
+        </div>
+
+        <!-- Password -->
+        <div class="field" id="passwordField">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="pw-toggle" id="pwToggle" title="Show password">👁</button>
+          </div>
+          <div class="field-error" id="passwordError">Please enter your password</div>
+        </div>
+
+        <!-- Remember / forgot -->
+        <div class="meta-row">
+          <label class="remember-label">
+            <input type="checkbox" id="rememberMe" />
+            Remember me
+          </label>
+          <a href="#" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-submit" id="submitBtn">Sign in →</button>
+
+        <!-- Divider -->
+        <div class="divider">or continue with</div>
+
+        <!-- SSO -->
+        <div class="sso-row">
+          <button type="button" class="btn-sso">
+            <span class="sso-icon">🐙</span> GitHub
+          </button>
+          <button type="button" class="btn-sso">
+            <span class="sso-icon">🔑</span> SSO
+          </button>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- Success state -->
+    <div class="success-view" id="successView">
+      <div class="success-ring">✓</div>
+      <div class="success-title">Signed in</div>
+      <div class="success-sub">Redirecting you to your dashboard…</div>
+      <button class="btn-dashboard">Open dashboard →</button>
+    </div>
+
+    <div class="card-footer" id="cardFooter">
+      Don't have an account? <a href="signup.html">Sign up free</a>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span><span class="status-dot"></span>network live</span>
+  <span class="status-sep">·</span>
+  <span><span class="status-num" id="agentsOnline">0</span> agents online</span>
+  <span class="status-sep">·</span>
+  <span><span class="status-num" id="totalMessages">0</span> messages sent</span>
+</div>
+
+<script>
+// Theme
+const html = document.documentElement;
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('themeToggle').textContent = isDark ? '🌙 Dark' : '☀️ Light';
+});
+
+// Particles
+function spawnParticle() {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = (Math.random() * 100) + 'vw';
+  p.style.bottom = (Math.random() * 30) + 'px';
+  const dur = 4 + Math.random() * 6;
+  p.style.animationDuration = dur + 's';
+  p.style.animationDelay = (Math.random() * 2) + 's';
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), (dur + 2) * 1000);
+}
+setInterval(spawnParticle, 1200);
+for (let i = 0; i < 6; i++) setTimeout(spawnParticle, i * 300);
+
+// Password visibility toggle
+const pwInput = document.getElementById('passwordInput');
+document.getElementById('pwToggle').addEventListener('click', () => {
+  const show = pwInput.type === 'password';
+  pwInput.type = show ? 'text' : 'password';
+  document.getElementById('pwToggle').textContent = show ? '🙈' : '👁';
+});
+
+// Validation helpers
+function setErr(fieldEl, errEl, msg, show) {
+  fieldEl.classList.toggle('has-error', show);
+  errEl.style.display = show ? 'block' : 'none';
+  if (show) errEl.textContent = msg;
+}
+function clearErr(fieldEl, errEl) { setErr(fieldEl, errEl, '', false); }
+
+// Live clear on input
+document.getElementById('emailInput').addEventListener('input', () => {
+  clearErr(document.getElementById('emailField'), document.getElementById('emailError'));
+  document.getElementById('errorBanner').classList.remove('visible');
+});
+document.getElementById('passwordInput').addEventListener('input', () => {
+  clearErr(document.getElementById('passwordField'), document.getElementById('passwordError'));
+  document.getElementById('errorBanner').classList.remove('visible');
+});
+
+// Submit
+let attempts = 0;
+document.getElementById('loginForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  let valid = true;
+
+  if (!emailRe.test(email)) {
+    setErr(document.getElementById('emailField'), document.getElementById('emailError'), 'Please enter a valid email address', true);
+    valid = false;
+  } else clearErr(document.getElementById('emailField'), document.getElementById('emailError'));
+
+  if (!password) {
+    setErr(document.getElementById('passwordField'), document.getElementById('passwordError'), 'Please enter your password', true);
+    valid = false;
+  } else clearErr(document.getElementById('passwordField'), document.getElementById('passwordError'));
+
+  if (!valid) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  setTimeout(() => {
+    attempts++;
+    // On first attempt show error to demo the shake; second attempt succeeds
+    if (attempts === 1 && email !== 'demo@viche.ai') {
+      btn.disabled = false;
+      btn.textContent = 'Sign in →';
+      const banner = document.getElementById('errorBanner');
+      banner.classList.remove('visible');
+      void banner.offsetWidth; // reflow for re-animation
+      banner.classList.add('visible');
+    } else {
+      // Success
+      document.getElementById('formBody').style.display = 'none';
+      document.getElementById('cardHeader').style.display = 'none';
+      document.getElementById('cardFooter').style.display = 'none';
+      document.getElementById('successView').classList.add('active');
+    }
+  }, 900);
+});
+
+// Live network stats
+(function() {
+  let agents = 24 + Math.floor(Math.random() * 8);
+  let messages = 1200 + Math.floor(Math.random() * 80);
+  const agentsEl = document.getElementById('agentsOnline');
+  const messagesEl = document.getElementById('totalMessages');
+  function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n; }
+  agentsEl.textContent = agents;
+  messagesEl.textContent = fmt(messages);
+  setInterval(() => {
+    agents += Math.random() < 0.6 ? 1 : -1;
+    agents = Math.max(18, Math.min(60, agents));
+    agentsEl.textContent = agents;
+  }, 4000 + Math.random() * 3000);
+  function tickMessages() {
+    messages += Math.floor(Math.random() * 3) + 1;
+    messagesEl.textContent = fmt(messages);
+    setTimeout(tickMessages, 1500 + Math.random() * 3000);
+  }
+  setTimeout(tickMessages, 800);
+})();
+</script>
+</body>
+</html>

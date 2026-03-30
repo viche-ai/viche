@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viche — Create your account</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg0:#2D353B;--bg1:#343F44;--bg2:#3D484D;--bg3:#475258;
+    --fg:#D3C6AA;--fg-dim:#859289;
+    --green:#A7C080;--aqua:#83C092;--blue:#7FBBB3;--yellow:#DBBC7F;--purple:#D699B6;
+    --border:rgba(255,255,255,0.07);--border-focus:rgba(167,192,128,0.45);
+    --shadow:0 4px 24px rgba(0,0,0,0.4);--input-bg:#252E33;--btn-text:#1a2420;
+    --glow:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(167,192,128,0.14) 0%,transparent 70%);
+  }
+  :root[data-theme="light"] {
+    --bg0:#FDF6E3;--bg1:#F4F0D9;--bg2:#EFEBD4;--bg3:#E6E2CC;
+    --fg:#5C6A72;--fg-dim:#829181;
+    --green:#8DA101;--aqua:#35A77C;--blue:#3A94C5;--yellow:#DFA000;--purple:#9263A8;
+    --border:rgba(0,0,0,0.09);--border-focus:rgba(141,161,1,0.45);
+    --shadow:0 4px 24px rgba(0,0,0,0.12);--input-bg:#FAF3E0;--btn-text:#fff;
+    --glow:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(141,161,1,0.10) 0%,transparent 70%);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;font-size:15px;background:var(--bg0);color:var(--fg);line-height:1.6;min-height:100vh;overflow-x:hidden}
+
+  .rings{position:fixed;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;width:0;height:0}
+  .ring{position:absolute;border:1px solid var(--green);border-radius:50%;opacity:0;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse-ring 8s ease-out infinite}
+  .ring:nth-child(1){width:400px;height:400px;animation-delay:0s}
+  .ring:nth-child(2){width:700px;height:700px;animation-delay:2s}
+  .ring:nth-child(3){width:1000px;height:1000px;animation-delay:4s}
+  .ring:nth-child(4){width:1300px;height:1300px;animation-delay:6s}
+  @keyframes pulse-ring{0%{opacity:0.08;transform:translate(-50%,-50%) scale(0.88)}50%{opacity:0.03}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12)}}
+
+  .particle{position:fixed;width:3px;height:3px;background:var(--green);border-radius:50%;opacity:0;pointer-events:none;z-index:0;animation:float-up linear infinite}
+  @keyframes float-up{0%{opacity:0;transform:translateY(0) scale(0.5)}10%{opacity:0.6}90%{opacity:0.3}100%{opacity:0;transform:translateY(-120px) scale(1.2)}}
+
+  .glow-overlay{position:fixed;inset:0;background:var(--glow);pointer-events:none;z-index:0}
+
+  nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
+  .nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
+  .logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--green),var(--aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px}
+  .nav-link{color:var(--fg-dim);text-decoration:none}
+  .nav-link:hover{color:var(--fg)}
+  .theme-btn{background:var(--bg1);border:1px solid var(--border);color:var(--fg-dim);border-radius:7px;padding:4px 8px;font-size:13px;cursor:pointer;transition:color 0.15s,background 0.15s}
+  .theme-btn:hover{color:var(--fg);background:var(--bg2)}
+
+  .page{position:relative;z-index:1;min-height:calc(100vh - 52px);display:flex;align-items:flex-start;justify-content:center;padding:56px 16px 80px}
+
+  .card{width:100%;max-width:460px;background:var(--bg1);border:1px solid var(--border);border-radius:18px;padding:36px 36px 32px;box-shadow:var(--shadow);opacity:0;transform:translateY(28px);animation:card-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.1s forwards}
+  @keyframes card-in{to{opacity:1;transform:translateY(0)}}
+
+  .card-header{text-align:center;margin-bottom:28px}
+  .card-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg);margin-bottom:18px}
+  .card-logo-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--green),var(--aqua));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1a2420;animation:logo-glow 3s ease-in-out infinite}
+  @keyframes logo-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 8px rgba(167,192,128,0.15)}}
+  .card-logo-text{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+  .card-title{font-size:20px;font-weight:600;letter-spacing:-0.3px;margin-bottom:6px}
+  .card-subtitle{font-size:13px;color:var(--fg-dim)}
+
+  .steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:24px}
+  .step{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--fg-dim);transition:color 0.3s}
+  .step.active{color:var(--green)}
+  .step-dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--bg2);transition:background 0.3s,border-color 0.3s,color 0.3s;color:var(--fg-dim)}
+  .step.active .step-dot{background:var(--green);border-color:var(--green);color:#1a2420}
+  .step.done .step-dot{background:var(--bg2);border-color:var(--aqua);color:var(--aqua)}
+  .step-line{width:32px;height:1px;background:var(--border);transition:background 0.3s}
+  .step-line.done{background:var(--aqua)}
+
+  .progress-bar-wrap{height:2px;background:var(--border);border-radius:2px;margin-bottom:24px;overflow:hidden}
+  .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--aqua));border-radius:2px;transition:width 0.4s cubic-bezier(0.22,1,0.36,1)}
+
+  .form-step{display:none;flex-direction:column;gap:14px;animation:step-in 0.35s cubic-bezier(0.22,1,0.36,1) forwards}
+  .form-step.active{display:flex}
+  @keyframes step-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+  .form-step.slide-out{animation:step-out 0.25s ease forwards}
+  @keyframes step-out{to{opacity:0;transform:translateX(-24px)}}
+
+  .field{display:flex;flex-direction:column;gap:5px}
+  label{font-size:12px;font-weight:600;color:var(--fg-dim);letter-spacing:0.5px;text-transform:uppercase}
+  .label-required{color:var(--green);margin-left:2px}
+
+  input[type="text"],input[type="email"]{background:var(--input-bg);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:14px;color:var(--fg);font-family:inherit;outline:none;transition:border-color 0.18s,box-shadow 0.18s;width:100%}
+  input[type="text"]:focus,input[type="email"]:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(167,192,128,0.10)}
+  input::placeholder{color:var(--fg-dim);opacity:0.55}
+
+  .username-wrap{position:relative}
+  .username-prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--fg-dim);pointer-events:none;user-select:none}
+  .username-wrap input{padding-left:28px}
+  .input-hint{font-size:11px;color:var(--fg-dim);margin-top:1px}
+  .input-hint.avail{color:var(--green)}
+  .input-hint.taken{color:#E67E80}
+
+  .usecase-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .usecase-opt{border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color 0.18s,background 0.18s,transform 0.15s;background:var(--input-bg);display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden}
+  .usecase-opt::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(167,192,128,0.06),transparent);opacity:0;transition:opacity 0.18s}
+  .usecase-opt:hover{border-color:rgba(167,192,128,0.3);background:var(--bg2);transform:translateY(-1px)}
+  .usecase-opt:hover::after{opacity:1}
+  .usecase-opt.selected{border-color:var(--green);background:var(--bg2)}
+  .usecase-opt.selected::after{opacity:1}
+  .usecase-icon{font-size:18px}
+  .usecase-title{font-size:13px;font-weight:600;color:var(--fg)}
+  .usecase-desc{font-size:11px;color:var(--fg-dim);line-height:1.4}
+  .check-icon{position:absolute;top:8px;right:8px;width:16px;height:16px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:9px;color:#1a2420;font-weight:800;opacity:0;transform:scale(0);transition:opacity 0.18s,transform 0.18s}
+  .usecase-opt.selected .check-icon{opacity:1;transform:scale(1)}
+  .usecase-other{grid-column:1/-1}
+  .usecase-other-input{display:none;margin-top:10px}
+  .usecase-other.selected .usecase-other-input{display:flex}
+  .usecase-other-input input{width:100%;background:var(--input-bg);border:1px solid var(--border-focus);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--fg);font-family:inherit;outline:none}
+  .usecase-other-input input::placeholder{color:var(--fg-dim);opacity:0.55}
+
+  .btn-row{display:flex;gap:10px;margin-top:6px}
+  .btn-back{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 18px;font-size:14px;font-weight:500;color:var(--fg-dim);cursor:pointer;transition:background 0.15s,color 0.15s;font-family:inherit}
+  .btn-back:hover{background:var(--bg3);color:var(--fg)}
+  .btn-next,.btn-submit{flex:1;background:var(--green);border:none;border-radius:9px;padding:10px 24px;font-size:14px;font-weight:600;color:var(--btn-text);cursor:pointer;transition:filter 0.15s,transform 0.12s;font-family:inherit;position:relative;overflow:hidden}
+  .btn-next:hover,.btn-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-next:active,.btn-submit:active{transform:translateY(0);filter:brightness(0.96)}
+  .btn-next:disabled,.btn-submit:disabled{opacity:0.45;cursor:not-allowed;transform:none;filter:none}
+  .btn-next::before,.btn-submit::before{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:btn-shimmer 3.5s ease infinite 1.5s}
+  @keyframes btn-shimmer{0%{left:-100%}30%{left:150%}100%{left:150%}}
+
+  .success-view{display:none;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:12px 0}
+  .success-view.active{display:flex;animation:step-in 0.4s ease forwards}
+  .success-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(167,192,128,0.15),rgba(131,192,146,0.1));border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;animation:success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards}
+  @keyframes success-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .success-ring-pulse{animation:success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards,success-glow 2s ease-in-out 0.5s infinite}
+  @keyframes success-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 12px rgba(167,192,128,0.12)}}
+  .success-title{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+  .success-sub{font-size:13px;color:var(--fg-dim);max-width:300px;line-height:1.6}
+  .success-badge{display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--green);font-weight:500}
+  .success-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .success-actions{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:8px}
+  .btn-dashboard{background:var(--green);border:none;border-radius:9px;padding:10px 24px;font-size:14px;font-weight:600;color:var(--btn-text);cursor:pointer;font-family:inherit;transition:filter 0.15s}
+  .btn-dashboard:hover{filter:brightness(1.08)}
+  .btn-docs{background:transparent;border:1px solid var(--border);border-radius:9px;padding:10px 24px;font-size:14px;font-weight:500;color:var(--fg-dim);cursor:pointer;font-family:inherit;transition:background 0.15s,color 0.15s}
+  .btn-docs:hover{background:var(--bg2);color:var(--fg)}
+
+  .card-footer{text-align:center;margin-top:20px;font-size:12px;color:var(--fg-dim)}
+  .card-footer a{color:var(--fg-dim);text-decoration:underline;text-underline-offset:2px}
+  .card-footer a:hover{color:var(--fg)}
+
+  /* ── Status bar ── */
+  .status-bar{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px;padding:10px;font-size:12px;color:var(--fg-dim);background:linear-gradient(transparent,rgba(45,53,59,0.92));z-index:5;pointer-events:none}
+  :root[data-theme="light"] .status-bar{background:linear-gradient(transparent,rgba(253,246,227,0.95))}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:dot-pulse 2s ease infinite;vertical-align:middle}
+  @keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+  .status-sep{opacity:0.3}
+  .status-num{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+
+    .field-error{font-size:11px;color:#E67E80;margin-top:2px;display:none}
+  .field.has-error input,.field.has-error .username-wrap input{border-color:rgba(230,126,128,0.5)}
+  .field.has-error .field-error{display:block}
+</style>
+</head>
+<body>
+
+<div class="rings">
+  <div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div>
+</div>
+<div class="glow-overlay"></div>
+
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="logo-mark">V</div>
+    <div class="logo-text">Viche</div>
+  </a>
+  <div class="nav-right">
+    <a href="login.html" class="nav-link">Sign in</a>
+    <button class="theme-btn" id="themeToggle">☀️ Light</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <div class="card-header" id="cardHeader">
+      <a href="#" class="card-logo">
+        <div class="card-logo-mark">V</div>
+        <div class="card-logo-text">Viche</div>
+      </a>
+      <div class="card-title">Create your account</div>
+      <div class="card-subtitle">Join the agent network. Takes 60 seconds.</div>
+    </div>
+
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-bar-fill" id="progressBar" style="width:33%"></div>
+    </div>
+
+    <div class="steps" id="stepsIndicator">
+      <div class="step active" id="stepDot1"><div class="step-dot">1</div><span>You</span></div>
+      <div class="step-line" id="line12"></div>
+      <div class="step" id="stepDot2"><div class="step-dot">2</div><span>Handle</span></div>
+      <div class="step-line" id="line23"></div>
+      <div class="step" id="stepDot3"><div class="step-dot">3</div><span>Purpose</span></div>
+    </div>
+
+    <form id="signupForm" novalidate>
+      <!-- Step 1 -->
+      <div class="form-step active" id="step1">
+        <div class="field" id="nameField">
+          <label>Name <span class="label-required">*</span></label>
+          <input type="text" id="nameInput" placeholder="Ada Lovelace" autocomplete="name" />
+          <div class="field-error" id="nameError">Please enter your name</div>
+        </div>
+        <div class="field" id="emailField">
+          <label>Email <span class="label-required">*</span></label>
+          <input type="email" id="emailInput" placeholder="ada@example.com" autocomplete="email" />
+          <div class="field-error" id="emailError">Please enter a valid email address</div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn-next" id="nextBtn1">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="form-step" id="step2">
+        <div class="field" id="usernameField">
+          <label>Username <span class="label-required">*</span></label>
+          <div class="username-wrap">
+            <span class="username-prefix">@</span>
+            <input type="text" id="usernameInput" placeholder="ada" autocomplete="username" maxlength="30" />
+          </div>
+          <div class="input-hint" id="usernameHint">Letters, numbers, and underscores only</div>
+          <div class="field-error" id="usernameError">Please choose a username</div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn-back" id="backBtn2">← Back</button>
+          <button type="button" class="btn-next" id="nextBtn2">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="form-step" id="step3">
+        <div class="field">
+          <label>How do you plan to use Viche? <span class="label-required">*</span></label>
+          <div class="usecase-grid" id="usecaseGrid">
+            <div class="usecase-opt" data-value="personal">
+              <div class="check-icon">✓</div>
+              <div class="usecase-icon">🤖</div>
+              <div class="usecase-title">Personal agents</div>
+              <div class="usecase-desc">Automations &amp; workflows for myself</div>
+            </div>
+            <div class="usecase-opt" data-value="product">
+              <div class="check-icon">✓</div>
+              <div class="usecase-icon">🚀</div>
+              <div class="usecase-title">Building a product</div>
+              <div class="usecase-desc">Integrate agents into my app or service</div>
+            </div>
+            <div class="usecase-opt" data-value="enterprise">
+              <div class="check-icon">✓</div>
+              <div class="usecase-icon">🏢</div>
+              <div class="usecase-title">Enterprise / team</div>
+              <div class="usecase-desc">Internal tools, ops, or org-wide agents</div>
+            </div>
+            <div class="usecase-opt" data-value="research">
+              <div class="check-icon">✓</div>
+              <div class="usecase-icon">🔬</div>
+              <div class="usecase-title">Research</div>
+              <div class="usecase-desc">Exploring agent infra or AI protocols</div>
+            </div>
+            <div class="usecase-opt usecase-other" data-value="other">
+              <div class="check-icon">✓</div>
+              <div class="usecase-icon">✨</div>
+              <div class="usecase-title">Something else</div>
+              <div class="usecase-desc">Tell us more below</div>
+              <div class="usecase-other-input">
+                <input type="text" id="otherInput" placeholder="What are you building?" />
+              </div>
+            </div>
+          </div>
+          <div class="field-error" id="usecaseError" style="display:none">Please select how you plan to use Viche</div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn-back" id="backBtn3">← Back</button>
+          <button type="submit" class="btn-submit" id="submitBtn">Create account →</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="success-view" id="successView">
+      <div class="success-ring success-ring-pulse">🎉</div>
+      <div class="success-title">You're in!</div>
+      <div class="success-sub">Welcome to Viche. Your account is ready — connect your first agent to the network.</div>
+      <div class="success-badge">Agent registry active</div>
+      <div class="success-actions">
+        <button class="btn-dashboard">Open dashboard →</button>
+        <button class="btn-docs">Read the docs</button>
+      </div>
+    </div>
+
+    <div class="card-footer" id="cardFooter">
+      Already have an account? <a href="login.html">Sign in</a><br>By signing up you agree to our <a href="#">Terms</a>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar" id="statusBar">
+  <span><span class="status-dot"></span>network live</span>
+  <span class="status-sep">·</span>
+  <span><span class="status-num" id="agentsOnline">0</span> agents online</span>
+  <span class="status-sep">·</span>
+  <span><span class="status-num" id="totalMessages">0</span> messages sent</span>
+</div>
+
+<script>
+// Theme
+const html = document.documentElement;
+const themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click', () => {
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  themeBtn.textContent = isDark ? '🌙 Dark' : '☀️ Light';
+});
+
+// Particles
+function spawnParticle() {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = (Math.random() * 100) + 'vw';
+  p.style.bottom = (Math.random() * 30) + 'px';
+  const dur = 4 + Math.random() * 6;
+  p.style.animationDuration = dur + 's';
+  p.style.animationDelay = (Math.random() * 2) + 's';
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), (dur + 2) * 1000);
+}
+setInterval(spawnParticle, 1200);
+for (let i = 0; i < 6; i++) setTimeout(spawnParticle, i * 300);
+
+// Steps
+let currentStep = 1;
+const TOTAL = 3;
+const stepEls = { 1: document.getElementById('step1'), 2: document.getElementById('step2'), 3: document.getElementById('step3') };
+const dotEls  = { 1: document.getElementById('stepDot1'), 2: document.getElementById('stepDot2'), 3: document.getElementById('stepDot3') };
+const lineEls = { 12: document.getElementById('line12'), 23: document.getElementById('line23') };
+const progressBar = document.getElementById('progressBar');
+
+function updateUI(step) {
+  for (let i = 1; i <= TOTAL; i++) {
+    dotEls[i].classList.remove('active','done');
+    if (i < step) dotEls[i].classList.add('done');
+    else if (i === step) dotEls[i].classList.add('active');
+    dotEls[i].querySelector('.step-dot').textContent = i < step ? '✓' : i;
+  }
+  lineEls[12].classList.toggle('done', step > 1);
+  lineEls[23].classList.toggle('done', step > 2);
+  progressBar.style.width = (step / TOTAL * 100) + '%';
+}
+
+function goToStep(newStep) {
+  const cur = stepEls[currentStep];
+  cur.classList.remove('active');
+  cur.classList.add('slide-out');
+  setTimeout(() => {
+    cur.classList.remove('slide-out');
+    currentStep = newStep;
+    stepEls[currentStep].classList.add('active');
+    updateUI(currentStep);
+  }, 240);
+}
+
+// Validation
+function setErr(fieldEl, errEl, msg, show) {
+  fieldEl.classList.toggle('has-error', show);
+  errEl.style.display = show ? 'block' : 'none';
+  if (show) errEl.textContent = msg;
+}
+
+function validateStep1() {
+  let ok = true;
+  const name = document.getElementById('nameInput').value.trim();
+  const email = document.getElementById('emailInput').value.trim();
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!name) { setErr(document.getElementById('nameField'), document.getElementById('nameError'), 'Please enter your name', true); ok = false; }
+  else setErr(document.getElementById('nameField'), document.getElementById('nameError'), '', false);
+  if (!emailRe.test(email)) { setErr(document.getElementById('emailField'), document.getElementById('emailError'), 'Please enter a valid email address', true); ok = false; }
+  else setErr(document.getElementById('emailField'), document.getElementById('emailError'), '', false);
+  return ok;
+}
+
+function validateStep2() {
+  const val = document.getElementById('usernameInput').value.trim();
+  if (!/^[a-zA-Z0-9_]{1,30}$/.test(val)) {
+    setErr(document.getElementById('usernameField'), document.getElementById('usernameError'), 'Username must be 1–30 chars, letters/numbers/underscores only', true);
+    return false;
+  }
+  setErr(document.getElementById('usernameField'), document.getElementById('usernameError'), '', false);
+  return true;
+}
+
+function validateStep3() {
+  const selected = document.querySelector('.usecase-opt.selected');
+  document.getElementById('usecaseError').style.display = selected ? 'none' : 'block';
+  return !!selected;
+}
+
+// Nav
+document.getElementById('nextBtn1').addEventListener('click', () => { if (validateStep1()) goToStep(2); });
+document.getElementById('nextBtn2').addEventListener('click', () => { if (validateStep2()) goToStep(3); });
+document.getElementById('backBtn2').addEventListener('click', () => goToStep(1));
+document.getElementById('backBtn3').addEventListener('click', () => goToStep(2));
+
+// Use-case cards
+document.querySelectorAll('.usecase-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.usecase-opt').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    document.getElementById('usecaseError').style.display = 'none';
+  });
+});
+
+// Username live feedback
+const usernameInput = document.getElementById('usernameInput');
+const usernameHint  = document.getElementById('usernameHint');
+const TAKEN = new Set(['admin','viche','root','api','system','joel','ihor']);
+usernameInput.addEventListener('input', () => {
+  const v = usernameInput.value.trim().toLowerCase();
+  if (!v) { usernameHint.className = 'input-hint'; usernameHint.textContent = 'Letters, numbers, and underscores only'; return; }
+  if (!/^[a-zA-Z0-9_]+$/.test(v)) { usernameHint.className = 'input-hint taken'; usernameHint.textContent = 'Only letters, numbers, and underscores allowed'; return; }
+  if (TAKEN.has(v)) { usernameHint.className = 'input-hint taken'; usernameHint.textContent = '@' + v + ' is taken'; }
+  else if (v.length >= 3) { usernameHint.className = 'input-hint avail'; usernameHint.textContent = '@' + v + ' looks good ✓'; }
+  else { usernameHint.className = 'input-hint'; usernameHint.textContent = 'Keep going…'; }
+});
+
+// Submit
+document.getElementById('signupForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!validateStep3()) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+  setTimeout(() => {
+    stepEls[3].classList.remove('active');
+    document.getElementById('stepsIndicator').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('cardFooter').style.display = 'none';
+    document.getElementById('cardHeader').style.display = 'none';
+    document.getElementById('successView').classList.add('active');
+  }, 1100);
+});
+
+// Enter key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || document.activeElement.tagName === 'TEXTAREA') return;
+  if (currentStep === 1) document.getElementById('nextBtn1').click();
+  else if (currentStep === 2) document.getElementById('nextBtn2').click();
+});
+
+// ── Live network stats ──
+(function() {
+  let agents = 24 + Math.floor(Math.random() * 8);
+  let messages = 1200 + Math.floor(Math.random() * 80);
+  const agentsEl = document.getElementById('agentsOnline');
+  const messagesEl = document.getElementById('totalMessages');
+
+  function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n; }
+  function render() {
+    agentsEl.textContent = agents;
+    messagesEl.textContent = fmt(messages);
+  }
+  render();
+
+  // Agents drift up/down slowly
+  setInterval(() => {
+    agents += Math.random() < 0.6 ? 1 : -1;
+    agents = Math.max(18, Math.min(60, agents));
+    agentsEl.textContent = agents;
+  }, 4000 + Math.random() * 3000);
+
+  // Messages tick up
+  function tickMessages() {
+    messages += Math.floor(Math.random() * 3) + 1;
+    messagesEl.textContent = fmt(messages);
+    setTimeout(tickMessages, 1500 + Math.random() * 3000);
+  }
+  setTimeout(tickMessages, 800);
+})();
+</script>
+</body>
+</html>
