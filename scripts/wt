@@ -23,7 +23,29 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m' # No Color
+
+# ---------------------------------------------------------------------------
+# TTY / capability detection
+# ---------------------------------------------------------------------------
+IS_TTY=0; USE_COLOR=0; USE_UNICODE=0
+[[ -t 1 && "${TERM:-}" != "dumb" ]] && IS_TTY=1
+[[ $IS_TTY -eq 1 && -z "${NO_COLOR:-}" ]] && USE_COLOR=1
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in *UTF-8*|*utf8*) USE_UNICODE=1 ;; esac
+
+# ---------------------------------------------------------------------------
+# Temp log directory (cleaned up on exit)
+# ---------------------------------------------------------------------------
+LOG_DIR="$(mktemp -d)"
+trap 'rm -rf "$LOG_DIR"' EXIT
+
+# ---------------------------------------------------------------------------
+# Step counters (set by create_worktree before the step sequence)
+# ---------------------------------------------------------------------------
+STEP_INDEX=0
+TOTAL_STEPS=0
 
 # ---------------------------------------------------------------------------
 # Resolve directories
@@ -46,6 +68,251 @@ info()    { echo -e "${BLUE}[wt]${NC} $*"; }
 success() { echo -e "${GREEN}[wt]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[wt]${NC} $*"; }
 error()   { echo -e "${RED}[wt]${NC} $*" >&2; }
+
+# ---------------------------------------------------------------------------
+# format_duration <seconds>
+#   Prints "12s" or "1m 23s"
+# ---------------------------------------------------------------------------
+format_duration() {
+  local secs="$1"
+  if [[ $secs -lt 60 ]]; then
+    printf "%ds" "$secs"
+  else
+    printf "%dm %ds" $(( secs / 60 )) $(( secs % 60 ))
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# run_in_dir <dir> <cmd> [args...]
+#   Runs a command inside a directory (subshell).
+# ---------------------------------------------------------------------------
+run_in_dir() {
+  local dir="$1"
+  shift
+  ( cd "$dir" && "$@" )
+}
+
+# ---------------------------------------------------------------------------
+# run_step "Description" cmd [args...]
+#   Runs cmd, shows spinner (TTY) or plain line (non-TTY).
+#   On success: prints ✓ [n/N] Description (elapsed)
+#   On failure: prints ✗ [n/N] Description (elapsed) + captured output
+#   Returns the command's exit code.
+# ---------------------------------------------------------------------------
+run_step() {
+  local description="$1"
+  shift
+
+  STEP_INDEX=$(( STEP_INDEX + 1 ))
+
+  local log_file
+  log_file="$(mktemp "$LOG_DIR/step.XXXXXX")"
+
+  local start_time
+  start_time=$(date +%s)
+
+  local exit_code=0
+
+  if [[ $IS_TTY -eq 1 ]]; then
+    # Choose spinner characters
+    local -a spinner_chars
+    if [[ $USE_UNICODE -eq 1 ]]; then
+      spinner_chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    else
+      spinner_chars=('|' '/' '-' '\')
+    fi
+    local spin_idx=0
+    local spin_len=${#spinner_chars[@]}
+
+    # Run command in background, capturing output
+    set +e
+    "$@" >"$log_file" 2>&1 &
+    local cmd_pid=$!
+
+    # Animate spinner until command finishes
+    while kill -0 "$cmd_pid" 2>/dev/null; do
+      local spin_char="${spinner_chars[$spin_idx]}"
+      if [[ $USE_COLOR -eq 1 ]]; then
+        printf "\r  ${BLUE}${BOLD}%s${NC} [%d/%d] %s..." \
+          "$spin_char" "$STEP_INDEX" "$TOTAL_STEPS" "$description"
+      else
+        printf "\r  %s [%d/%d] %s..." \
+          "$spin_char" "$STEP_INDEX" "$TOTAL_STEPS" "$description"
+      fi
+      spin_idx=$(( (spin_idx + 1) % spin_len ))
+      sleep 0.1
+    done
+
+    wait "$cmd_pid"
+    exit_code=$?
+    set -e
+  else
+    # Non-TTY: print "  [n/N] Description... " then result on same line
+    printf "  [%d/%d] %s... " "$STEP_INDEX" "$TOTAL_STEPS" "$description"
+    set +e
+    "$@" >"$log_file" 2>&1
+    exit_code=$?
+    set -e
+  fi
+
+  local end_time
+  end_time=$(date +%s)
+  local elapsed=$(( end_time - start_time ))
+  local duration
+  duration="$(format_duration "$elapsed")"
+
+  if [[ $exit_code -eq 0 ]]; then
+    local ok_sym
+    if [[ $USE_UNICODE -eq 1 ]]; then ok_sym="✓"; else ok_sym="[OK]"; fi
+
+    if [[ $IS_TTY -eq 1 ]]; then
+      if [[ $USE_COLOR -eq 1 ]]; then
+        printf "\r  ${GREEN}%s${NC} [%d/%d] %s ${DIM}(%s)${NC}\n" \
+          "$ok_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description" "$duration"
+      else
+        printf "\r  %s [%d/%d] %s (%s)\n" \
+          "$ok_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description" "$duration"
+      fi
+    else
+      if [[ $USE_COLOR -eq 1 ]]; then
+        printf "${GREEN}%s${NC} ${DIM}(%s)${NC}\n" "$ok_sym" "$duration"
+      else
+        printf "%s (%s)\n" "$ok_sym" "$duration"
+      fi
+    fi
+    return 0
+  else
+    local fail_sym
+    if [[ $USE_UNICODE -eq 1 ]]; then fail_sym="✗"; else fail_sym="[X]"; fi
+
+    if [[ $IS_TTY -eq 1 ]]; then
+      if [[ $USE_COLOR -eq 1 ]]; then
+        printf "\r  ${RED}%s${NC} [%d/%d] %s ${DIM}(%s)${NC}\n" \
+          "$fail_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description" "$duration"
+      else
+        printf "\r  %s [%d/%d] %s (%s)\n" \
+          "$fail_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description" "$duration"
+      fi
+    else
+      if [[ $USE_COLOR -eq 1 ]]; then
+        printf "${RED}%s${NC} ${DIM}(%s)${NC}\n" "$fail_sym" "$duration"
+      else
+        printf "%s (%s)\n" "$fail_sym" "$duration"
+      fi
+    fi
+
+    # Dump captured output for debugging
+    echo "" >&2
+    if [[ $USE_COLOR -eq 1 ]]; then
+      printf "${DIM}--- Output from: %s ---${NC}\n" "$*" >&2
+    else
+      printf "--- Output from: %s ---\n" "$*" >&2
+    fi
+    cat "$log_file" >&2
+    if [[ $USE_COLOR -eq 1 ]]; then
+      printf "${DIM}--- End of output ---${NC}\n" >&2
+    else
+      printf "--- End of output ---\n" >&2
+    fi
+    echo "" >&2
+    return "$exit_code"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# skip_step "Description"
+#   Records a step as skipped (increments counter, prints ↷).
+# ---------------------------------------------------------------------------
+skip_step() {
+  local description="$1"
+  STEP_INDEX=$(( STEP_INDEX + 1 ))
+
+  local skip_sym
+  if [[ $USE_UNICODE -eq 1 ]]; then skip_sym="↷"; else skip_sym="[SKIP]"; fi
+
+  if [[ $USE_COLOR -eq 1 ]]; then
+    printf "  ${YELLOW}%s${NC} [%d/%d] %s ${DIM}(skipped)${NC}\n" \
+      "$skip_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description"
+  else
+    printf "  %s [%d/%d] %s (skipped)\n" \
+      "$skip_sym" "$STEP_INDEX" "$TOTAL_STEPS" "$description"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Worktree step helpers
+#
+# These read from _WT_* variables set by create_worktree before the steps.
+# Running as subshell-compatible functions means they work when called via
+# run_step (which captures stdout+stderr to a log file).
+# ---------------------------------------------------------------------------
+
+# Variables populated by create_worktree before step execution
+_WT_WORKTREE_PATH=""
+_WT_BRANCH=""
+_WT_DB_DEV=""
+_WT_DB_TEST=""
+_WT_DEV_PORT=""
+_WT_TEST_PORT=""
+
+_wt_create_git_worktree() {
+  local branch="$_WT_BRANCH"
+  local worktree_path="$_WT_WORKTREE_PATH"
+
+  # Check if branch exists locally
+  if git -C "$REPO_ROOT" rev-parse --verify "$branch" &>/dev/null; then
+    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
+  # Check if branch exists on remote
+  elif git -C "$REPO_ROOT" ls-remote --exit-code --heads origin "$branch" &>/dev/null; then
+    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
+  else
+    git -C "$REPO_ROOT" worktree add -b "$branch" "$worktree_path" || true
+  fi
+
+  # Verify the worktree was actually created
+  if ! git -C "$REPO_ROOT" worktree list | grep -qF "$worktree_path"; then
+    echo "ERROR: Failed to create git worktree at $worktree_path" >&2
+    return 1
+  fi
+}
+
+_wt_generate_config() {
+  local worktree_path="$_WT_WORKTREE_PATH"
+  local db_dev="$_WT_DB_DEV"
+  local db_test="$_WT_DB_TEST"
+  local dev_port="$_WT_DEV_PORT"
+  local test_port="$_WT_TEST_PORT"
+
+  # Generate config/dev.secret.exs
+  cat > "$worktree_path/config/dev.secret.exs" <<ELIXIR
+import Config
+
+# Generated by scripts/wt — do not commit
+config :viche, Viche.Repo, database: "$db_dev"
+config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $dev_port]
+ELIXIR
+
+  # Generate config/test.secret.exs
+  cat > "$worktree_path/config/test.secret.exs" <<ELIXIR
+import Config
+
+# Generated by scripts/wt — do not commit
+config :viche, Viche.Repo, database: "$db_test"
+config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $test_port]
+ELIXIR
+
+  # Ensure config files have the import_config lines for secret overrides.
+  # The worktree is checked out from HEAD, which may not yet have these lines
+  # committed (e.g. during bootstrap before the first commit of this script).
+  if ! grep -q 'import_config "dev.secret.exs"' "$worktree_path/config/dev.exs" 2>/dev/null; then
+    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("dev.secret.exs", __DIR__)) do\n  import_config "dev.secret.exs"\nend\n' \
+      >> "$worktree_path/config/dev.exs"
+  fi
+  if ! grep -q 'import_config "test.secret.exs"' "$worktree_path/config/test.exs" 2>/dev/null; then
+    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("test.secret.exs", __DIR__)) do\n  import_config "test.secret.exs"\nend\n' \
+      >> "$worktree_path/config/test.exs"
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # sanitize_db_name <worktree_name>
@@ -192,31 +459,6 @@ create_worktree() {
     branch="$name"
   fi
 
-  # Create git worktree
-  info "Creating git worktree at $worktree_path ..."
-
-  # Note: git worktree add may return non-zero if a post-checkout hook exits
-  # non-zero (e.g. the beads hook when no DB is initialised). The worktree is
-  # still created correctly.  We verify success by checking the worktree list.
-  # Check if branch exists locally
-  if git -C "$REPO_ROOT" rev-parse --verify "$branch" &>/dev/null; then
-    info "Branch '$branch' exists locally — checking out."
-    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
-  # Check if branch exists on remote
-  elif git -C "$REPO_ROOT" ls-remote --exit-code --heads origin "$branch" &>/dev/null; then
-    info "Branch '$branch' exists on remote — tracking."
-    git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" || true
-  else
-    info "Creating new branch '$branch'."
-    git -C "$REPO_ROOT" worktree add -b "$branch" "$worktree_path" || true
-  fi
-
-  # Verify the worktree was actually created
-  if ! git -C "$REPO_ROOT" worktree list | grep -qF "$worktree_path"; then
-    error "Failed to create git worktree at $worktree_path"
-    exit 1
-  fi
-
   # --- Rollback function ---
   rollback() {
     error "Rolling back worktree creation..."
@@ -228,62 +470,71 @@ create_worktree() {
     exit 1
   }
 
-  # Generate config/dev.secret.exs
-  info "Writing config/dev.secret.exs ..."
-  cat > "$worktree_path/config/dev.secret.exs" <<ELIXIR
-import Config
+  # Populate shared _WT_* variables for step helper functions
+  _WT_WORKTREE_PATH="$worktree_path"
+  _WT_BRANCH="$branch"
+  _WT_DB_DEV="$db_dev"
+  _WT_DB_TEST="$db_test"
+  _WT_DEV_PORT="$dev_port"
+  _WT_TEST_PORT="$test_port"
 
-# Generated by scripts/wt — do not commit
-config :viche, Viche.Repo, database: "$db_dev"
-config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $dev_port]
-ELIXIR
+  # -------------------------------------------------------------------------
+  # Step sequence
+  # -------------------------------------------------------------------------
+  local MAIN_WORKTREE="$WORKTREES_DIR/main"
+  TOTAL_STEPS=6
+  STEP_INDEX=0
 
-  # Generate config/test.secret.exs
-  info "Writing config/test.secret.exs ..."
-  cat > "$worktree_path/config/test.secret.exs" <<ELIXIR
-import Config
-
-# Generated by scripts/wt — do not commit
-config :viche, Viche.Repo, database: "$db_test"
-config :viche, VicheWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: $test_port]
-ELIXIR
-
-  # Ensure config files have the import_config lines for secret overrides.
-  # The worktree is checked out from HEAD, which may not yet have these lines
-  # committed (e.g. during bootstrap before the first commit of this script).
-  if ! grep -q 'import_config "dev.secret.exs"' "$worktree_path/config/dev.exs" 2>/dev/null; then
-    info "Patching config/dev.exs with import_config line..."
-    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("dev.secret.exs", __DIR__)) do\n  import_config "dev.secret.exs"\nend\n' >> "$worktree_path/config/dev.exs"
-  fi
-  if ! grep -q 'import_config "test.secret.exs"' "$worktree_path/config/test.exs" 2>/dev/null; then
-    info "Patching config/test.exs with import_config line..."
-    printf '\n# Import local secret config for worktree-specific overrides (ports, database)\nif File.exists?(Path.expand("test.secret.exs", __DIR__)) do\n  import_config "test.secret.exs"\nend\n' >> "$worktree_path/config/test.exs"
-  fi
-
-  # Run mix setup — rollback on failure.
-  # Disable set -e here so that a failing subshell exits cleanly via the explicit
-  # exit-code check rather than killing the script before rollback can run.
-  info "Running mix setup in $worktree_path ..."
-  set +e
-  (cd "$worktree_path" && mix setup)
-  if [[ $? -ne 0 ]]; then
-    set -e
-    rollback
-  fi
-  set -e
-
-  # Run mix precommit — rollback on failure
-  info "Running mix precommit in $worktree_path ..."
-  set +e
-  (cd "$worktree_path" && mix precommit)
-  if [[ $? -ne 0 ]]; then
-    set -e
-    rollback
-  fi
-  set -e
+  local overall_start
+  overall_start=$(date +%s)
 
   echo ""
-  success "Worktree '$name' created successfully!"
+
+  # Step 1: Create git worktree
+  run_step "Create git worktree" _wt_create_git_worktree || rollback
+
+  # Step 2: Generate worktree config
+  run_step "Generate worktree config" _wt_generate_config || rollback
+
+  # Step 3: Copy _build from main
+  if [[ -d "$MAIN_WORKTREE/_build" ]]; then
+    run_step "Copy _build from main" cp -a "$MAIN_WORKTREE/_build" "$worktree_path/_build" || rollback
+  else
+    skip_step "Copy _build from main"
+  fi
+
+  # Step 4: Copy deps from main
+  if [[ -d "$MAIN_WORKTREE/deps" ]]; then
+    run_step "Copy deps from main" cp -a "$MAIN_WORKTREE/deps" "$worktree_path/deps" || rollback
+  else
+    skip_step "Copy deps from main"
+  fi
+
+  # Step 5: Run mix setup
+  run_step "Run mix setup" run_in_dir "$worktree_path" mix setup || rollback
+
+  # Step 6: Run mix precommit
+  run_step "Run mix precommit" run_in_dir "$worktree_path" mix precommit || rollback
+
+  # -------------------------------------------------------------------------
+  # Summary
+  # -------------------------------------------------------------------------
+  local overall_end
+  overall_end=$(date +%s)
+  local total_elapsed=$(( overall_end - overall_start ))
+  local total_duration
+  total_duration="$(format_duration "$total_elapsed")"
+
+  echo ""
+  if [[ $USE_COLOR -eq 1 ]]; then
+    if [[ $USE_UNICODE -eq 1 ]]; then
+      printf "  ${GREEN}✓${NC} Worktree ${BOLD}'%s'${NC} created in ${DIM}%s${NC}\n" "$name" "$total_duration"
+    else
+      printf "  ${GREEN}[OK]${NC} Worktree ${BOLD}'%s'${NC} created in ${DIM}%s${NC}\n" "$name" "$total_duration"
+    fi
+  else
+    printf "  Worktree '%s' created in %s\n" "$name" "$total_duration"
+  fi
   echo ""
   echo -e "  ${BLUE}Path:${NC}       $worktree_path"
   echo -e "  ${BLUE}Branch:${NC}     $branch"
@@ -409,6 +660,7 @@ show_help() {
   echo "  - Ports are auto-assigned (dev base: $DEV_BASE_PORT, test base: $TEST_BASE_PORT)"
   echo "  - Databases are named: viche_wt_<sanitized_name>_{dev,test}"
   echo "  - mix setup + mix precommit are run automatically on --new"
+  echo "  - _build and deps are copied from main worktree when available (faster setup)"
   echo "  - On failure, databases and the worktree directory are rolled back"
   echo ""
 }
