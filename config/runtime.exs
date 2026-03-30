@@ -56,6 +56,8 @@ if config_env() == :prod do
 
   config :viche, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  config :viche, simple_analytics_enabled: true
+
   config :viche, VicheWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

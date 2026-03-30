@@ -29,6 +29,11 @@
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
       })();
     </script>
+    <%= if Application.get_env(:viche, :simple_analytics_enabled, false) do %>
+      <!-- 100% privacy-first analytics -->
+      <script async src="https://scripts.simpleanalyticscdn.com/latest.js">
+      </script>
+    <% end %>
   </head>
   <body>
     {@inner_content}

@@ -9,7 +9,8 @@ import Config
 
 config :viche,
   ecto_repos: [Viche.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  simple_analytics_enabled: false
 
 # Configure the endpoint
 config :viche, VicheWeb.Endpoint,
