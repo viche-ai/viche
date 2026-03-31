@@ -1,122 +1,43 @@
 <div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
-  <%!-- SIDEBAR --%>
-  <aside
-    style="background:var(--bg-1);border-right:1px solid var(--border)"
-    class="w-[216px] min-w-[216px] flex flex-col"
-  >
-    <%!-- Logo --%>
-    <div class="px-4 py-4 flex items-center gap-2">
-      <div class="w-7 h-7 rounded-md overflow-hidden flex-shrink-0">
-        <img src="/images/viche-logo.png" alt="Viche" class="w-full h-full object-cover" />
-      </div>
-      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">Viche</span>
-      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1.0-alpha</span>
-    </div>
-
-    <%!-- Nav --%>
-    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
-      <%!-- Registry Selector --%>
-      <Layouts.registry_selector
-        selected_registry={@selected_registry}
-        registries={@registries}
-        public_mode={@public_mode}
-      />
-
-      <.link navigate={~p"/dashboard?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-squares-2x2-micro" class="size-4" />
-        <span>Dashboard</span>
-      </.link>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-signal-micro" class="size-4" />
-        <span>Network</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Agents
-      </div>
-
-      <.link navigate={~p"/agents?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-users-micro" class="size-4" />
-        <span class="flex-1">All Agents</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded ml-auto"
-          style="background:var(--bg-2);color:var(--fg-dim)"
-        >
-          {@agent_count}
-        </span>
-      </.link>
-
-      <.link navigate={~p"/sessions?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-envelope-micro" class="size-4" />
-        <span>Inboxes</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Demo
-      </div>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
-        <span>Network Demo</span>
-      </.link>
-
-      <.link navigate="/demo" class="nav-item">
-        <.icon name="hero-link-micro" class="size-4" />
-        <span>Join</span>
-      </.link>
-
-      <div class="flex-1"></div>
-
-      <div
-        class="nav-item active"
-        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
-      >
-        <.icon name="hero-cog-6-tooth-micro" class="size-4" />
-        <span>Settings</span>
-      </div>
-
-      <a
-        href="https://github.com/viche-ai/viche"
-        target="_blank"
-        rel="noopener"
-        class="nav-item mb-2"
-      >
-        <.icon name="hero-code-bracket-micro" class="size-4" />
-        <span>GitHub</span>
-      </a>
-    </nav>
-  </aside>
+  <Layouts.sidebar
+    active_page={:settings}
+    selected_registry={@selected_registry}
+    registries={@registries}
+    public_mode={@public_mode}
+    mobile_menu_open={@mobile_menu_open}
+    agent_count={@agent_count}
+  />
 
   <%!-- MAIN --%>
-  <main class="flex-1 flex flex-col overflow-hidden">
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0">
     <%!-- TOPBAR --%>
     <div
-      class="h-[50px] flex items-center px-5 gap-3 border-b flex-shrink-0"
+      class="h-[50px] flex items-center px-3 md:px-5 gap-2 md:gap-3 border-b flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border)"
     >
+      <%!-- Hamburger: mobile only --%>
+      <button
+        class="md:hidden flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+        style="color:var(--fg-dim)"
+        phx-click="toggle_mobile_menu"
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3-micro" class="size-5" />
+      </button>
       <span class="text-[15px] font-semibold" style="color:var(--fg)">Settings</span>
-      <span class="text-[13px]" style="color:var(--fg-dim)">/ configuration</span>
+      <span class="text-[13px] hidden sm:inline" style="color:var(--fg-dim)">
+        / configuration
+      </span>
       <div class="flex-1"></div>
       <Layouts.theme_toggle />
     </div>
 
     <%!-- CONTENT --%>
-    <div class="flex-1 overflow-y-auto p-6" style="background:var(--bg)">
+    <div class="flex-1 overflow-y-auto p-4 md:p-6" style="background:var(--bg)">
       <div class="max-w-[680px] space-y-5">
         <%!-- SECTION 1: Connection --%>
         <div
-          class="rounded-xl p-5 space-y-4"
+          class="rounded-xl p-4 md:p-5 space-y-4"
           style="background:var(--bg-1);border:1px solid var(--border)"
         >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Connection</h2>
@@ -156,12 +77,12 @@
                 type={if @show_token, do: "text", else: "password"}
                 value={@token}
                 readonly
-                class="flex-1 px-3 py-2 rounded-lg text-[13px] font-mono outline-none"
+                class="flex-1 min-w-0 px-3 py-2 rounded-lg text-[13px] font-mono outline-none"
                 style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
               />
               <button
                 phx-click="toggle_token_visibility"
-                class="px-3 py-2 rounded-lg text-[11px] flex items-center gap-1.5"
+                class="px-3 py-2 rounded-lg text-[11px] flex items-center gap-1.5 flex-shrink-0"
                 style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg-dim)"
               >
                 <.icon
@@ -194,7 +115,7 @@
           </div>
 
           <%!-- Connection Status --%>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
             <div class="flex items-center gap-2">
               <%= case @connection_status do %>
                 <% :idle -> %>
@@ -233,7 +154,7 @@
 
         <%!-- SECTION 2: Registry --%>
         <div
-          class="rounded-xl p-5 space-y-4"
+          class="rounded-xl p-4 md:p-5 space-y-4"
           style="background:var(--bg-1);border:1px solid var(--border)"
         >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Registry</h2>
@@ -277,7 +198,7 @@
           </div>
 
           <%!-- Auth Toggle --%>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">
                 Require Authentication
@@ -289,7 +210,7 @@
             <button
               phx-click="toggle_setting"
               phx-value-key="require_auth"
-              class="relative w-10 h-5 rounded-full transition-colors"
+              class="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
               style={"background:#{if @settings.require_auth, do: "var(--color-ef-green)", else: "var(--bg-3, #475258)"}"}
             >
               <span
@@ -303,7 +224,7 @@
 
         <%!-- SECTION 3: Appearance --%>
         <div
-          class="rounded-xl p-5 space-y-4"
+          class="rounded-xl p-4 md:p-5 space-y-4"
           style="background:var(--bg-1);border:1px solid var(--border)"
         >
           <h2 class="text-[13px] font-semibold" style="color:var(--fg)">Appearance</h2>
@@ -313,7 +234,7 @@
             <div
               phx-click="select_theme"
               phx-value-theme="dark"
-              class="flex-1 p-4 rounded-xl cursor-pointer flex flex-col gap-2"
+              class="flex-1 p-3 md:p-4 rounded-xl cursor-pointer flex flex-col gap-2"
               style={"#{if @theme == :dark, do: "border:1.5px solid var(--color-ef-green);background:var(--bg-2)", else: "border:1px solid var(--border);background:var(--bg-2)"}"}
             >
               <div class="flex gap-1.5">
@@ -327,7 +248,7 @@
             <div
               phx-click="select_theme"
               phx-value-theme="light"
-              class="flex-1 p-4 rounded-xl cursor-pointer flex flex-col gap-2"
+              class="flex-1 p-3 md:p-4 rounded-xl cursor-pointer flex flex-col gap-2"
               style={"#{if @theme == :light, do: "border:1.5px solid var(--color-ef-green);background:var(--bg-2)", else: "border:1px solid var(--border);background:var(--bg-2)"}"}
             >
               <div class="flex gap-1.5">
@@ -341,7 +262,7 @@
           </div>
 
           <%!-- Live Feed Toggle --%>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Live Feed</div>
               <div class="text-[11px]" style="color:var(--fg-dim)">
@@ -351,7 +272,7 @@
             <button
               phx-click="toggle_setting"
               phx-value-key="live_feed"
-              class="relative w-10 h-5 rounded-full transition-colors"
+              class="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
               style={"background:#{if @settings.live_feed, do: "var(--color-ef-green)", else: "var(--bg-3, #475258)"}"}
             >
               <span
@@ -363,7 +284,7 @@
           </div>
 
           <%!-- Animate Graph Toggle --%>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-4">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Animate Graph</div>
               <div class="text-[11px]" style="color:var(--fg-dim)">
@@ -373,7 +294,7 @@
             <button
               phx-click="toggle_setting"
               phx-value-key="animate_graph"
-              class="relative w-10 h-5 rounded-full transition-colors"
+              class="relative w-10 h-5 rounded-full transition-colors flex-shrink-0"
               style={"background:#{if @settings.animate_graph, do: "var(--color-ef-green)", else: "var(--bg-3, #475258)"}"}
             >
               <span
@@ -387,13 +308,13 @@
 
         <%!-- SECTION 4: Danger Zone --%>
         <div
-          class="rounded-xl p-5 space-y-4"
+          class="rounded-xl p-4 md:p-5 space-y-4"
           style="background:var(--bg-1);border:1px solid color-mix(in srgb,var(--color-ef-red) 35%,transparent)"
         >
           <h2 class="text-[13px] font-semibold" style="color:var(--color-ef-red)">Danger Zone</h2>
 
           <%!-- Clear all agent data --%>
-          <div class="flex items-center justify-between gap-4">
+          <div class="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">
                 Clear all agent data
@@ -403,7 +324,7 @@
               </div>
             </div>
             <%= if @danger_confirm == :clear do %>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px]" style="color:var(--color-ef-red)">Are you sure?</span>
                 <button
                   phx-click="execute_danger"
@@ -436,7 +357,7 @@
           <div style="border-top:1px solid var(--border)"></div>
 
           <%!-- Reset settings --%>
-          <div class="flex items-center justify-between gap-4">
+          <div class="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
             <div>
               <div class="text-[13px] font-medium" style="color:var(--fg)">Reset settings</div>
               <div class="text-[11px]" style="color:var(--fg-dim)">
@@ -444,7 +365,7 @@
               </div>
             </div>
             <%= if @danger_confirm == :reset do %>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px]" style="color:var(--color-ef-red)">Are you sure?</span>
                 <button
                   phx-click="execute_danger"
@@ -483,21 +404,21 @@
     <%!-- UNSAVED CHANGES BAR --%>
     <div
       :if={@dirty}
-      class="fixed bottom-0 left-0 right-0 flex items-center justify-between px-6 py-3 z-50"
+      class="fixed bottom-0 left-0 right-0 flex items-center justify-between px-4 md:px-6 py-3 z-50 gap-3"
       style="background:var(--bg-1);border-top:1px solid var(--border)"
     >
-      <span class="text-sm" style="color:var(--fg-dim)">You have unsaved changes</span>
-      <div class="flex gap-3">
+      <span class="text-sm" style="color:var(--fg-dim)">Unsaved changes</span>
+      <div class="flex gap-2 md:gap-3">
         <button
           phx-click="discard_changes"
-          class="px-4 py-2 rounded-lg text-[12px] font-medium"
+          class="px-3 md:px-4 py-2 rounded-lg text-[12px] font-medium"
           style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg-dim)"
         >
           Discard
         </button>
         <button
           phx-click="save_settings"
-          class="px-4 py-2 rounded-lg text-[12px] font-medium"
+          class="px-3 md:px-4 py-2 rounded-lg text-[12px] font-medium"
           style="background:var(--color-ef-green);color:var(--color-ef-bg0, #2b3339)"
         >
           Save changes
@@ -507,15 +428,20 @@
 
     <%!-- STATUS BAR --%>
     <div
-      class="h-6 flex items-center px-4 gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.ai/socket <span class="opacity-30">|</span>
-      registry: public <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
-      {@messages_today} messages today
+      <span class="status-bar-full items-center gap-2">
+        ws://viche.ai/socket <span class="opacity-30">|</span>
+        registry: public <span class="opacity-30">|</span>
+        {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
+        {@messages_today} messages today
+      </span>
+      <span class="status-bar-compact items-center gap-2">
+        {@agent_count} agents &middot; {@online_count} online
+      </span>
     </div>
   </main>
 </div>

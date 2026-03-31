@@ -35,6 +35,7 @@ defmodule VicheWeb.SettingsLive do
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
       |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
+      |> assign(:mobile_menu_open, false)
 
     {:ok, socket}
   end
@@ -107,6 +108,10 @@ defmodule VicheWeb.SettingsLive do
 
   def handle_event("select_registry", %{"registry" => registry}, socket) do
     {:noreply, push_patch(socket, to: ~p"/settings?registry=#{registry}")}
+  end
+
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
   end
 
   @impl true

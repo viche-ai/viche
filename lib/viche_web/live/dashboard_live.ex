@@ -29,6 +29,7 @@ defmodule VicheWeb.DashboardLive do
       |> assign(:messages_today, 0)
       |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
       |> assign(:paused, false)
+      |> assign(:mobile_menu_open, false)
 
     {:ok, socket}
   end
@@ -215,6 +216,10 @@ defmodule VicheWeb.DashboardLive do
   @impl true
   def handle_event("toggle_pause", _params, socket) do
     {:noreply, assign(socket, :paused, !socket.assigns.paused)}
+  end
+
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
   end
 
   def handle_event("navigate", %{"to" => path}, socket) do

@@ -22,6 +22,7 @@ defmodule VicheWeb.SessionsLive do
       |> assign(:public_mode, public_mode)
       |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
+      |> assign(:mobile_menu_open, false)
       |> load_inboxes()
 
     {:ok, socket}
@@ -68,6 +69,10 @@ defmodule VicheWeb.SessionsLive do
 
   def handle_event("select_registry", %{"registry" => registry}, socket) do
     {:noreply, push_patch(socket, to: ~p"/sessions?registry=#{registry}")}
+  end
+
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
   end
 
   @impl true

@@ -25,6 +25,7 @@ defmodule VicheWeb.NetworkLive do
       |> assign(:paused, false)
       |> assign(:session_count, 3)
       |> assign(:messages_today, Viche.MessageCounter.get())
+      |> assign(:mobile_menu_open, false)
       |> load_graph()
 
     {:ok, socket}
@@ -216,6 +217,10 @@ defmodule VicheWeb.NetworkLive do
   end
 
   def handle_event("noop", _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
+  end
 
   def handle_event("select_registry", %{"registry" => registry}, socket) do
     {:noreply, push_patch(socket, to: ~p"/network?registry=#{registry}")}

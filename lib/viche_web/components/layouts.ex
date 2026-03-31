@@ -169,6 +169,212 @@ defmodule VicheWeb.Layouts do
   end
 
   @doc """
+  Renders the shared app sidebar (mobile backdrop + `<aside>`) used by all LiveViews.
+
+  The `active_page` atom determines which nav item receives the active highlight style
+  (green left border). All other nav items are rendered as `<.link>` elements.
+
+  The `session_count` badge is only visible on the Inboxes item when
+  `active_page == :sessions` and `session_count > 0`.
+
+  ## Examples
+
+      <Layouts.sidebar
+        active_page={:dashboard}
+        selected_registry={@selected_registry}
+        registries={@registries}
+        public_mode={@public_mode}
+        mobile_menu_open={@mobile_menu_open}
+        agent_count={@agent_count}
+      />
+
+  """
+  attr :active_page, :atom,
+    required: true,
+    values: [:dashboard, :network, :agents, :agent_detail, :sessions, :settings],
+    doc: "which nav item is highlighted as active"
+
+  attr :selected_registry, :string, required: true, doc: "registry token appended to nav links"
+  attr :registries, :list, default: [], doc: "list of registry tokens for the registry selector"
+  attr :public_mode, :boolean, default: false, doc: "hides the registry selector when true"
+  attr :mobile_menu_open, :boolean, default: false, doc: "whether the mobile slide-out is open"
+  attr :agent_count, :integer, default: 0, doc: "badge shown next to All Agents"
+
+  attr :session_count, :integer,
+    default: 0,
+    doc: "badge shown on Inboxes when active_page is :sessions"
+
+  @spec sidebar(map()) :: Phoenix.LiveView.Rendered.t()
+  def sidebar(assigns) do
+    ~H"""
+    <%!-- MOBILE BACKDROP --%>
+    <%= if @mobile_menu_open do %>
+      <div class="mobile-sidebar-backdrop md:hidden" phx-click="toggle_mobile_menu"></div>
+    <% end %>
+
+    <%!-- SIDEBAR --%>
+    <aside
+      style="background:var(--bg-1);border-right:1px solid var(--border)"
+      class={["app-sidebar w-[216px] min-w-[216px] flex flex-col", @mobile_menu_open && "open"]}
+    >
+      <%!-- Logo --%>
+      <div class="px-4 py-4 flex items-center gap-2">
+        <div class="w-7 h-7 rounded-md overflow-hidden flex-shrink-0">
+          <img src="/images/viche-logo.png" alt="Viche" class="w-full h-full object-cover" />
+        </div>
+        <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">Viche</span>
+        <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1.0-alpha</span>
+      </div>
+
+      <%!-- Nav --%>
+      <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
+        <%!-- Registry Selector --%>
+        <Layouts.registry_selector
+          selected_registry={@selected_registry}
+          registries={@registries}
+          public_mode={@public_mode}
+        />
+
+        <%= if @active_page == :dashboard do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-squares-2x2-micro" class="size-4" />
+            <span>Dashboard</span>
+          </div>
+        <% else %>
+          <.link navigate={~p"/dashboard?registry=#{@selected_registry}"} class="nav-item">
+            <.icon name="hero-squares-2x2-micro" class="size-4" />
+            <span>Dashboard</span>
+          </.link>
+        <% end %>
+
+        <%= if @active_page == :network do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-signal-micro" class="size-4" />
+            <span>Network</span>
+          </div>
+        <% else %>
+          <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
+            <.icon name="hero-signal-micro" class="size-4" />
+            <span>Network</span>
+          </.link>
+        <% end %>
+
+        <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
+
+        <div
+          class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+          style="color:var(--fg-dim)"
+        >
+          Agents
+        </div>
+
+        <%= if @active_page in [:agents, :agent_detail] do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-users-micro" class="size-4" />
+            <span class="flex-1">All Agents</span>
+            <span
+              class="text-[10px] font-mono px-1.5 rounded ml-auto"
+              style="background:var(--bg-2);color:var(--fg-dim)"
+            >
+              {@agent_count}
+            </span>
+          </div>
+        <% else %>
+          <.link navigate={~p"/agents?registry=#{@selected_registry}"} class="nav-item">
+            <.icon name="hero-users-micro" class="size-4" />
+            <span class="flex-1">All Agents</span>
+            <span
+              class="text-[10px] font-mono px-1.5 rounded ml-auto"
+              style="background:var(--bg-2);color:var(--fg-dim)"
+            >
+              {@agent_count}
+            </span>
+          </.link>
+        <% end %>
+
+        <%= if @active_page == :sessions do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-envelope-micro" class="size-4" />
+            <span class="flex-1">Inboxes</span>
+            <%= if @session_count > 0 do %>
+              <span
+                class="text-[10px] font-mono px-1.5 rounded ml-auto"
+                style="background:color-mix(in srgb,var(--color-ef-green) 18%,transparent);color:var(--color-ef-green)"
+              >
+                {@session_count}
+              </span>
+            <% end %>
+          </div>
+        <% else %>
+          <.link navigate={~p"/sessions?registry=#{@selected_registry}"} class="nav-item">
+            <.icon name="hero-envelope-micro" class="size-4" />
+            <span>Inboxes</span>
+          </.link>
+        <% end %>
+
+        <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
+
+        <div
+          class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
+          style="color:var(--fg-dim)"
+        >
+          Demo
+        </div>
+
+        <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
+          <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
+          <span>Network Demo</span>
+        </.link>
+
+        <.link navigate="/demo" class="nav-item">
+          <.icon name="hero-link-micro" class="size-4" />
+          <span>Join</span>
+        </.link>
+
+        <div class="flex-1"></div>
+
+        <%= if @active_page == :settings do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-cog-6-tooth-micro" class="size-4" />
+            <span>Settings</span>
+          </div>
+        <% else %>
+          <.link navigate={~p"/settings?registry=#{@selected_registry}"} class="nav-item">
+            <.icon name="hero-cog-6-tooth-micro" class="size-4" />
+            <span>Settings</span>
+          </.link>
+        <% end %>
+
+        <a
+          href="https://github.com/viche-ai/viche"
+          target="_blank"
+          rel="noopener"
+          class="nav-item mb-2"
+        >
+          <.icon name="hero-code-bracket-micro" class="size-4" />
+          <span>GitHub</span>
+        </a>
+      </nav>
+    </aside>
+    """
+  end
+
+  @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
 
   See <head> in root.html.heex which applies the theme before page load.

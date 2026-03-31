@@ -21,6 +21,7 @@ defmodule VicheWeb.AgentsLive do
       |> assign(:public_mode, public_mode)
       |> assign(:registries, RegistryScope.visible_registries(public_mode))
       |> assign(:messages_today, Viche.MessageCounter.get())
+      |> assign(:mobile_menu_open, false)
       |> load_agents()
 
     {:ok, socket}
@@ -70,6 +71,10 @@ defmodule VicheWeb.AgentsLive do
 
   def handle_event("select_registry", %{"registry" => registry}, socket) do
     {:noreply, push_patch(socket, to: ~p"/agents?registry=#{registry}")}
+  end
+
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
   end
 
   @impl true

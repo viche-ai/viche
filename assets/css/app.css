@@ -458,7 +458,8 @@ html { scroll-behavior: smooth; }
 }
 .connect-url {
   font-family: "SF Mono","Fira Code","Cascadia Code",Menlo,monospace;
-  font-size: 13px; color: var(--accent); word-break: break-all; flex: 1;
+  font-size: 13px; color: var(--accent); word-break: break-all;
+  overflow-wrap: break-word; flex: 1; min-width: 0;
 }
 .btn-copy {
   flex-shrink: 0; height: 36px; padding: 0 14px;
@@ -475,6 +476,7 @@ html { scroll-behavior: smooth; }
 .connect-hint code {
   background: var(--bg-2); padding: 1px 6px; border-radius: 4px;
   font-family: "SF Mono",monospace; font-size: 11px;
+  overflow-wrap: break-word; word-break: break-all;
 }
 .connect-links { display: flex; gap: 12px; justify-content: center; }
 .connect-link {
@@ -506,12 +508,146 @@ html { scroll-behavior: smooth; }
 .footer-copy { font-size: 12px; color: var(--fg-dim); opacity: 0.6; }
 
 @media (max-width: 640px) {
+  /* Nav: hide links and GitHub badge; shrink CTA button */
   .landing-nav .nav-links { display: none; }
+  .nav-github { display: none; }
+  .btn-nav-cta {
+    font-size: 12px;
+    padding: 0 10px;
+    height: 30px;
+  }
+  .landing-theme-toggle {
+    width: 30px;
+    height: 30px;
+    margin-left: 6px;
+  }
+
+  /* Hero: tighter padding, smaller letter-spacing, stacked CTAs */
+  .landing-hero {
+    padding-top: 48px;
+    padding-bottom: 40px;
+  }
+  .landing-hero h1 {
+    letter-spacing: -1px;
+    font-size: clamp(28px, 8vw, 40px);
+  }
+  .hero-cta-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    height: 46px;
+    font-size: 14px;
+  }
+
+  /* Features: force single column */
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* How it works */
   .steps-row { flex-direction: column; gap: 32px; }
   .steps-row::before { display: none; }
+
+  /* Connect card */
   .connect-card { padding: 28px 20px; }
   .connect-instruction { flex-direction: column; align-items: stretch; }
+  .connect-url {
+    overflow-wrap: break-word;
+    word-break: break-all;
+    font-size: 12px;
+  }
+  .connect-hint code {
+    overflow-wrap: break-word;
+    word-break: break-all;
+  }
   .btn-copy { width: 100%; justify-content: center; }
+
+  /* Footer: stack vertically, center-aligned */
+  .landing-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+  .footer-links {
+    justify-content: center;
+  }
+
+  /* Quote card: tighter padding */
+  .quote-card {
+    padding: 24px 20px;
+  }
+  .quote-text {
+    font-size: 15px;
+  }
+}
+
+/* ── Mobile Sidebar Overlay ── */
+
+.mobile-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 40;
+  backdrop-filter: blur(2px);
+}
+
+.app-sidebar {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* On mobile: sidebar is a fixed overlay, hidden by default */
+@media (max-width: 767px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    width: 216px !important;
+    min-width: 216px !important;
+    transform: translateX(-100%);
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* On desktop: sidebar is always visible, no transform */
+@media (min-width: 768px) {
+  .app-sidebar {
+    position: relative;
+    transform: none !important;
+  }
+}
+
+/* ── Status Bar Mobile ── */
+@media (max-width: 767px) {
+  .status-bar-full {
+    display: none;
+  }
+
+  .status-bar-compact {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) {
+  .status-bar-full {
+    display: flex;
+  }
+
+  .status-bar-compact {
+    display: none;
+  }
 }
 
 /* This file is for your main application CSS */

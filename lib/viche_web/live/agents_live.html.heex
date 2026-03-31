@@ -1,112 +1,31 @@
 <div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
-  <%!-- SIDEBAR --%>
-  <aside
-    style="background:var(--bg-1);border-right:1px solid var(--border)"
-    class="w-[216px] min-w-[216px] flex flex-col"
-  >
-    <%!-- Logo --%>
-    <div class="px-4 py-4 flex items-center gap-2">
-      <div class="w-7 h-7 rounded-md overflow-hidden flex-shrink-0">
-        <img src="/images/viche-logo.png" alt="Viche" class="w-full h-full object-cover" />
-      </div>
-      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">Viche</span>
-      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1.0-alpha</span>
-    </div>
-
-    <%!-- Nav --%>
-    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
-      <%!-- Registry Selector --%>
-      <Layouts.registry_selector
-        selected_registry={@selected_registry}
-        registries={@registries}
-        public_mode={@public_mode}
-      />
-
-      <.link navigate={~p"/dashboard?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-squares-2x2-micro" class="size-4" />
-        <span>Dashboard</span>
-      </.link>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-signal-micro" class="size-4" />
-        <span>Network</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Agents
-      </div>
-
-      <div
-        class="nav-item active"
-        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
-      >
-        <.icon name="hero-users-micro" class="size-4" />
-        <span class="flex-1">All Agents</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded ml-auto"
-          style="background:var(--bg-2);color:var(--fg-dim)"
-        >
-          {@agent_count}
-        </span>
-      </div>
-
-      <.link navigate={~p"/sessions?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-envelope-micro" class="size-4" />
-        <span>Inboxes</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Demo
-      </div>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
-        <span>Network Demo</span>
-      </.link>
-
-      <.link navigate="/demo" class="nav-item">
-        <.icon name="hero-link-micro" class="size-4" />
-        <span>Join</span>
-      </.link>
-
-      <div class="flex-1"></div>
-
-      <.link navigate={~p"/settings?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-cog-6-tooth-micro" class="size-4" />
-        <span>Settings</span>
-      </.link>
-
-      <a
-        href="https://github.com/viche-ai/viche"
-        target="_blank"
-        rel="noopener"
-        class="nav-item mb-2"
-      >
-        <.icon name="hero-code-bracket-micro" class="size-4" />
-        <span>GitHub</span>
-      </a>
-    </nav>
-  </aside>
+  <Layouts.sidebar
+    active_page={:agents}
+    selected_registry={@selected_registry}
+    registries={@registries}
+    public_mode={@public_mode}
+    mobile_menu_open={@mobile_menu_open}
+    agent_count={@agent_count}
+  />
 
   <%!-- MAIN --%>
-  <main class="flex-1 flex flex-col overflow-hidden">
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0">
     <%!-- TOPBAR --%>
     <div
-      class="h-[50px] flex items-center px-5 gap-3 border-b flex-shrink-0"
+      class="h-[50px] flex items-center px-3 md:px-5 gap-2 md:gap-3 border-b flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border)"
     >
+      <%!-- Hamburger: mobile only --%>
+      <button
+        class="md:hidden flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+        style="color:var(--fg-dim)"
+        phx-click="toggle_mobile_menu"
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3-micro" class="size-5" />
+      </button>
       <span class="text-[15px] font-semibold" style="color:var(--fg)">Agents</span>
-      <span class="text-[13px]" style="color:var(--fg-dim)">/ all</span>
+      <span class="text-[13px] hidden sm:inline" style="color:var(--fg-dim)">/ all</span>
       <div class="flex-1"></div>
       <span class="flex items-center gap-1.5 text-[11px]" style="color:var(--color-ef-green)">
         <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
@@ -117,14 +36,17 @@
     </div>
 
     <%!-- SEARCH / FILTER BAR --%>
-    <div class="flex items-center p-3 gap-3" style="border-bottom:1px solid var(--border)">
+    <div
+      class="flex items-center p-2 md:p-3 gap-2 md:gap-3"
+      style="border-bottom:1px solid var(--border)"
+    >
       <form phx-change="search" class="flex-1">
         <input
           type="text"
           name="value"
           value={@query}
           phx-debounce="200"
-          placeholder="Search by name or capability..."
+          placeholder="Search agents..."
           class="w-full rounded-lg px-3 py-1.5 text-sm outline-none"
           style="background:var(--bg-2);color:var(--fg);border:1px solid var(--border)"
         />
@@ -134,7 +56,7 @@
         <button
           phx-click="filter"
           phx-value-status={str_val}
-          class="text-[11px] px-3 py-1 rounded-full font-medium transition-colors"
+          class="text-[11px] px-2 md:px-3 py-1 rounded-full font-medium transition-colors flex-shrink-0"
           style={
             if @filter == atom_val,
               do:
@@ -149,9 +71,9 @@
 
     <%!-- CONTENT --%>
     <div class="flex-1 overflow-y-auto" style="background:var(--bg)">
-      <%!-- Table header --%>
+      <%!-- Table header: desktop (7 cols) --%>
       <div
-        class="grid grid-cols-[28px_1fr_auto_90px_52px_80px_70px] gap-3 items-center px-4 py-2 text-[10px] font-semibold uppercase tracking-wide"
+        class="hidden md:grid grid-cols-[28px_1fr_auto_90px_52px_80px_70px] gap-3 items-center px-4 py-2 text-[10px] font-semibold uppercase tracking-wide"
         style="background:var(--bg-2);color:var(--fg-dim)"
       >
         <span></span>
@@ -161,6 +83,15 @@
         <span>Queue</span>
         <span>Last seen</span>
         <span>Registry</span>
+      </div>
+
+      <%!-- Table header: mobile (2 cols) --%>
+      <div
+        class="md:hidden grid grid-cols-[1fr_80px] gap-2 items-center px-3 py-2 text-[10px] font-semibold uppercase tracking-wide"
+        style="background:var(--bg-2);color:var(--fg-dim)"
+      >
+        <span>Agent</span>
+        <span>Status</span>
       </div>
 
       <%!-- Table rows --%>
@@ -180,21 +111,20 @@
 
           avatar_color = Enum.at(avatar_colors, rem(:erlang.phash2(agent.name), 5))
           initial = (agent.name || "?") |> String.first() |> String.upcase() %>
+
+          <%!-- Desktop row --%>
           <div
             phx-click="select_agent"
             phx-value-id={agent.id}
-            class="grid grid-cols-[28px_1fr_auto_90px_52px_80px_70px] gap-3 items-center px-4 py-2.5 cursor-pointer transition-colors"
+            class="hidden md:grid grid-cols-[28px_1fr_auto_90px_52px_80px_70px] gap-3 items-center px-4 py-2.5 cursor-pointer transition-colors"
             style="border-top:1px solid var(--border)"
           >
-            <%!-- Avatar --%>
             <div
               class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold flex-shrink-0"
               style={"background:color-mix(in srgb, #{avatar_color} 20%, transparent);color:#{avatar_color}"}
             >
               {initial}
             </div>
-
-            <%!-- Name + ID --%>
             <div class="min-w-0">
               <div class="text-[13px] font-medium truncate" style="color:var(--fg)">
                 {agent.name}
@@ -203,31 +133,49 @@
                 {String.slice(agent.id, 0, 8)}
               </div>
             </div>
-
-            <%!-- Capabilities --%>
             <div class="flex gap-1 flex-wrap">
               <%= for cap <- agent.capabilities do %>
                 <span class="cap-tag">{cap}</span>
               <% end %>
             </div>
-
-            <%!-- Status --%>
             <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>
               {agent.status}
             </span>
-
-            <%!-- Queue --%>
             <span class="text-[12px] font-mono" style="color:var(--fg-dim)">
               {agent.queue_depth}
             </span>
-
-            <%!-- Last seen --%>
             <span class="text-[11px]" style="color:var(--fg-dim)">
               {VicheWeb.LiveHelpers.format_last_seen(agent.last_activity)}
             </span>
-
-            <%!-- Registry --%>
             <span class="text-[11px]" style="color:var(--fg-dim)">global</span>
+          </div>
+
+          <%!-- Mobile row --%>
+          <div
+            phx-click="select_agent"
+            phx-value-id={agent.id}
+            class="md:hidden grid grid-cols-[1fr_80px] gap-2 items-center px-3 py-2.5 cursor-pointer transition-colors"
+            style="border-top:1px solid var(--border)"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <div
+                class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                style={"background:color-mix(in srgb, #{avatar_color} 20%, transparent);color:#{avatar_color}"}
+              >
+                {initial}
+              </div>
+              <div class="min-w-0">
+                <div class="text-[12px] font-medium truncate" style="color:var(--fg)">
+                  {agent.name}
+                </div>
+                <div class="text-[10px] font-mono truncate" style="color:var(--fg-dim)">
+                  {String.slice(agent.id, 0, 8)}
+                </div>
+              </div>
+            </div>
+            <span class={"status-pill #{if agent.status == :online, do: "idle", else: "offline"}"}>
+              {agent.status}
+            </span>
           </div>
         <% end %>
       <% end %>
@@ -243,15 +191,20 @@
 
     <%!-- STATUS BAR --%>
     <div
-      class="h-6 flex items-center px-4 gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.ai/socket <span class="opacity-30">|</span>
-      registry: public <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
-      {@messages_today} messages today
+      <span class="status-bar-full items-center gap-2">
+        ws://viche.ai/socket <span class="opacity-30">|</span>
+        registry: public <span class="opacity-30">|</span>
+        {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
+        {@messages_today} messages today
+      </span>
+      <span class="status-bar-compact items-center gap-2">
+        {@agent_count} agents &middot; {@online_count} online
+      </span>
     </div>
   </main>
 </div>

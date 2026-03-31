@@ -1,110 +1,29 @@
 <div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
-  <%!-- SIDEBAR --%>
-  <aside
-    style="background:var(--bg-1);border-right:1px solid var(--border)"
-    class="w-[216px] min-w-[216px] flex flex-col"
-  >
-    <%!-- Logo --%>
-    <div class="px-4 py-4 flex items-center gap-2">
-      <div class="w-7 h-7 rounded-md overflow-hidden flex-shrink-0">
-        <img src="/images/viche-logo.png" alt="Viche" class="w-full h-full object-cover" />
-      </div>
-      <span class="text-[15px] font-semibold tracking-tight" style="color:var(--fg)">Viche</span>
-      <span class="text-[10px] font-mono ml-auto" style="color:var(--fg-dim)">v0.1.0-alpha</span>
-    </div>
-
-    <%!-- Nav --%>
-    <nav class="flex-1 flex flex-col px-2 gap-0.5 mt-1">
-      <%!-- Registry Selector --%>
-      <Layouts.registry_selector
-        selected_registry={@selected_registry}
-        registries={@registries}
-        public_mode={@public_mode}
-      />
-
-      <.link navigate={~p"/dashboard?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-squares-2x2-micro" class="size-4" />
-        <span>Dashboard</span>
-      </.link>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-signal-micro" class="size-4" />
-        <span>Network</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Agents
-      </div>
-
-      <div
-        class="nav-item active"
-        style="border-left:2px solid var(--color-ef-green);padding-left:6px"
-      >
-        <.icon name="hero-users-micro" class="size-4" />
-        <span class="flex-1">All Agents</span>
-        <span
-          class="text-[10px] font-mono px-1.5 rounded ml-auto"
-          style="background:var(--bg-2);color:var(--fg-dim)"
-        >
-          {@agent_count}
-        </span>
-      </div>
-
-      <.link navigate={~p"/sessions?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-envelope-micro" class="size-4" />
-        <span>Inboxes</span>
-      </.link>
-
-      <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-      <div
-        class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-        style="color:var(--fg-dim)"
-      >
-        Demo
-      </div>
-
-      <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
-        <span>Network Demo</span>
-      </.link>
-
-      <.link navigate="/demo" class="nav-item">
-        <.icon name="hero-link-micro" class="size-4" />
-        <span>Join</span>
-      </.link>
-
-      <div class="flex-1"></div>
-
-      <.link navigate={~p"/settings?registry=#{@selected_registry}"} class="nav-item">
-        <.icon name="hero-cog-6-tooth-micro" class="size-4" />
-        <span>Settings</span>
-      </.link>
-
-      <a
-        href="https://github.com/viche-ai/viche"
-        target="_blank"
-        rel="noopener"
-        class="nav-item mb-2"
-      >
-        <.icon name="hero-code-bracket-micro" class="size-4" />
-        <span>GitHub</span>
-      </a>
-    </nav>
-  </aside>
+  <Layouts.sidebar
+    active_page={:agent_detail}
+    selected_registry={@selected_registry}
+    registries={@registries}
+    public_mode={@public_mode}
+    mobile_menu_open={@mobile_menu_open}
+    agent_count={@agent_count}
+  />
 
   <%!-- MAIN --%>
-  <main class="flex-1 flex flex-col overflow-hidden">
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0">
     <%!-- TOPBAR --%>
     <div
-      class="h-[50px] flex items-center px-5 gap-3 border-b flex-shrink-0"
+      class="h-[50px] flex items-center px-3 md:px-5 gap-2 md:gap-3 border-b flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border)"
     >
+      <%!-- Hamburger: mobile only --%>
+      <button
+        class="md:hidden flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+        style="color:var(--fg-dim)"
+        phx-click="toggle_mobile_menu"
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3-micro" class="size-5" />
+      </button>
       <.link
         navigate={~p"/agents?registry=#{@selected_registry}"}
         class="flex items-center gap-1 text-[13px]"
@@ -114,8 +33,10 @@
       </.link>
       <%= if @agent do %>
         <span class="text-[13px]" style="color:var(--fg-dim)">/</span>
-        <span class="text-[15px] font-semibold" style="color:var(--fg)">{@agent.name}</span>
-        <span class={"status-pill #{if @agent.status == :online, do: "idle", else: "offline"}"}>
+        <span class="text-[15px] font-semibold truncate" style="color:var(--fg)">
+          {@agent.name}
+        </span>
+        <span class={"status-pill #{if @agent.status == :online, do: "idle", else: "offline"} hidden sm:inline-flex"}>
           {@agent.status}
         </span>
       <% end %>
@@ -141,8 +62,8 @@
         </.link>
       </div>
     <% else %>
-      <%!-- CONTENT: two-column --%>
-      <div class="flex-1 flex overflow-hidden">
+      <%!-- CONTENT: stacked on mobile, two-column on desktop --%>
+      <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
         <% avatar_colors = [
           "var(--color-ef-green)",
           "var(--color-ef-blue)",
@@ -156,8 +77,8 @@
 
         <%!-- LEFT COLUMN: Profile --%>
         <div
-          class="w-[380px] min-w-[380px] overflow-y-auto p-4 flex flex-col gap-4"
-          style="border-right:1px solid var(--border)"
+          class="w-full md:w-[380px] md:min-w-[380px] overflow-y-auto p-3 md:p-4 flex flex-col gap-3 md:gap-4"
+          style="border-bottom:1px solid var(--border)"
         >
           <%!-- Profile Card --%>
           <div
@@ -166,19 +87,26 @@
           >
             <div class="flex items-center gap-3 mb-4">
               <div
-                class="w-14 h-14 rounded-lg flex items-center justify-center text-[20px] font-bold flex-shrink-0"
+                class="w-12 h-12 md:w-14 md:h-14 rounded-lg flex items-center justify-center text-[18px] md:text-[20px] font-bold flex-shrink-0"
                 style={"background:color-mix(in srgb, #{avatar_color} 20%, transparent);color:#{avatar_color}"}
               >
                 {initial}
               </div>
               <div>
-                <div class="text-[20px] font-bold" style="color:var(--fg)">{@agent.name}</div>
+                <div class="text-[18px] md:text-[20px] font-bold" style="color:var(--fg)">
+                  {@agent.name}
+                </div>
                 <span class={"status-pill #{if @agent.status == :online, do: "idle", else: "offline"}"}>
                   {@agent.status}
                 </span>
               </div>
             </div>
-            <div class="text-[11px] font-mono mb-3" style="color:var(--fg-dim)">{@agent.id}</div>
+            <div
+              class="text-[10px] md:text-[11px] font-mono mb-3 break-all"
+              style="color:var(--fg-dim)"
+            >
+              {@agent.id}
+            </div>
             <div class="grid grid-cols-2 gap-2 text-[11px]">
               <div style="color:var(--fg-dim)">Registered</div>
               <div style="color:var(--fg)">
@@ -273,7 +201,7 @@
         </div>
 
         <%!-- RIGHT COLUMN: Task Dispatch --%>
-        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div class="flex-1 overflow-y-auto p-3 md:p-4 flex flex-col gap-3 md:gap-4">
           <%!-- Send Task --%>
           <div
             class="rounded-lg p-4"
@@ -289,7 +217,7 @@
                 class="w-full rounded-lg p-3 text-sm font-mono resize-none outline-none"
                 style="background:var(--bg-2);color:var(--fg);border:1px solid var(--border)"
               >{@task_input}</textarea>
-              <div class="flex items-center justify-between mt-2">
+              <div class="flex items-center justify-between mt-2 gap-2">
                 <div class="text-[10px] font-mono" style="color:var(--fg-dim)">
                   {String.length(@task_input)} / 4096
                 </div>
@@ -318,7 +246,7 @@
           <%!-- Response Area --%>
           <div
             class="rounded-lg p-3 font-mono text-sm flex-1"
-            style="background:var(--bg-2);border:1px solid var(--border);min-height:200px;color:var(--fg)"
+            style="background:var(--bg-2);border:1px solid var(--border);min-height:160px;color:var(--fg)"
           >
             <%= cond do %>
               <% @response == nil -> %>
@@ -383,7 +311,7 @@
                     </span>
                     <span style="color:var(--fg-dim)">&rarr;</span>
                     <span
-                      class="text-[10px] font-mono"
+                      class="text-[10px] font-mono flex-shrink-0"
                       style={
                         if entry.result == "pending",
                           do: "color:var(--color-ef-yellow)",
@@ -403,15 +331,20 @@
 
     <%!-- STATUS BAR --%>
     <div
-      class="h-6 flex items-center px-4 gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
     >
       <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
       </span>
-      ws://viche.ai/socket <span class="opacity-30">|</span>
-      registry: public <span class="opacity-30">|</span>
-      {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
-      {@messages_today} messages today
+      <span class="status-bar-full items-center gap-2">
+        ws://viche.ai/socket <span class="opacity-30">|</span>
+        registry: public <span class="opacity-30">|</span>
+        {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
+        {@messages_today} messages today
+      </span>
+      <span class="status-bar-compact items-center gap-2">
+        {@agent_count} agents &middot; {@online_count} online
+      </span>
     </div>
   </main>
 </div>
