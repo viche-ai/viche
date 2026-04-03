@@ -42,7 +42,7 @@ defmodule Viche.UserScopedAgentsTest do
     end
 
     test "AgentRecord belongs_to user association is defined" do
-      %AgentRecord{} |> Map.has_key?(:user)
+      assert Map.has_key?(%AgentRecord{}, :user)
     end
   end
 

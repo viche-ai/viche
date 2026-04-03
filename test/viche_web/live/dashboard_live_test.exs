@@ -3,8 +3,10 @@ defmodule VicheWeb.DashboardLiveTest do
   import Phoenix.LiveViewTest
 
   # Creates a user and returns {user, conn_with_session}
-  defp setup_user(_context \\ %{}) do
-    {:ok, user} = Viche.Accounts.create_user(%{email: "dash-test-#{System.unique_integer()}@example.com"})
+  defp setup_user(_context) do
+    {:ok, user} =
+      Viche.Accounts.create_user(%{email: "dash-test-#{System.unique_integer()}@example.com"})
+
     {:ok, user: user}
   end
 
@@ -70,7 +72,10 @@ defmodule VicheWeb.DashboardLiveTest do
   describe "URL param — ?registry=" do
     setup :setup_user
 
-    test "?registry=team-alpha filters dashboard to team-alpha agents only", %{conn: conn, user: user} do
+    test "?registry=team-alpha filters dashboard to team-alpha agents only", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{
           name: "dash-url-global",
@@ -111,7 +116,10 @@ defmodule VicheWeb.DashboardLiveTest do
   describe "registry selector UI" do
     setup :setup_user
 
-    test "selector #registry-selector is present when public_mode is false", %{conn: conn, user: user} do
+    test "selector #registry-selector is present when public_mode is false", %{
+      conn: conn,
+      user: user
+    } do
       {:ok, view, _html} = live_as_user(conn, user, ~p"/dashboard")
       assert has_element?(view, "#registry-selector")
     end
@@ -136,11 +144,16 @@ defmodule VicheWeb.DashboardLiveTest do
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
       end)
 
-      {:ok, user} = Viche.Accounts.create_user(%{email: "pm-test-#{System.unique_integer()}@example.com"})
+      {:ok, user} =
+        Viche.Accounts.create_user(%{email: "pm-test-#{System.unique_integer()}@example.com"})
+
       {:ok, user: user}
     end
 
-    test "only global agents visible; private registry agents are hidden", %{conn: conn, user: user} do
+    test "only global agents visible; private registry agents are hidden", %{
+      conn: conn,
+      user: user
+    } do
       register_agent!(%{
         name: "dash-pm-global",
         capabilities: ["coding"],
@@ -161,7 +174,10 @@ defmodule VicheWeb.DashboardLiveTest do
       refute html =~ "dash-pm-private"
     end
 
-    test "?registry=team-secret URL param is ignored — still shows global only", %{conn: conn, user: user} do
+    test "?registry=team-secret URL param is ignored — still shows global only", %{
+      conn: conn,
+      user: user
+    } do
       register_agent!(%{
         name: "dash-pm-url-global",
         capabilities: ["coding"],
