@@ -12,6 +12,7 @@ defmodule VicheWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug VicheWeb.Plugs.ApiAuth
   end
 
   scope "/", VicheWeb do
@@ -55,6 +56,7 @@ defmodule VicheWeb.Router do
     pipe_through :api
 
     post "/register", RegistryController, :register
+    delete "/deregister/:agent_id", RegistryController, :deregister
     get "/discover", RegistryController, :discover
   end
 

@@ -16,8 +16,10 @@ defmodule Viche.Agents do
   require Logger
 
   alias Viche.Agent
+  alias Viche.Agents.AgentRecord
   alias Viche.AgentServer
   alias Viche.Message
+  alias Viche.Repo
 
   @typedoc "Agent map returned by list/discover functions."
   @type agent_info :: %{
@@ -168,6 +170,62 @@ defmodule Viche.Agents do
   def register_agent(_attrs), do: {:error, :capabilities_required}
 
   @doc """
+  Returns all agent IDs owned by the given user.
+  """
+  @spec list_agent_ids_for_user(String.t()) :: [String.t()]
+  def list_agent_ids_for_user(user_id) do
+    import Ecto.Query
+
+    from(a in AgentRecord, where: a.user_id == ^user_id, select: a.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns all agent IDs that have an owner (user_id IS NOT NULL).
+  Used for dashboard filtering — unclaimed agents are hidden.
+  """
+  @spec list_claimed_agent_ids() :: [String.t()]
+  def list_claimed_agent_ids do
+    import Ecto.Query
+
+    from(a in AgentRecord, where: not is_nil(a.user_id), select: a.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the `AgentRecord` for the given agent ID, or `nil` if not persisted.
+  """
+  @spec get_agent_record(String.t()) :: AgentRecord.t() | nil
+  def get_agent_record(agent_id) do
+    Repo.get(AgentRecord, agent_id)
+  end
+
+  @doc """
+  Returns `true` if the given user owns the given agent (by agent record).
+  Returns `true` if the agent has no owner (unclaimed).
+  Returns `false` otherwise.
+  """
+  @spec user_owns_agent?(String.t() | nil, String.t()) :: boolean()
+  def user_owns_agent?(nil, _agent_id), do: false
+
+  def user_owns_agent?(user_id, agent_id) do
+    case get_agent_record(agent_id) do
+      nil -> true
+      %AgentRecord{user_id: nil} -> true
+      %AgentRecord{user_id: ^user_id} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  Returns `true` when REQUIRE_AUTH is enabled via environment variable.
+  """
+  @spec require_auth?() :: boolean()
+  def require_auth? do
+    System.get_env("REQUIRE_AUTH") == "true"
+  end
+
+  @doc """
   Deregisters an agent: stops its GenServer, purges inbox, removes from Registry.
 
   The agent can re-register later with a new ID but starts with clean state.
@@ -182,6 +240,13 @@ defmodule Viche.Agents do
       [{pid, meta}] ->
         broadcast_agent_left(agent_id, meta.registries || [])
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+
+        # Clean up persisted record
+        case Repo.get(AgentRecord, agent_id) do
+          nil -> :ok
+          record -> Repo.delete(record)
+        end
+
         Logger.info("Agent #{agent_id} deregistered")
         :ok
 
@@ -503,7 +568,19 @@ defmodule Viche.Agents do
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
     grace_period_ms = Map.get(attrs, :grace_period_ms)
+    user_id = Map.get(attrs, :user_id)
     agent_id = generate_unique_id()
+
+    # Persist ownership record to database
+    %AgentRecord{}
+    |> AgentRecord.changeset(%{
+      id: agent_id,
+      name: name,
+      capabilities: caps,
+      description: description,
+      user_id: user_id
+    })
+    |> Repo.insert!()
 
     child_opts = [
       id: agent_id,

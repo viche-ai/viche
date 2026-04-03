@@ -7,21 +7,60 @@ defmodule VicheWeb.AgentSocket do
 
   An `agent_id` parameter must be provided in the connection params; connections
   without a valid agent_id are rejected.
+
+  When a `token` parameter is provided, it is validated as an API token and the
+  owning user must match the agent's owner. Connections to agents owned by a
+  different user are rejected. When no token is provided, the connection is
+  allowed only if the agent is unclaimed (no owner) or REQUIRE_AUTH is not set.
   """
 
   use Phoenix.Socket
+
+  alias Viche.Agents
+  alias Viche.Auth
 
   channel "agent:*", VicheWeb.AgentChannel
   channel "registry:*", VicheWeb.AgentChannel
 
   @impl true
-  def connect(%{"agent_id" => agent_id}, socket, _connect_info)
+  def connect(%{"agent_id" => agent_id} = params, socket, _connect_info)
       when is_binary(agent_id) and agent_id != "" do
-    {:ok, assign(socket, :agent_id, agent_id)}
+    token = params["token"]
+
+    case authenticate_socket(token, agent_id) do
+      :ok ->
+        {:ok, assign(socket, :agent_id, agent_id)}
+
+      :error ->
+        :error
+    end
   end
 
   def connect(_params, _socket, _connect_info), do: :error
 
   @impl true
   def id(socket), do: "agent_socket:#{socket.assigns.agent_id}"
+
+  defp authenticate_socket(nil, agent_id) do
+    if Agents.require_auth?() do
+      :error
+    else
+      # No token — allow only if agent is unclaimed
+      case Agents.get_agent_record(agent_id) do
+        nil -> :ok
+        %{user_id: nil} -> :ok
+        _ -> :error
+      end
+    end
+  end
+
+  defp authenticate_socket(token, agent_id) when is_binary(token) do
+    case Auth.verify_api_token(token) do
+      {:ok, auth_token} ->
+        if Agents.user_owns_agent?(auth_token.user_id, agent_id), do: :ok, else: :error
+
+      {:error, :invalid_token} ->
+        :error
+    end
+  end
 end
