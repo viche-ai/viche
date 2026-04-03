@@ -10,14 +10,14 @@ import { Socket } from "phoenix";
 // ── Configuration ──────────────────────────────────────────────────────────────
 
 const REGISTRY_URL =
-  process.env.VICHE_REGISTRY_URL ?? "http://localhost:4000";
-const AGENT_NAME = process.env.VICHE_AGENT_NAME ?? null;
-const CAPABILITIES = (process.env.VICHE_CAPABILITIES ?? "coding")
+  process.env.VICHE_REGISTRY_URL || "http://localhost:4000";
+const AGENT_NAME = process.env.VICHE_AGENT_NAME || null;
+const CAPABILITIES = (process.env.VICHE_CAPABILITIES || "coding")
   .split(",")
   .map((c) => c.trim())
   .filter(Boolean);
-const DESCRIPTION = process.env.VICHE_DESCRIPTION ?? null;
-const REGISTRY_TOKENS: string[] = (process.env.VICHE_REGISTRY_TOKEN ?? "")
+const DESCRIPTION = process.env.VICHE_DESCRIPTION || null;
+const REGISTRY_TOKENS: string[] = (process.env.VICHE_REGISTRY_TOKEN || "")
   .split(",")
   .map((t) => t.trim())
   .filter(Boolean);
