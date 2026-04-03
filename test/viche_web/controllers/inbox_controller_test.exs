@@ -11,16 +11,30 @@ defmodule VicheWeb.InboxControllerTest do
 
   defp register_agent(conn), do: register_agent(conn, ["coding"])
 
+  # Registers a throwaway sender agent and uses it as the verified `current_agent_id`
+  # so that MessageController can derive `from` from the server-assigned identity.
+  # A `from:` option may still be passed and is forwarded as the registered sender
+  # when it looks like a registered agent ID; otherwise a fresh agent is created.
   defp send_message(agent_id, opts) do
     type = Keyword.get(opts, :type, "task")
-    from = Keyword.get(opts, :from, "sender-123")
     body = Keyword.get(opts, :body, "hello")
 
-    post(build_conn(), ~p"/messages/#{agent_id}", %{
-      "type" => type,
-      "from" => from,
-      "body" => body
-    })
+    # Use the caller-supplied `from` agent_id when given; fall back to registering
+    # a fresh throwaway agent so there is always a valid `current_agent_id`.
+    sender_id =
+      case Keyword.get(opts, :from) do
+        nil ->
+          conn = post(build_conn(), ~p"/registry/register", %{"capabilities" => ["sender"]})
+          %{"id" => id} = json_response(conn, 201)
+          id
+
+        id ->
+          id
+      end
+
+    build_conn()
+    |> Plug.Conn.assign(:current_agent_id, sender_id)
+    |> post(~p"/messages/#{agent_id}", %{"type" => type, "body" => body})
   end
 
   describe "GET /inbox/:agent_id" do
