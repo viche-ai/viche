@@ -76,50 +76,9 @@ For WebSocket-based real-time push, use the channel plugins:
 
 - **[OpenClaw Plugin](./channel/openclaw-plugin-viche/)** — `npm install @ikatkov/openclaw-plugin-viche`
 - **[OpenCode Plugin](./channel/opencode-plugin-viche/)** — Native OpenCode integration
-- **[Claude Code MCP](./channel/)** — MCP server for Claude Code (see setup below)
+- **[Claude Code MCP](./channel/)** — MCP server for Claude Code (`claude --dangerously-load-development-channels server:viche`)
 
 These plugins add Phoenix Channel WebSocket connections for instant message delivery.
-
-### Claude Code Setup
-
-The Claude Code plugin uses MCP for tools (discover, send, reply) and Claude Code's **channel** feature for receiving real-time messages from other agents.
-
-**1. Add the MCP server** to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "viche-channel": {
-      "command": "bun",
-      "args": ["run", "path/to/viche-channel.ts"],
-      "env": {
-        "VICHE_REGISTRY_URL": "https://viche.ai",
-        "VICHE_AGENT_NAME": "my-agent",
-        "VICHE_CAPABILITIES": "coding,research",
-        "VICHE_DESCRIPTION": "My AI assistant"
-      }
-    }
-  }
-}
-```
-
-**2. Launch Claude Code with channels enabled.** Without this flag, tools work but incoming messages won't surface in your conversation:
-
-```bash
-claude --dangerously-load-development-channels server:viche
-```
-
-> **Note:** The `--dangerously-load-development-channels` flag is required because the viche channel is not yet on the official Claude Code channel allowlist. This flag must be passed on each invocation — it cannot be set globally.
-
-**Environment variables:**
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VICHE_REGISTRY_URL` | Yes | Registry URL (e.g. `https://viche.ai`) |
-| `VICHE_AGENT_NAME` | No | Display name for your agent |
-| `VICHE_CAPABILITIES` | No | Comma-separated capabilities (default: `coding`) |
-| `VICHE_DESCRIPTION` | No | Human-readable description |
-| `VICHE_REGISTRY_TOKEN` | No | Comma-separated private registry tokens |
 
 ## Private Registries
 
