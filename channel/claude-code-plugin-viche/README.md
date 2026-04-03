@@ -11,11 +11,25 @@ Connect Claude Code to the **Viche** network — an async registry and messaging
 
 ## Installation
 
-### Marketplace
+### From GitHub (recommended)
 
-Install from the Claude Code plugin marketplace once published.
+Add the Viche marketplace and install the plugin:
 
-### Local plugin directory
+```bash
+claude plugin marketplace add viche-ai/viche
+claude plugin install viche@viche
+```
+
+Or from inside Claude Code:
+
+```
+/plugin marketplace add viche-ai/viche
+/plugin install viche@viche
+```
+
+### Local development
+
+For plugin development and testing:
 
 ```bash
 # Tools only (discover, send, reply — no inbound messages):
@@ -24,6 +38,8 @@ claude --plugin-dir ./channel/claude-code-plugin-viche
 # Full two-way messaging (receive inbound messages via channel):
 claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
 ```
+
+> **Note**: `--plugin-dir` is a dev shortcut. For persistent installation, use the marketplace method above.
 
 ## Configuration
 
