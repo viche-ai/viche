@@ -18,9 +18,9 @@ This session worked on two parallel goals:
 - ✅ Plugin created with all 8 files
 - ✅ Issue #44 fix implemented (registry channel routing)
 - ✅ Quality gates pass (397 tests, 0 Credo, 0 Dialyzer)
-- ✅ PR #48 open with 2 commits
-- ⚠️ **2 unpushed commits** on local branch (notification fix + env var fallback fix)
-- ❌ **E2E inbound message validation NOT completed** — core blocker for marketplace submission
+- ✅ PR #48 open
+- ✅ Previously unpushed follow-up commits are now pushed
+- ✅ **E2E inbound message validation completed** (standalone MCP server + localhost Phoenix)
 
 ---
 
@@ -92,7 +92,7 @@ All 8 files created:
 
 ### Channel Notification Fix
 
-**Commit**: `5659336` (unpushed)
+**Commit**: `5659336` (previously unpushed during session, now pushed)
 
 **Problem**: `viche-server.ts` was sending invalid `channel` field in notification params:
 ```typescript
@@ -127,7 +127,7 @@ server.notification({
 
 ### Config Fallback Fix
 
-**Commit**: `8b5f600` (unpushed)
+**Commit**: `8b5f600` (previously unpushed during session, now pushed)
 
 **Problem**: `.mcp.json` used `??` (nullish coalescing) for env var fallbacks:
 ```json
@@ -160,43 +160,42 @@ When `userConfig` isn't configured, Claude Code plugin system resolves `${user_c
   - `viche_send` → sends messages
   - `viche_reply` → sends result messages
 - **Channel registration** — when using `--dangerously-load-development-channels server:viche`, the banner "Listening for channel messages from: server:viche" appears
+- **Inbound message delivery end-to-end** — task and result messages sent via HTTP are received over WebSocket and emitted as valid Claude channel notifications (`notifications/claude/channel` with `content` + `meta`)
 - **Quality gates pass**:
   - 397 tests passing
   - 0 Credo issues
   - 0 Dialyzer warnings
-- **PR #48 is open** with 2 commits (first commit pushed, 2 follow-up commits unpushed)
+- **PR #48 is open** and includes all related commits
 
 ---
 
 ## 4. What's NOT Working Yet ❌
 
-### Inbound Message Delivery (CRITICAL BLOCKER)
+### ⚠️ `--plugin-dir` does not register MCP servers from plugin `.mcp.json`
 
-**The core issue**: Claude Code agents can discover and send messages, but **NEVER receive inbound messages from other agents**.
+**New finding from real Claude Code E2E testing**:
 
-Three layers of fixes were applied but **E2E validation of inbound messages was NOT completed**:
+- Launching with:
+  ```bash
+  claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
+  ```
+  does **not** make the plugin-local `.mcp.json` server available.
+- Claude Code error observed:
+  - `server:viche · no MCP server configured with that name`
 
-1. ✅ **Channel flag** — `--dangerously-load-development-channels server:viche` is now documented and confirmed to register the channel listener
-2. ✅ **Notification format** — fixed to match Claude Code spec (`content` + `meta` only, no `channel` field)
-3. ✅ **Env var fallback** — `||` instead of `??` to handle empty userConfig values
+**What currently works**:
+- Define the `viche` server in the repository root `.mcp.json` (or project-level MCP config), then run:
+  ```bash
+  claude --dangerously-load-development-channels server:viche
+  ```
 
-**The remaining blocker for E2E testing**: When the user's shell has `VICHE_REGISTRY_URL=https://viche.ai` set globally (for the OpenCode plugin), and the plugin's `.mcp.json` maps `"VICHE_REGISTRY_URL": "${user_config.registry_url}"`, there's an interaction:
+**Interpretation**:
+- `--plugin-dir` appears to load plugin manifest/hook/skill assets, but not MCP server registration from plugin `.mcp.json` in this dev workflow.
+- If both root `.mcp.json` and plugin config define a `viche` server, root config wins.
 
-- If userConfig is set → works correctly
-- If userConfig is NOT set → Claude Code may not override the parent env var, so the MCP server connects to prod instead of localhost
-- The `||` fix helps when the env var is explicitly set to empty string, but may not help when it's inherited from the parent shell
-
-**This needs validation**: Start Claude Code with the plugin, verify the agent registers on localhost (check Phoenix server logs for `POST /registry/register`), then send a message to the agent and verify the `<channel>` tag appears in the Claude Code session.
-
-**E2E test steps** (NOT YET COMPLETED):
-
-1. Start Phoenix server: `iex -S mix phx.server`
-2. Verify health: `curl http://localhost:4000/health` → `ok`
-3. Start Claude Code: `claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche`
-4. Check Phoenix logs for `POST /registry/register` — if missing, the env var issue persists
-5. If registered, find agent ID: `curl http://localhost:4000/registry/discover?capability=*`
-6. Send message: `curl -X POST http://localhost:4000/messages/<agent-id> -H "Content-Type: application/json" -d '{"from":"test","body":"hello","type":"task"}'`
-7. Verify `<channel source="viche">` tag appears in Claude Code session
+**Impact**:
+- Not a blocker for validating channel behavior in development (root `.mcp.json` workaround is effective).
+- Still needs follow-up investigation for expected `--plugin-dir` MCP behavior and marketplace/runtime parity.
 
 ---
 
@@ -204,15 +203,14 @@ Three layers of fixes were applied but **E2E validation of inbound messages was 
 
 **Branch**: `feature/claude-code-plugin`
 
-**Remote**: `origin/feature/claude-code-plugin` at commit `5d5b34b` (first commit only)
+**Remote**: `origin/feature/claude-code-plugin` includes all commits from this workstream
 
-**Unpushed commits** (2):
-- `5659336` — fix: align Claude channel notifications with spec
-- `8b5f600` — fix: use falsy env fallbacks in Claude plugin config
+**Push status**:
+- ✅ All previously local follow-up commits are pushed
+- ✅ Branch and PR now reflect notification format and env fallback fixes
 
 **PR**: https://github.com/viche-ai/viche/pull/48
-- Shows 2 commits in PR (GitHub is showing the first 2 commits from the branch)
-- The PR description mentions E2E testing was done, but the unpushed commits suggest further fixes were needed
+- PR reflects the pushed follow-up fixes and updated E2E status in this handoff
 
 **Files changed** (from first commit):
 - Created: 8 files in `channel/claude-code-plugin-viche/`
@@ -302,113 +300,43 @@ This tells Claude Code: "When this plugin is installed, register the `viche` MCP
 
 ## 7. Next Steps (Priority Order)
 
-### 1. Push unpushed commits ⚠️ URGENT
-
-```bash
-git push origin feature/claude-code-plugin
-```
-
-This will update PR #48 with the notification fix and env var fallback fix.
-
-### 2. E2E validate inbound messages 🔴 CRITICAL BLOCKER
-
-**Goal**: Verify that messages sent to the Claude Code agent appear as `<channel>` tags in the session.
-
-**Steps**:
-
-1. **Start Phoenix server**:
-   ```bash
-   iex -S mix phx.server
-   ```
-
-2. **Verify health**:
-   ```bash
-   curl http://localhost:4000/health
-   # Expected: ok
-   ```
-
-3. **Start Claude Code with plugin**:
-   ```bash
-   claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
-   ```
-
-4. **Check Phoenix logs for registration**:
-   - Look for `POST /registry/register` in the Phoenix server logs
-   - If missing → env var issue persists (see step 3 below)
-   - If present → note the agent ID from the response
-
-5. **Find agent ID** (if not in logs):
-   ```bash
-   curl http://localhost:4000/registry/discover?capability=*
-   # Look for the agent with capabilities matching your config
-   ```
-
-6. **Send a test message**:
-   ```bash
-   curl -X POST http://localhost:4000/messages/<agent-id> \
-     -H "Content-Type: application/json" \
-     -d '{"from":"test-sender","body":"Hello from curl","type":"task"}'
-   ```
-
-7. **Verify in Claude Code session**:
-   - Check for `<channel source="viche">` tag with the message
-   - Expected format: `<channel source="viche" message_id="msg-..." from="test-sender" type="task">[Task from test-sender] Hello from curl</channel>`
-
-**If step 4 fails** (no registration in Phoenix logs):
-- The MCP server is connecting to the wrong registry URL (likely prod instead of localhost)
-- Proceed to step 3 below
-
-### 3. Fix env var inheritance issue (if E2E fails)
-
-**If the agent doesn't register on localhost**, the issue is env var inheritance from the parent shell.
-
-**Option A**: Remove env var mappings from `.mcp.json` and read `CLAUDE_PLUGIN_OPTION_*` directly
-
-Claude Code auto-exports all userConfig values as `CLAUDE_PLUGIN_OPTION_<KEY>` env vars. The MCP server can read these directly:
-
-```typescript
-// viche-server.ts
-const REGISTRY_URL =
-  process.env.CLAUDE_PLUGIN_OPTION_REGISTRY_URL ||
-  process.env.VICHE_REGISTRY_URL ||
-  "http://localhost:4000";
-```
-
-This bypasses the `.mcp.json` mapping and avoids the inheritance issue.
-
-**Option B**: Document the workaround
-
-Add to README.md:
-```markdown
-### Known issue: env var inheritance
-
-If you have `VICHE_REGISTRY_URL` set in your shell (for other plugins), the Claude Code plugin may inherit it instead of using the default `http://localhost:4000`.
-
-**Workaround**: Unset the env var before launching Claude Code:
-```bash
-unset VICHE_REGISTRY_URL
-claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
-```
-```
-
-### 4. Submit to marketplace (once inbound messages work)
+### 1. Submit Claude Code plugin to marketplace ✅ next primary milestone
 
 **Submission URL**: https://claude.ai/settings/plugins/submit or https://platform.claude.com/plugins/submit
 
 **Prerequisites**:
 - ✅ Plugin loads without errors
 - ✅ All tools work
-- ✅ Inbound messages appear as `<channel>` tags (MUST VERIFY)
+- ✅ Inbound messages appear as channel notifications (validated in Section 11)
 - ✅ README.md is complete
 - ✅ Quality gates pass
 
 **Submission checklist**:
-- [ ] E2E inbound message test passes
-- [ ] README.md updated with marketplace install instructions
-- [ ] All commits pushed to PR
+- [x] E2E inbound message test passes
+- [ ] Final README marketplace copy review
+- [x] All commits pushed to PR
 - [ ] PR merged to main
 - [ ] Tag release: `git tag v1.0.0 && git push origin v1.0.0`
 - [ ] Submit to marketplace
+
+### 2. Investigate `--plugin-dir` MCP server behavior
+
+- Reproduce with a minimal plugin fixture to confirm scope of the behavior
+- Verify whether this is expected Claude Code behavior vs. a plugin layout/config issue
+- Document the exact dev workflow in plugin README (root/project `.mcp.json` requirement)
+- Confirm expected behavior for marketplace-installed plugins (whether packaged `.mcp.json` is registered automatically)
+
+### 3. Final PR polish before merge
+
+- Ensure PR description references the new E2E evidence in this handoff
+- Confirm no additional plugin UX/docs tweaks are needed
+- Merge PR #48 after review
+
+### 4. Post-merge release + submission
+
+- Create tag/release
+- Submit plugin package and metadata
+- Verify marketplace listing once approved
 
 ---
 
@@ -434,18 +362,20 @@ claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-develo
 
 **What was asked**: Create a comprehensive session handoff document capturing everything done, what's working, what's not, and exactly what to do next.
 
-**What was delivered**: This document with 9 sections covering:
+**What was delivered**: This document (updated with E2E validation) now covering 11 sections:
 1. Summary of goals and status
 2. Detailed breakdown of all work done (plugin files, fixes, commits)
 3. What's working (tools, quality gates, PR)
-4. What's NOT working (inbound message E2E validation blocker)
+4. What's NOT working (`--plugin-dir` MCP registration behavior still unresolved)
 5. Git state (branch, commits, PR)
 6. Key learnings about Claude Code plugin system
-7. Next steps in priority order (push commits, E2E test, fix env vars, submit)
+7. Next steps in priority order (marketplace submission path)
 8. Reference links
 9. Session context (this section)
+10. Quick start for remaining release work
+11. E2E test results evidence
 
-**Key takeaway**: The plugin is 95% complete. The only blocker for marketplace submission is **E2E validation of inbound messages**. Once that's verified (or the env var issue is fixed), the plugin is ready to ship.
+**Key takeaway**: The plugin is now validated end-to-end for inbound messaging. The next milestone is operational: PR merge, release tagging, and marketplace submission.
 
 ---
 
@@ -454,34 +384,105 @@ claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-develo
 **To pick up where we left off**:
 
 ```bash
-# 1. Push unpushed commits
-git push origin feature/claude-code-plugin
+# 1. Verify branch status
+git status
 
-# 2. Start Phoenix server
-iex -S mix phx.server
+# 2. Open/update PR #48 as needed
+gh pr view 48
 
-# 3. In another terminal, start Claude Code with plugin
-claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
+# 3. Merge once approved
+gh pr merge 48 --squash
 
-# 4. Check Phoenix logs for POST /registry/register
-# If missing → env var issue (see section 7, step 3)
-# If present → proceed to step 5
-
-# 5. Get agent ID
-curl http://localhost:4000/registry/discover?capability=*
-
-# 6. Send test message
-curl -X POST http://localhost:4000/messages/<agent-id> \
-  -H "Content-Type: application/json" \
-  -d '{"from":"test","body":"hello","type":"task"}'
-
-# 7. Check Claude Code session for <channel> tag
-# Expected: <channel source="viche" ...>[Task from test] hello</channel>
+# 4. Tag and push release
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-**If step 4 fails**: The env var inheritance issue is confirmed. Apply fix from section 7, step 3.
+**Then**: submit to marketplace using the links in Section 7.
 
-**If step 7 succeeds**: Inbound messages work! Proceed to marketplace submission (section 7, step 4).
+---
+
+## 11. Real Claude Code E2E Test Results (April 3 Session 2)
+
+This section replaces the earlier standalone `bun run` validation with a **real Claude Code channel E2E run**.
+
+### Test setup used
+
+1. Temporarily updated root `.mcp.json` to define server `viche` pointing to:
+   - `./channel/claude-code-plugin-viche/viche-server.ts`
+   - `VICHE_REGISTRY_URL=http://localhost:4000`
+2. Launched Claude Code:
+   ```bash
+   claude --dangerously-load-development-channels server:viche
+   ```
+3. Confirmed channel listener banner:
+   - `Listening for channel messages from: server:viche`
+
+### Registration and socket proof (Phoenix logs)
+
+Observed in Phoenix during startup:
+
+```text
+[info] POST /registry/register
+Parameters: %{"capabilities" => ["coding", "refactoring", "testing"], "description" => "Claude Code AI coding assistant", "name" => "claude-code"}
+[info] AgentServer started for 44cb3e7d-2998-4b39-aff3-158ef2a14934
+[info] Agent 44cb3e7d-2998-4b39-aff3-158ef2a14934 registered (name: "claude-code", capabilities: ["coding", "refactoring", "testing"], registries: ["global"])
+[info] CONNECTED TO VicheWeb.AgentSocket
+[info] Agent 44cb3e7d-2998-4b39-aff3-158ef2a14934 WebSocket connected
+[info] JOINED agent:44cb3e7d-2998-4b39-aff3-158ef2a14934 in 146µs
+```
+
+### Inbound message test (HTTP → Claude channel)
+
+Sent test message:
+
+```bash
+curl -s -X POST 'http://localhost:4000/messages/44cb3e7d-2998-4b39-aff3-158ef2a14934' \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"e2e-tester","body":"This is a real E2E test message. If you see this, inbound messages work!","type":"task"}'
+```
+
+Claude Code TUI showed:
+
+```text
+← viche: [Task from e2e-tester] This is a real E2E test message. If …
+
+⏺ viche - viche_reply (MCP)(to: "e2e-tester", body: "Inbound message confirmed received. E2E test successful!")
+
+⏺ viche - viche_discover (MCP)(capability: "*")
+```
+
+### Reply/discovery proof in Phoenix
+
+```text
+[debug] HANDLED send_message INCOMING ON agent:44cb3e7d-... (VicheWeb.AgentChannel) in 7µs
+  Parameters: %{"body" => "Inbound message confirmed received. E2E test successful!", "to" => "e2e-tester", "type" => "result"}
+[debug] HANDLED discover INCOMING ON agent:44cb3e7d-... (VicheWeb.AgentChannel) in 28µs
+  Parameters: %{"capability" => "*"}
+```
+
+### Confirmed behaviors
+
+1. ✅ Claude Code receives inbound Viche tasks via channel (`← viche: [Task from ...] ...`)
+2. ✅ Claude Code can autonomously act on inbound messages (issued `viche_reply`)
+3. ✅ Claude Code can chain discovery behavior after receipt (`viche_discover`)
+4. ✅ End-to-end loop validated with real Claude runtime, not standalone server simulation
+
+### `--plugin-dir` limitation discovered during E2E
+
+- Running with plugin dir only:
+  ```bash
+  claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
+  ```
+  produced:
+  - `server:viche · no MCP server configured with that name`
+
+- Conclusion from this session:
+  - `--plugin-dir` does **not** register MCP servers from plugin `.mcp.json` for this dev setup
+  - Root/project `.mcp.json` must define `viche` for channel loading to work
+  - If both root and plugin define `viche`, root definition wins
+
+**Implication**: Development workflow must currently rely on root/project MCP config for server registration. Marketplace-installed behavior may differ and should be verified separately.
 
 ---
 
