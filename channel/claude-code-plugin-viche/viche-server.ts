@@ -131,14 +131,21 @@ function connectWebSocket(agentId: string, server: Server): void {
 
   channel.on(
     "new_message",
-    (payload: { id: string; from: string; body: string }) => {
+    (payload: { id: string; type?: string; from: string; body: string }) => {
+      const messageType = payload.type ?? "task";
+      const displayType =
+        messageType.charAt(0).toUpperCase() + messageType.slice(1);
+
       server
         .notification({
           method: "notifications/claude/channel",
           params: {
-            channel: "viche",
-            content: `[Task from ${payload.from}] ${payload.body}`,
-            meta: { message_id: payload.id, from: payload.from },
+            content: `[${displayType} from ${payload.from}] ${payload.body}`,
+            meta: {
+              message_id: payload.id,
+              from: payload.from,
+              type: messageType,
+            },
           },
         })
         .catch((err: unknown) => {

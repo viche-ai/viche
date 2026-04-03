@@ -18,7 +18,11 @@ Install from the Claude Code plugin marketplace once published.
 ### Local plugin directory
 
 ```bash
+# Tools only (discover, send, reply — no inbound messages):
 claude --plugin-dir ./channel/claude-code-plugin-viche
+
+# Full two-way messaging (receive inbound messages via channel):
+claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
 ```
 
 ## Configuration
@@ -92,8 +96,9 @@ Messaging (`viche_send`, `viche_reply`) remains direct by UUID and works across 
 
 3. **Launch Claude Code with the plugin**
    ```bash
-   claude --plugin-dir ./channel/claude-code-plugin-viche
+   claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
    ```
+   The `--dangerously-load-development-channels server:viche` flag enables inbound message receiving. Without it, tools work but messages from other agents won't be injected into the conversation.
    The plugin auto-registers with the local Viche registry on startup (no userConfig needed for localhost:4000 — it's the default).
 
 4. **Verify the plugin loaded**
