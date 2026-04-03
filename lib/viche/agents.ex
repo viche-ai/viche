@@ -503,6 +503,7 @@ defmodule Viche.Agents do
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
     grace_period_ms = Map.get(attrs, :grace_period_ms)
+    owner_id = Map.get(attrs, :owner_id)
     agent_id = generate_unique_id()
 
     child_opts = [
@@ -510,7 +511,8 @@ defmodule Viche.Agents do
       name: name,
       capabilities: caps,
       description: description,
-      registries: registries
+      registries: registries,
+      owner_id: owner_id
     ]
 
     child_opts =

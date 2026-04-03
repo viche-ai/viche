@@ -249,12 +249,22 @@ defmodule VicheWeb.AgentChannelTest do
         |> socket("agent_socket:#{agent_b.id}", %{agent_id: agent_b.id})
         |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_b.id}")
 
-      push(socket_a, "send_message", %{"to" => recipient.id, "body" => "from A", "type" => "task"})
+      ref_a =
+        push(socket_a, "send_message", %{
+          "to" => recipient.id,
+          "body" => "from A",
+          "type" => "task"
+        })
 
-      push(socket_b, "send_message", %{"to" => recipient.id, "body" => "from B", "type" => "task"})
+      ref_b =
+        push(socket_b, "send_message", %{
+          "to" => recipient.id,
+          "body" => "from B",
+          "type" => "task"
+        })
 
-      # Give async messages time to be processed
-      Process.sleep(50)
+      assert_reply ref_a, :ok, %{message_id: _}
+      assert_reply ref_b, :ok, %{message_id: _}
 
       assert {:ok, messages} = Agents.inspect_inbox(recipient.id)
       froms = Enum.map(messages, & &1.from)

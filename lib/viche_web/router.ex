@@ -12,6 +12,7 @@ defmodule VicheWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug VicheWeb.Plugs.ApiAuth
   end
 
   scope "/", VicheWeb do

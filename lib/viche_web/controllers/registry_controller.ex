@@ -26,7 +26,8 @@ defmodule VicheWeb.RegistryController do
            description: Map.get(params, "description"),
            polling_timeout_ms: polling_timeout_ms,
            grace_period_ms: grace_period_ms,
-           registries: registries
+           registries: registries,
+           owner_id: conn.assigns[:current_user_id]
          },
          {:ok, agent} <- Agents.register_agent(attrs) do
       conn

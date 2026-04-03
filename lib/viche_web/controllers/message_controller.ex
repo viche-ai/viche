@@ -27,7 +27,7 @@ defmodule VicheWeb.MessageController do
     # client-supplied `"from"` param to prevent impersonation.
     from = conn.assigns[:current_agent_id]
 
-    if is_nil(from) or from == "" do
+    if is_nil(from) do
       invalid_message_response(conn)
     else
       attrs = %{to: agent_id, from: from, body: body, type: type}
