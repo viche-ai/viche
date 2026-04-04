@@ -7,9 +7,11 @@ defmodule Viche.Repo.Migrations.AddUserIdToAgents do
       add :name, :string
       add :capabilities, {:array, :string}, default: []
       add :description, :string
-      add :user_id, references(:users, type: :binary_id, on_delete: :nilify_all)
-
       timestamps(type: :utc_datetime)
+    end
+
+    alter table(:agents) do
+      add_if_not_exists :user_id, references(:users, type: :binary_id, on_delete: :nilify_all)
     end
 
     create_if_not_exists index(:agents, [:user_id])
