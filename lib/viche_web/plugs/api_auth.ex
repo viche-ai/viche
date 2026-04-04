@@ -1,6 +1,7 @@
 defmodule VicheWeb.Plugs.ApiAuth do
   @moduledoc """
   Plug that optionally extracts the current user and agent from a Bearer API token.
+  Plug that optionally extracts the current user from a Bearer API token.
 
   If a valid `Authorization: Bearer <token>` header is present, the plug
   assigns `:current_user_id` on the connection. If the header is absent or

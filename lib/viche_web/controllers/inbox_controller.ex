@@ -16,16 +16,41 @@ defmodule VicheWeb.InboxController do
 
   @spec read_inbox(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def read_inbox(conn, %{"agent_id" => agent_id}) do
-    case Agents.drain_inbox(agent_id) do
-      {:ok, messages} ->
-        conn
-        |> put_status(:ok)
-        |> json(%{messages: Enum.map(messages, &serialize_message/1)})
+    user_id = conn.assigns[:current_user_id]
 
-      {:error, :agent_not_found} ->
+    if Agents.require_auth?() and is_nil(user_id) do
+      conn
+      |> put_status(:unauthorized)
+      |> json(%{error: "authentication_required"})
+    else
+      handle_read_inbox(conn, user_id, agent_id)
+    end
+  end
+
+  defp handle_read_inbox(conn, user_id, agent_id) do
+    case Agents.user_owns_agent?(user_id, agent_id) do
+      {:error, :not_found} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "agent_not_found"})
+
+      false ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "not_owner"})
+
+      true ->
+        case Agents.drain_inbox(agent_id) do
+          {:ok, messages} ->
+            conn
+            |> put_status(:ok)
+            |> json(%{messages: Enum.map(messages, &serialize_message/1)})
+
+          {:error, :agent_not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "agent_not_found"})
+        end
     end
   end
 

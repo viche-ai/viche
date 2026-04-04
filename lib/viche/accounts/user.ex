@@ -25,6 +25,7 @@ defmodule Viche.Accounts.User do
     field :username, :string
 
     has_many :auth_tokens, Viche.Accounts.AuthToken
+    has_many :agents, Viche.Agents.AgentRecord
 
     timestamps(type: :utc_datetime)
   end

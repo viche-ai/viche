@@ -9,7 +9,10 @@ defmodule VicheWeb.DashboardRegistryLeakArgusTest do
       DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
     end)
 
-    :ok
+    {:ok, user} =
+      Viche.Accounts.create_user(%{email: "leak-test-#{System.unique_integer()}@example.com"})
+
+    {:ok, user: user}
   end
 
   defp register_agent!(attrs) do
@@ -18,23 +21,29 @@ defmodule VicheWeb.DashboardRegistryLeakArgusTest do
   end
 
   test "Argus: switching registry leaves global dashboard message subscriptions active", %{
-    conn: conn
+    conn: conn,
+    user: user
   } do
     global_agent =
       register_agent!(%{
         name: "dash-leak-global",
         capabilities: ["coding"],
-        registries: ["global"]
+        registries: ["global"],
+        user_id: user.id
       })
 
     _alpha_agent =
       register_agent!(%{
         name: "dash-leak-alpha",
         capabilities: ["testing"],
-        registries: ["team-alpha"]
+        registries: ["team-alpha"],
+        user_id: user.id
       })
 
-    {:ok, view, html} = live(conn, ~p"/dashboard")
+    {:ok, view, html} =
+      conn
+      |> init_test_session(%{"user_id" => user.id})
+      |> live(~p"/dashboard")
 
     assert html =~ "dash-leak-global"
     refute html =~ "dash-leak-alpha"

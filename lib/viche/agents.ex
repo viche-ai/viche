@@ -16,8 +16,11 @@ defmodule Viche.Agents do
   require Logger
 
   alias Viche.Agent
+  alias Viche.Agents.AgentRecord
   alias Viche.AgentServer
   alias Viche.Message
+  alias Viche.Repo
+  import Ecto.Query
 
   @typedoc "Agent map returned by list/discover functions."
   @type agent_info :: %{
@@ -156,6 +159,7 @@ defmodule Viche.Agents do
           | {:error, :invalid_name}
           | {:error, :invalid_description}
           | {:error, :invalid_registry_token}
+          | {:error, Ecto.Changeset.t()}
   def register_agent(%{capabilities: caps} = attrs) when is_list(caps) and caps != [] do
     with :ok <- validate_string_list(caps, :invalid_capabilities),
          :ok <- validate_optional_string(Map.get(attrs, :name), :invalid_name),
@@ -166,6 +170,59 @@ defmodule Viche.Agents do
   end
 
   def register_agent(_attrs), do: {:error, :capabilities_required}
+
+  @doc """
+  Returns all agent IDs owned by the given user.
+  """
+  @spec list_agent_ids_for_user(String.t()) :: [String.t()]
+  def list_agent_ids_for_user(user_id) do
+    from(a in AgentRecord, where: a.user_id == ^user_id, select: a.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns all agent IDs that have an owner (user_id IS NOT NULL).
+  Used for dashboard filtering — unclaimed agents are hidden.
+  """
+  @spec list_claimed_agent_ids() :: [String.t()]
+  def list_claimed_agent_ids do
+    from(a in AgentRecord, where: not is_nil(a.user_id), select: a.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the `AgentRecord` for the given agent ID, or `nil` if not persisted.
+  """
+  @spec get_agent_record(String.t()) :: AgentRecord.t() | nil
+  def get_agent_record(agent_id) do
+    case Ecto.UUID.cast(agent_id) do
+      {:ok, uuid} -> Repo.get(AgentRecord, uuid)
+      :error -> nil
+    end
+  end
+
+  @doc """
+  Returns `true` if the given user owns the given agent (by agent record).
+  Returns `true` if the agent has no owner (unclaimed).
+  Returns `false` otherwise.
+  """
+  @spec user_owns_agent?(String.t() | nil, String.t()) :: boolean() | {:error, :not_found}
+  def user_owns_agent?(user_id, agent_id) do
+    case get_agent_record(agent_id) do
+      nil -> {:error, :not_found}
+      %AgentRecord{user_id: nil} -> true
+      %AgentRecord{user_id: ^user_id} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  Returns `true` when REQUIRE_AUTH is enabled via environment variable.
+  """
+  @spec require_auth?() :: boolean()
+  def require_auth? do
+    Application.get_env(:viche, :require_auth, false)
+  end
 
   @doc """
   Deregisters an agent: stops its GenServer, purges inbox, removes from Registry.
@@ -182,6 +239,13 @@ defmodule Viche.Agents do
       [{pid, meta}] ->
         broadcast_agent_left(agent_id, meta.registries || [])
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+
+        # Clean up persisted record
+        case Repo.get(AgentRecord, agent_id) do
+          nil -> :ok
+          record -> Repo.delete(record)
+        end
+
         Logger.info("Agent #{agent_id} deregistered")
         :ok
 
@@ -503,44 +567,63 @@ defmodule Viche.Agents do
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
     grace_period_ms = Map.get(attrs, :grace_period_ms)
-    owner_id = Map.get(attrs, :owner_id)
+    # The fix for #21 introduces `owner_id` (so we should respect it), and #47 uses `user_id`.
+    # Let's use `user_id` as the primary, and fallback to `owner_id` from #21 if present.
+    user_id = Map.get(attrs, :user_id) || Map.get(attrs, :owner_id)
     agent_id = generate_unique_id()
 
-    child_opts = [
-      id: agent_id,
-      name: name,
-      capabilities: caps,
-      description: description,
-      registries: registries,
-      owner_id: owner_id
-    ]
+    # Persist ownership record to database
+    changeset =
+      %AgentRecord{}
+      |> AgentRecord.changeset(%{
+        id: agent_id,
+        name: name,
+        capabilities: caps,
+        description: description,
+        user_id: user_id
+      })
 
-    child_opts =
-      if polling_timeout_ms,
-        do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
-        else: child_opts
+    case Repo.insert(changeset) do
+      {:ok, _record} ->
+        child_opts = [
+          id: agent_id,
+          name: name,
+          capabilities: caps,
+          description: description,
+          registries: registries,
+          owner_id: user_id
+        ]
 
-    child_opts =
-      if grace_period_ms,
-        do: Keyword.put(child_opts, :grace_period_ms, grace_period_ms),
-        else: child_opts
+        child_opts =
+          if polling_timeout_ms,
+            do: Keyword.put(child_opts, :polling_timeout_ms, polling_timeout_ms),
+            else: child_opts
 
-    child_spec = {AgentServer, child_opts}
-    {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
+        child_opts =
+          if grace_period_ms,
+            do: Keyword.put(child_opts, :grace_period_ms, grace_period_ms),
+            else: child_opts
 
-    via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
-    agent = AgentServer.get_state(via)
+        child_spec = {AgentServer, child_opts}
+        {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
 
-    Logger.info(
-      "Agent #{agent.id} registered (name: #{inspect(agent.name)}, " <>
-        "capabilities: #{inspect(agent.capabilities)}, " <>
-        "registries: #{inspect(agent.registries)}, " <>
-        "polling_timeout: #{agent.polling_timeout_ms}ms)"
-    )
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        agent = AgentServer.get_state(via)
 
-    broadcast_agent_joined(agent)
+        Logger.info(
+          "Agent #{agent.id} registered (name: #{inspect(agent.name)}, " <>
+            "capabilities: #{inspect(agent.capabilities)}, " <>
+            "registries: #{inspect(agent.registries)}, " <>
+            "polling_timeout: #{agent.polling_timeout_ms}ms)"
+        )
 
-    {:ok, agent}
+        broadcast_agent_joined(agent)
+
+        {:ok, agent}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @spec broadcast_agent_joined(Agent.t()) :: :ok

@@ -1,0 +1,17 @@
+defmodule Viche.Repo.Migrations.AddUserIdToAgents do
+  use Ecto.Migration
+
+  def change do
+    create table(:agents, primary_key: false) do
+      add :id, :binary_id, primary_key: true
+      add :name, :string
+      add :capabilities, {:array, :string}, default: []
+      add :description, :string
+      add :user_id, references(:users, type: :binary_id, on_delete: :nilify_all)
+
+      timestamps(type: :utc_datetime)
+    end
+
+    create index(:agents, [:user_id])
+  end
+end
