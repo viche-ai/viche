@@ -14,6 +14,14 @@ defmodule VicheWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :require_auth do
+    plug VicheWeb.AuthPlug
+  end
+
+  pipeline :require_api_auth do
+    plug VicheWeb.ApiAuthPlug
+  end
+
   scope "/", VicheWeb do
     pipe_through :api
 
@@ -35,12 +43,17 @@ defmodule VicheWeb.Router do
     live "/login", LoginLive
     live "/signup", SignupLive
     live "/verify", VerifyLive
+    live "/demo", DemoLive
+  end
+
+  scope "/", VicheWeb do
+    pipe_through [:browser, :require_auth]
+
     live "/dashboard", DashboardLive
     live "/agents", AgentsLive
     live "/agents/:id", AgentDetailLive
     live "/sessions", SessionsLive
     live "/network", NetworkLive
-    live "/demo", DemoLive
     live "/join", JoinLive
     live "/settings", SettingsLive
   end
@@ -52,26 +65,26 @@ defmodule VicheWeb.Router do
   end
 
   scope "/registry", VicheWeb do
-    pipe_through :api
+    pipe_through [:api, :require_api_auth]
 
     post "/register", RegistryController, :register
     get "/discover", RegistryController, :discover
   end
 
   scope "/messages", VicheWeb do
-    pipe_through :api
+    pipe_through [:api, :require_api_auth]
 
     post "/:agent_id", MessageController, :send_message
   end
 
   scope "/inbox", VicheWeb do
-    pipe_through :api
+    pipe_through [:api, :require_api_auth]
 
     get "/:agent_id", InboxController, :read_inbox
   end
 
   scope "/agents", VicheWeb do
-    pipe_through :api
+    pipe_through [:api, :require_api_auth]
 
     post "/:agent_id/heartbeat", HeartbeatController, :heartbeat
   end
