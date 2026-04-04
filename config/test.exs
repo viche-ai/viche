@@ -47,6 +47,10 @@ config :viche, grace_period_ms: 150
 # Tests that need public_mode: true use Application.put_env explicitly.
 config :viche, :public_mode, false
 
+# Disable require_auth in tests to prevent existing API/dashboard tests from failing.
+# Tests explicitly testing auth will enable it using Application.put_env/3.
+config :viche, :require_auth, false
+
 # Import local secret config for worktree-specific overrides (ports, database)
 if File.exists?(Path.expand("test.secret.exs", __DIR__)) do
   import_config "test.secret.exs"
