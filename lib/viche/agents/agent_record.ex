@@ -20,6 +20,10 @@ defmodule Viche.Agents.AgentRecord do
           name: String.t() | nil,
           capabilities: [String.t()],
           description: String.t() | nil,
+          registries: [String.t()],
+          polling_timeout_ms: integer(),
+          registered_at: DateTime.t() | nil,
+          deregistered_at: DateTime.t() | nil,
           user_id: binary() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -29,6 +33,10 @@ defmodule Viche.Agents.AgentRecord do
     field :name, :string
     field :capabilities, {:array, :string}, default: []
     field :description, :string
+    field :registries, {:array, :string}, default: ["global"]
+    field :polling_timeout_ms, :integer, default: 60_000
+    field :registered_at, :utc_datetime_usec
+    field :deregistered_at, :utc_datetime_usec
 
     belongs_to :user, Viche.Accounts.User
 
@@ -38,8 +46,18 @@ defmodule Viche.Agents.AgentRecord do
   @doc false
   def changeset(record, attrs) do
     record
-    |> cast(attrs, [:id, :name, :capabilities, :description, :user_id])
-    |> validate_required([:id, :capabilities])
+    |> cast(attrs, [
+      :id,
+      :name,
+      :capabilities,
+      :description,
+      :registries,
+      :polling_timeout_ms,
+      :registered_at,
+      :deregistered_at,
+      :user_id
+    ])
+    |> validate_required([:id, :capabilities, :registries, :polling_timeout_ms, :registered_at])
     |> foreign_key_constraint(:user_id)
   end
 end
