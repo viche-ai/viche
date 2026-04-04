@@ -567,7 +567,9 @@ defmodule Viche.Agents do
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
     grace_period_ms = Map.get(attrs, :grace_period_ms)
-    user_id = Map.get(attrs, :user_id)
+    # The fix for #21 introduces `owner_id` (so we should respect it), and #47 uses `user_id`.
+    # Let's use `user_id` as the primary, and fallback to `owner_id` from #21 if present.
+    user_id = Map.get(attrs, :user_id) || Map.get(attrs, :owner_id)
     agent_id = generate_unique_id()
 
     # Persist ownership record to database
@@ -588,7 +590,8 @@ defmodule Viche.Agents do
           name: name,
           capabilities: caps,
           description: description,
-          registries: registries
+          registries: registries,
+          owner_id: user_id
         ]
 
         child_opts =

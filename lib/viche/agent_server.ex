@@ -53,12 +53,14 @@ defmodule Viche.AgentServer do
     capabilities = Keyword.get(opts, :capabilities, [])
     description = Keyword.get(opts, :description)
     registries = Keyword.get(opts, :registries, ["global"])
+    owner_id = Keyword.get(opts, :owner_id)
 
     meta = %{
       name: name,
       capabilities: capabilities,
       description: description,
-      registries: registries
+      registries: registries,
+      owner_id: owner_id
     }
 
     via = {:via, Registry, {Viche.AgentRegistry, agent_id, meta}}

@@ -133,6 +133,24 @@ defmodule VicheWeb.AgentChannelTest do
       assert msg.body == "hello from channel"
     end
 
+    test "send_message 'from' is always socket.assigns.agent_id, ignoring any client-supplied 'from'",
+         %{socket: socket, agent_id: sender_id, receiver_id: receiver_id} do
+      ref =
+        push(socket, "send_message", %{
+          "to" => receiver_id,
+          "body" => "impersonation attempt",
+          "type" => "task",
+          # client tries to set from — must be ignored
+          "from" => "evil-impersonator-id"
+        })
+
+      assert_reply ref, :ok, %{message_id: _}
+
+      assert {:ok, [msg]} = Agents.inspect_inbox(receiver_id)
+      assert msg.from == sender_id
+      refute msg.from == "evil-impersonator-id"
+    end
+
     test "send_message to unknown agent returns error", %{socket: socket} do
       ref =
         push(socket, "send_message", %{
@@ -162,6 +180,96 @@ defmodule VicheWeb.AgentChannelTest do
       ref = push(socket, "send_message", %{})
 
       assert_reply ref, :error, %{error: "missing_fields", message: _}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Impersonation prevention tests (issue #21)
+  # ---------------------------------------------------------------------------
+
+  describe "impersonation prevention via channel" do
+    setup %{agent_id: agent_id} do
+      {:ok, agent_b} =
+        Agents.register_agent(%{capabilities: ["rcv"], name: "impersonation-target"})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_id}", %{agent_id: agent_id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_id}")
+
+      %{socket: socket, receiver_id: agent_b.id}
+    end
+
+    test "client-supplied 'from' is silently overwritten by socket.assigns.agent_id",
+         %{socket: socket, agent_id: real_sender_id, receiver_id: receiver_id} do
+      ref =
+        push(socket, "send_message", %{
+          "to" => receiver_id,
+          "body" => "sneak",
+          "type" => "ping",
+          "from" => "totally-different-agent"
+        })
+
+      assert_reply ref, :ok, %{message_id: _}
+
+      assert {:ok, [msg]} = Agents.inspect_inbox(receiver_id)
+      assert msg.from == real_sender_id
+      refute msg.from == "totally-different-agent"
+    end
+
+    test "message is attributed to the correct socket-verified agent even when 'from' is absent",
+         %{socket: socket, agent_id: real_sender_id, receiver_id: receiver_id} do
+      ref =
+        push(socket, "send_message", %{
+          "to" => receiver_id,
+          "body" => "legit message",
+          "type" => "task"
+        })
+
+      assert_reply ref, :ok, %{message_id: _}
+
+      assert {:ok, [msg]} = Agents.inspect_inbox(receiver_id)
+      assert msg.from == real_sender_id
+    end
+
+    test "two different authenticated sockets produce correct distinct 'from' values" do
+      clear_all_agents()
+
+      {:ok, agent_a} = Agents.register_agent(%{capabilities: ["alpha"]})
+      {:ok, agent_b} = Agents.register_agent(%{capabilities: ["beta"]})
+      {:ok, recipient} = Agents.register_agent(%{capabilities: ["rcv"]})
+
+      {:ok, _, socket_a} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_a.id}")
+
+      {:ok, _, socket_b} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_b.id}", %{agent_id: agent_b.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_b.id}")
+
+      ref_a =
+        push(socket_a, "send_message", %{
+          "to" => recipient.id,
+          "body" => "from A",
+          "type" => "task"
+        })
+
+      ref_b =
+        push(socket_b, "send_message", %{
+          "to" => recipient.id,
+          "body" => "from B",
+          "type" => "task"
+        })
+
+      assert_reply ref_a, :ok, %{message_id: _}
+      assert_reply ref_b, :ok, %{message_id: _}
+
+      assert {:ok, messages} = Agents.inspect_inbox(recipient.id)
+      froms = Enum.map(messages, & &1.from)
+      assert agent_a.id in froms
+      assert agent_b.id in froms
     end
   end
 

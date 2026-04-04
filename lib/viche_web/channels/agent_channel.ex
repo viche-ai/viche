@@ -107,10 +107,14 @@ defmodule VicheWeb.AgentChannel do
   end
 
   def handle_in("send_message", %{"to" => to, "body" => body} = params, socket) do
-    agent_id = socket.assigns.agent_id
+    # Always derive `from` from the server-verified socket identity.
+    # Any client-supplied "from" key in `params` is intentionally ignored
+    # to prevent impersonation — only the authenticated socket.assigns.agent_id
+    # is trusted as the sender.
+    from = socket.assigns.agent_id
     type = Map.get(params, "type", "task")
 
-    case Viche.Agents.send_message(%{to: to, from: agent_id, body: body, type: type}) do
+    case Viche.Agents.send_message(%{to: to, from: from, body: body, type: type}) do
       {:ok, message_id} ->
         {:reply, {:ok, %{message_id: message_id}}, socket}
 
