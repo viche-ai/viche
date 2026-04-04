@@ -19,10 +19,6 @@ defmodule VicheWeb.Router do
     plug VicheWeb.AuthPlug
   end
 
-  pipeline :require_api_auth do
-    plug VicheWeb.ApiAuthPlug
-  end
-
   scope "/", VicheWeb do
     pipe_through :api
 
@@ -69,29 +65,24 @@ defmodule VicheWeb.Router do
     pipe_through :api
 
     post "/register", RegistryController, :register
-  end
-
-  scope "/registry", VicheWeb do
-    pipe_through [:api, :require_api_auth]
-
     delete "/deregister/:agent_id", RegistryController, :deregister
     get "/discover", RegistryController, :discover
   end
 
   scope "/messages", VicheWeb do
-    pipe_through [:api, :require_api_auth]
+    pipe_through :api
 
     post "/:agent_id", MessageController, :send_message
   end
 
   scope "/inbox", VicheWeb do
-    pipe_through [:api, :require_api_auth]
+    pipe_through :api
 
     get "/:agent_id", InboxController, :read_inbox
   end
 
   scope "/agents", VicheWeb do
-    pipe_through [:api, :require_api_auth]
+    pipe_through :api
 
     post "/:agent_id/heartbeat", HeartbeatController, :heartbeat
   end

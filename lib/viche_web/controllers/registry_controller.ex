@@ -15,14 +15,7 @@ defmodule VicheWeb.RegistryController do
   @spec register(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def register(conn, params) do
     user_id = conn.assigns[:current_user_id]
-
-    if Agents.require_auth?() and is_nil(user_id) do
-      conn
-      |> put_status(:unauthorized)
-      |> json(%{error: "authentication_required"})
-    else
-      do_register(conn, params, user_id)
-    end
+    do_register(conn, params, user_id)
   end
 
   defp do_register(conn, params, user_id) do
@@ -96,14 +89,7 @@ defmodule VicheWeb.RegistryController do
   @spec deregister(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def deregister(conn, %{"agent_id" => agent_id}) do
     user_id = conn.assigns[:current_user_id]
-
-    if Agents.require_auth?() and is_nil(user_id) do
-      conn
-      |> put_status(:unauthorized)
-      |> json(%{error: "authentication_required"})
-    else
-      handle_deregister(conn, user_id, agent_id)
-    end
+    handle_deregister(conn, user_id, agent_id)
   end
 
   defp handle_deregister(conn, user_id, agent_id) do

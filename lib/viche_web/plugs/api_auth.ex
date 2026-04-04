@@ -1,18 +1,16 @@
 defmodule VicheWeb.Plugs.ApiAuth do
   @moduledoc """
   Plug that optionally extracts the current user and agent from a Bearer API token.
-  Plug that optionally extracts the current user from a Bearer API token.
 
   If a valid `Authorization: Bearer <token>` header is present, the plug
   assigns `:current_user_id` on the connection. If the header is absent or
   the token is invalid, `:current_user_id` is set to `nil`.
 
   Additionally, if an `X-Agent-ID` header is present, the named agent is
-  looked up in the registry **and** verified to be owned by the authenticated
-  user (`current_user_id`). Only when both checks pass is `:current_agent_id`
-  set to the agent ID. This two-step verification prevents any authenticated
-  user from impersonating an agent they do not own by supplying an arbitrary
-  `X-Agent-ID` header.
+  looked up in the registry. If the agent is public (no owner) or owned by
+  the authenticated user (`current_user_id`), `:current_agent_id` is set to
+  the agent ID. This prevents any authenticated user from impersonating a
+  private agent they do not own by supplying an arbitrary `X-Agent-ID` header.
 
   If the header is absent, the agent is unknown, or the agent belongs to a
   different user, `:current_agent_id` is set to `nil`.
@@ -49,7 +47,7 @@ defmodule VicheWeb.Plugs.ApiAuth do
         _ ->
           conn
           |> assign(:current_user_id, nil)
-          |> assign(:current_agent_id, nil)
+          |> assign_agent_id(nil)
       end
     end
   end
@@ -60,22 +58,18 @@ defmodule VicheWeb.Plugs.ApiAuth do
 
   # If the client provides an `X-Agent-ID` header, verify that:
   #   1. The agent actually exists in the registry.
-  #   2. The agent is owned by the authenticated user (`user_id`).
+  #   2. The agent is public (owner_id is nil) OR owned by the authenticated user (`user_id`).
   #
   # Both checks must pass before the agent ID is surfaced as `current_agent_id`.
   # This prevents a user with a valid Bearer token from impersonating an agent
   # that belongs to a different user by supplying an arbitrary `X-Agent-ID`.
-  #
-  # When `user_id` is `nil` (unauthenticated request), `current_agent_id` is
-  # always set to `nil` regardless of the header.
-  defp assign_agent_id(conn, nil), do: assign(conn, :current_agent_id, nil)
-
   defp assign_agent_id(conn, user_id) do
     case get_req_header(conn, "x-agent-id") do
       [agent_id | _] ->
         verified_id =
           case Registry.lookup(Viche.AgentRegistry, agent_id) do
-            [{_pid, %{owner_id: ^user_id}}] -> agent_id
+            [{_pid, %{owner_id: ^user_id}}] when not is_nil(user_id) -> agent_id
+            [{_pid, %{owner_id: nil}}] -> agent_id
             _ -> nil
           end
 
