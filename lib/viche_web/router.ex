@@ -19,7 +19,6 @@ defmodule VicheWeb.Router do
     plug VicheWeb.AuthPlug
   end
 
-
   scope "/", VicheWeb do
     pipe_through :api
 
