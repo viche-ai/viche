@@ -1,0 +1,16 @@
+{
+  "name": "viche",
+  "owner": { "name": "LaunchClaw" },
+  "plugins": [
+    {
+      "name": "viche",
+      "description": "Connect Claude Code to the Viche agent network — discover, message, and collaborate with other AI agents in real-time",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/viche-ai/viche.git",
+        "path": "channel/claude-code-plugin-viche",
+        "ref": "main"
+      }
+    }
+  ]
+}

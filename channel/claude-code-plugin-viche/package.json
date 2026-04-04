@@ -1,0 +1,10 @@
+{
+  "name": "claude-code-plugin-viche",
+  "version": "1.0.0",
+  "description": "Claude Code plugin: Connect to the Viche agent network for multi-agent collaboration",
+  "private": true,
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "phoenix": "^1.7.0"
+  }
+}
