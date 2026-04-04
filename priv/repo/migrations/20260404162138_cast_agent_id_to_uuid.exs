@@ -6,6 +6,8 @@ defmodule Viche.Repo.Migrations.CastAgentIdToUuid do
   end
 
   def down do
-    execute("ALTER TABLE agents ALTER COLUMN id TYPE character varying(255) USING id::character varying")
+    execute(
+      "ALTER TABLE agents ALTER COLUMN id TYPE character varying(255) USING id::character varying"
+    )
   end
 end
