@@ -58,8 +58,10 @@ defmodule Viche.Auth do
       Logger.debug("\n\n  [magic link] #{url}\n")
     end
 
-    Email.magic_link(email, url)
-    |> Mailer.deliver()
+    Task.start(fn ->
+      Email.magic_link(email, url)
+      |> Mailer.deliver()
+    end)
 
     {:ok, user}
   end
