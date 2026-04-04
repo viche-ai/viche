@@ -38,7 +38,7 @@ defmodule VicheWeb.Plugs.ApiAuth do
     if Map.has_key?(conn.assigns, :current_agent_id) do
       conn
     else
-      with [raw_token] <- get_req_header(conn, "authorization"),
+      with [raw_token | _] <- get_req_header(conn, "authorization"),
            "Bearer " <> token <- raw_token,
            {:ok, auth_token} <- Auth.verify_api_token(String.trim(token)) do
         conn
@@ -71,7 +71,7 @@ defmodule VicheWeb.Plugs.ApiAuth do
 
   defp assign_agent_id(conn, user_id) do
     case get_req_header(conn, "x-agent-id") do
-      [agent_id] ->
+      [agent_id | _] ->
         verified_id =
           case Registry.lookup(Viche.AgentRegistry, agent_id) do
             [{_pid, %{owner_id: ^user_id}}] -> agent_id

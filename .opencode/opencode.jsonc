@@ -13,5 +13,5 @@
       "*": "allow"
     }
   },
-  "plugin": ["../channel/opencode-plugin-viche/index.ts"]
+  // "plugin": ["opencode-plugin-viche"]
 }

@@ -1,7 +1,11 @@
 {
-  "registryUrl": "https://viche.ai",
-  "agentName": "geth-drone-viche",
-  "description": "Hivemind drone — viche workspace",
-  "capabilities": ["coding", "viche"],
-  "registries": ["ff271694-202f-4600-be93-746b8a60a4af"]
+  "registryUrl": "http://localhost:4000",
+  "capabilities": [
+    "coding"
+  ],
+  "agentName": "Ihor's personal opencode",
+  "description": "Personal AI coding assistant connected via OpenCode",
+  "registries": [
+    "local-development"
+  ]
 }
