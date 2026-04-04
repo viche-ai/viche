@@ -11,7 +11,7 @@ defmodule VicheWeb.AgentSocket do
   When a `token` parameter is provided, it is validated as an API token and the
   owning user must match the agent's owner. Connections to agents owned by a
   different user are rejected. When no token is provided, the connection is
-  allowed only if the agent is unclaimed (no owner) or REQUIRE_AUTH is not set.
+  allowed only if the agent is unclaimed (no owner).
   """
 
   use Phoenix.Socket
@@ -42,15 +42,11 @@ defmodule VicheWeb.AgentSocket do
   def id(socket), do: "agent_socket:#{socket.assigns.agent_id}"
 
   defp authenticate_socket(nil, agent_id) do
-    if Agents.require_auth?() do
-      :error
-    else
-      # No token — allow only if agent is unclaimed
-      case Agents.get_agent_record(agent_id) do
-        nil -> :ok
-        %{user_id: nil} -> :ok
-        _ -> :error
-      end
+    # No token — allow only if agent is unclaimed
+    case Agents.get_agent_record(agent_id) do
+      nil -> :ok
+      %{user_id: nil} -> :ok
+      _ -> :error
     end
   end
 

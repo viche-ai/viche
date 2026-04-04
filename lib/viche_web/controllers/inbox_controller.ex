@@ -17,14 +17,7 @@ defmodule VicheWeb.InboxController do
   @spec read_inbox(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def read_inbox(conn, %{"agent_id" => agent_id}) do
     user_id = conn.assigns[:current_user_id]
-
-    if Agents.require_auth?() and is_nil(user_id) do
-      conn
-      |> put_status(:unauthorized)
-      |> json(%{error: "authentication_required"})
-    else
-      handle_read_inbox(conn, user_id, agent_id)
-    end
+    handle_read_inbox(conn, user_id, agent_id)
   end
 
   defp handle_read_inbox(conn, user_id, agent_id) do
