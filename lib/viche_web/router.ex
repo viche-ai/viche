@@ -65,11 +65,6 @@ defmodule VicheWeb.Router do
     pipe_through :api
 
     post "/register", RegistryController, :register
-  end
-
-  scope "/registry", VicheWeb do
-    pipe_through [:api, :require_api_auth]
-
     delete "/deregister/:agent_id", RegistryController, :deregister
     get "/discover", RegistryController, :discover
   end
