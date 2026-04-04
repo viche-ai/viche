@@ -2,7 +2,7 @@ defmodule Viche.Repo.Migrations.AddUserIdToAgents do
   use Ecto.Migration
 
   def change do
-    create table(:agents, primary_key: false) do
+    create_if_not_exists table(:agents, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :name, :string
       add :capabilities, {:array, :string}, default: []
@@ -12,6 +12,6 @@ defmodule Viche.Repo.Migrations.AddUserIdToAgents do
       timestamps(type: :utc_datetime)
     end
 
-    create index(:agents, [:user_id])
+    create_if_not_exists index(:agents, [:user_id])
   end
 end
