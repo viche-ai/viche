@@ -9,7 +9,9 @@ defmodule VicheWeb.DashboardRegistryLeakArgusTest do
       DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
     end)
 
-    {:ok, user} = Viche.Accounts.create_user(%{email: "leak-test-#{System.unique_integer()}@example.com"})
+    {:ok, user} =
+      Viche.Accounts.create_user(%{email: "leak-test-#{System.unique_integer()}@example.com"})
+
     {:ok, user: user}
   end
 

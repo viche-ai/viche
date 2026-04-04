@@ -252,29 +252,21 @@ defmodule VicheWeb.DashboardLive do
     # When not logged in, show only claimed agents (user_id IS NOT NULL).
     user_id = socket.assigns[:current_user_id]
 
-    owned_ids =
-      if user_id, do: MapSet.new(Viche.Agents.list_agent_ids_for_user(user_id)), else: nil
-
-    claimed_ids = MapSet.new(Viche.Agents.list_claimed_agent_ids())
-
-    agents =
+    allowed_ids =
       if user_id do
-        Enum.filter(all_agents, &MapSet.member?(owned_ids, &1.id))
+        MapSet.new(Viche.Agents.list_agent_ids_for_user(user_id))
       else
-        Enum.filter(all_agents, &MapSet.member?(claimed_ids, &1.id))
+        MapSet.new(Viche.Agents.list_claimed_agent_ids())
       end
+
+    agents = Enum.filter(all_agents, &MapSet.member?(allowed_ids, &1.id))
 
     metrics_agents =
       if socket.assigns.public_mode do
         agents
       else
         all_unfiltered = Viche.Agents.list_agents_with_status(:all)
-
-        if user_id do
-          Enum.filter(all_unfiltered, &MapSet.member?(owned_ids, &1.id))
-        else
-          Enum.filter(all_unfiltered, &MapSet.member?(claimed_ids, &1.id))
-        end
+        Enum.filter(all_unfiltered, &MapSet.member?(allowed_ids, &1.id))
       end
 
     online = Enum.count(metrics_agents, &(&1.status == :online))

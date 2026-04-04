@@ -18,13 +18,23 @@ defmodule VicheWeb.InboxController do
   def read_inbox(conn, %{"agent_id" => agent_id}) do
     user_id = conn.assigns[:current_user_id]
 
-    cond do
-      Agents.require_auth?() and is_nil(user_id) ->
-        conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "authentication_required"})
+    if Agents.require_auth?() and is_nil(user_id) do
+      conn
+      |> put_status(:unauthorized)
+      |> json(%{error: "authentication_required"})
+    else
+      handle_read_inbox(conn, user_id, agent_id)
+    end
+  end
 
-      not is_nil(user_id) and not Agents.user_owns_agent?(user_id, agent_id) ->
+  defp handle_read_inbox(conn, user_id, agent_id) do
+    case Agents.user_owns_agent?(user_id, agent_id) do
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "agent_not_found"})
+
+      false ->
         conn
         |> put_status(:forbidden)
         |> json(%{error: "not_owner"})

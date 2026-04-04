@@ -55,17 +55,15 @@ defmodule VicheWeb.UserScopedAgentsControllerTest do
       assert json_response(conn, 200)
     end
 
-    test "unauthenticated user reading owned agent inbox is allowed (no REQUIRE_AUTH)", %{
-      conn: conn
-    } do
+    test "unauthenticated user reading owned agent inbox is denied (even with no REQUIRE_AUTH)",
+         %{
+           conn: conn
+         } do
       {user, _} = create_user_with_token()
       agent = register_agent!(%{capabilities: ["c"], user_id: user.id})
 
-      # Without auth, current_user_id is nil — user_owns_agent?(nil, _) returns false
-      # But without REQUIRE_AUTH, the scoping only applies when authenticated
       conn = get(conn, ~p"/inbox/#{agent.id}")
-      # Should return 200 (no REQUIRE_AUTH env set)
-      assert json_response(conn, 200)
+      assert json_response(conn, 403)["error"] == "not_owner"
     end
   end
 
