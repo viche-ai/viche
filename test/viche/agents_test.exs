@@ -1,5 +1,5 @@
 defmodule Viche.AgentsTest do
-  use ExUnit.Case, async: false
+  use Viche.DataCase, async: false
 
   alias Viche.Agents
 

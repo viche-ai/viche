@@ -14,6 +14,18 @@ defmodule VicheWeb.RegistryController do
 
   @spec register(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def register(conn, params) do
+    user_id = conn.assigns[:current_user_id]
+
+    if Agents.require_auth?() and is_nil(user_id) do
+      conn
+      |> put_status(:unauthorized)
+      |> json(%{error: "authentication_required"})
+    else
+      do_register(conn, params, user_id)
+    end
+  end
+
+  defp do_register(conn, params, user_id) do
     polling_timeout_ms = Map.get(params, "polling_timeout_ms")
     grace_period_ms = Map.get(params, "grace_period_ms")
     registries = Map.get(params, "registries")
@@ -26,7 +38,8 @@ defmodule VicheWeb.RegistryController do
            description: Map.get(params, "description"),
            polling_timeout_ms: polling_timeout_ms,
            grace_period_ms: grace_period_ms,
-           registries: registries
+           registries: registries,
+           user_id: user_id
          },
          {:ok, agent} <- Agents.register_agent(attrs) do
       conn
@@ -77,6 +90,44 @@ defmodule VicheWeb.RegistryController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "invalid_registry_token"})
+    end
+  end
+
+  @spec deregister(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def deregister(conn, %{"agent_id" => agent_id}) do
+    user_id = conn.assigns[:current_user_id]
+
+    if Agents.require_auth?() and is_nil(user_id) do
+      conn
+      |> put_status(:unauthorized)
+      |> json(%{error: "authentication_required"})
+    else
+      handle_deregister(conn, user_id, agent_id)
+    end
+  end
+
+  defp handle_deregister(conn, user_id, agent_id) do
+    case Agents.user_owns_agent?(user_id, agent_id) do
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "agent_not_found"})
+
+      false ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "not_owner"})
+
+      true ->
+        case Agents.deregister(agent_id) do
+          :ok ->
+            json(conn, %{deregistered: true})
+
+          {:error, :agent_not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "agent_not_found"})
+        end
     end
   end
 

@@ -22,6 +22,8 @@ end
 
 config :viche, VicheWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+config :viche, require_auth: System.get_env("REQUIRE_AUTH") == "true"
+
 # ---------------------------------------------------------------------------
 # Email provider (all envs except test, which uses Swoosh.Adapters.Test)
 # ---------------------------------------------------------------------------

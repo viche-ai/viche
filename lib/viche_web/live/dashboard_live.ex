@@ -4,13 +4,15 @@ defmodule VicheWeb.DashboardLive do
   alias VicheWeb.Live.RegistryScope
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     socket =
       socket
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
+      |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> load_and_assign_agents()
@@ -244,13 +246,27 @@ defmodule VicheWeb.DashboardLive do
 
   defp load_and_assign_agents(socket) do
     filter = RegistryScope.to_filter(socket.assigns.selected_registry)
-    agents = Viche.Agents.list_agents_with_status(filter)
+    all_agents = Viche.Agents.list_agents_with_status(filter)
+
+    # Filter to show only the current user's agents on the dashboard.
+    # When not logged in, show only claimed agents (user_id IS NOT NULL).
+    user_id = socket.assigns[:current_user_id]
+
+    allowed_ids =
+      if user_id do
+        MapSet.new(Viche.Agents.list_agent_ids_for_user(user_id))
+      else
+        MapSet.new(Viche.Agents.list_claimed_agent_ids())
+      end
+
+    agents = Enum.filter(all_agents, &MapSet.member?(allowed_ids, &1.id))
 
     metrics_agents =
       if socket.assigns.public_mode do
         agents
       else
-        Viche.Agents.list_agents_with_status(:all)
+        all_unfiltered = Viche.Agents.list_agents_with_status(:all)
+        Enum.filter(all_unfiltered, &MapSet.member?(allowed_ids, &1.id))
       end
 
     online = Enum.count(metrics_agents, &(&1.status == :online))

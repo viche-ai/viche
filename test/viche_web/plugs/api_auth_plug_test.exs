@@ -17,6 +17,7 @@ defmodule VicheWeb.ApiAuthPlugTest do
       Accounts.create_user(%{
         email: "api-auth-plug-test-#{System.unique_integer()}@example.com"
       })
+
     user
   end
 
@@ -28,7 +29,7 @@ defmodule VicheWeb.ApiAuthPlugTest do
   setup do
     Application.put_env(:viche, :require_auth, true)
     on_exit(fn -> Application.put_env(:viche, :require_auth, false) end)
-    
+
     conn = build_conn()
     {:ok, conn: conn}
   end
