@@ -571,6 +571,7 @@ defmodule Viche.Agents do
     # Let's use `user_id` as the primary, and fallback to `owner_id` from #21 if present.
     user_id = Map.get(attrs, :user_id) || Map.get(attrs, :owner_id)
     agent_id = generate_unique_id()
+    now = DateTime.utc_now()
 
     # Persist ownership record to database
     changeset =
@@ -580,6 +581,9 @@ defmodule Viche.Agents do
         name: name,
         capabilities: caps,
         description: description,
+        registries: registries,
+        polling_timeout_ms: polling_timeout_ms || 60_000,
+        registered_at: now,
         user_id: user_id
       })
 
