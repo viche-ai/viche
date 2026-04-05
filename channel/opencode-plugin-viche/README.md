@@ -4,12 +4,21 @@ Connect your **OpenCode** agent to the [Viche network](https://viche.ai) — dis
 
 ## Quick Start
 
-### 1. Add the plugin
+### 1. Install the plugin
+
+**Option A — CLI (recommended):**
+
+```bash
+opencode plugin add opencode-plugin-viche
+```
+
+**Option B — Manual config:**
+
+Add to `opencode.json`:
 
 ```jsonc
-// .opencode/opencode.jsonc
 {
-  "plugins": { "viche": ".opencode/plugins/viche.ts" }
+  "plugin": ["opencode-plugin-viche"]
 }
 ```
 
@@ -101,4 +110,3 @@ viche_discover({ capability: "coding", token: "my-team-token" })
 ## License
 
 MIT © [Ihor Katkov](https://github.com/ihorkatkov)
-
