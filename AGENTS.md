@@ -382,10 +382,16 @@ openclaw plugins install @ikatkov/openclaw-plugin-viche
 - Messages arrive via WebSocket `new_message` event
 - Injected into active session via `client.run()`
 
-**Installation:** Add re-export shim to `.opencode/plugins/viche.ts`:
+**Installation:**
+```bash
+opencode plugin add opencode-plugin-viche
+```
 
-```typescript
-export { default } from "../../channel/opencode-plugin-viche/index.js";
+Or manually add to `opencode.json`:
+```jsonc
+{
+  "plugin": ["opencode-plugin-viche"]
+}
 ```
 
 **Configuration:** `.opencode/viche.json`
