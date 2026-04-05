@@ -7,6 +7,7 @@ defmodule VicheWeb.RegistriesLive do
 
   use VicheWeb, :live_view
 
+  alias Viche.Agents
   alias Viche.Registries
   alias Viche.Registries.Registry
 
@@ -17,19 +18,29 @@ defmodule VicheWeb.RegistriesLive do
     socket =
       if user_id do
         registries = Registries.list_user_registries(user_id)
+        registry_tokens = Enum.map(registries, & &1.id)
+        agent_counts = Agents.registry_agent_counts()
 
         socket
         |> assign(:current_user_id, user_id)
         |> assign(:registries, registries)
+        |> assign(:registry_tokens, registry_tokens)
+        |> assign(:selected_registry, "global")
+        |> assign(:agent_counts, agent_counts)
         |> assign(:show_create_modal, false)
         |> assign(:show_delete_modal, false)
         |> assign(:registry_to_delete, nil)
         |> assign(:form, to_form(Registry.changeset(%Registry{}, %{}), as: :registry))
         |> assign(:copied_id, nil)
+        |> assign(:mobile_menu_open, false)
       else
         socket
         |> assign(:current_user_id, nil)
         |> assign(:registries, [])
+        |> assign(:registry_tokens, [])
+        |> assign(:selected_registry, "global")
+        |> assign(:agent_counts, %{})
+        |> assign(:mobile_menu_open, false)
       end
 
     {:ok, socket}
@@ -53,9 +64,23 @@ defmodule VicheWeb.RegistriesLive do
   end
 
   def handle_event("validate_create", %{"registry" => registry_params}, socket) do
+    # phx-change sends all form fields, so we need to merge carefully
+    # to preserve existing values when incoming params are empty strings
+    existing_params =
+      case socket.assigns.form do
+        %Phoenix.HTML.Form{params: params} when is_map(params) -> params
+        _ -> %{}
+      end
+
+    # Keep keys consistently as strings to avoid mixed-key maps
+    merged_params =
+      Map.merge(existing_params, registry_params, fn _key, existing, new ->
+        if new in ["", nil], do: existing, else: new
+      end)
+
     changeset =
       %Registry{}
-      |> Registry.changeset(registry_params)
+      |> Registry.changeset(merged_params)
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset, as: :registry))}
@@ -67,10 +92,14 @@ defmodule VicheWeb.RegistriesLive do
     case Registries.create_registry(user_id, registry_params) do
       {:ok, _registry} ->
         registries = Registries.list_user_registries(user_id)
+        registry_tokens = Enum.map(registries, & &1.id)
+        agent_counts = Agents.registry_agent_counts()
 
         {:noreply,
          socket
          |> assign(:registries, registries)
+         |> assign(:registry_tokens, registry_tokens)
+         |> assign(:agent_counts, agent_counts)
          |> assign(:show_create_modal, false)
          |> put_flash(:info, "Registry created successfully!")
          |> assign(:form, to_form(Registry.changeset(%Registry{}, %{}), as: :registry))}
@@ -103,10 +132,14 @@ defmodule VicheWeb.RegistriesLive do
     case Registries.delete_registry(registry) do
       {:ok, _} ->
         registries = Registries.list_user_registries(socket.assigns.current_user_id)
+        registry_tokens = Enum.map(registries, & &1.id)
+        agent_counts = Agents.registry_agent_counts()
 
         {:noreply,
          socket
          |> assign(:registries, registries)
+         |> assign(:registry_tokens, registry_tokens)
+         |> assign(:agent_counts, agent_counts)
          |> assign(:show_delete_modal, false)
          |> assign(:registry_to_delete, nil)
          |> put_flash(:info, "Registry deleted")}
@@ -127,6 +160,11 @@ defmodule VicheWeb.RegistriesLive do
 
   def handle_event("toggle_mobile_menu", _params, socket) do
     {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
+  end
+
+  def handle_event("select_registry", %{"registry" => _registry}, socket) do
+    # Registry selection is handled by parent LiveViews
+    {:noreply, socket}
   end
 
   @impl true

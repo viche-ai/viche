@@ -8,6 +8,7 @@ defmodule VicheWeb.RegistryDetailLive do
 
   use VicheWeb, :live_view
 
+  alias Viche.Agents
   alias Viche.Registries
 
   @impl true
@@ -15,6 +16,17 @@ defmodule VicheWeb.RegistryDetailLive do
     user_id = session["user_id"]
 
     registry = Registries.get_registry(id)
+    user_registries = if user_id, do: Registries.list_user_registries(user_id), else: []
+    registry_tokens = Enum.map(user_registries, & &1.id)
+    selected_registry = if registry, do: registry.id, else: "global"
+
+    registry_agent_count =
+      if registry do
+        Agents.registry_agent_counts()
+        |> Map.get(registry.id, 0)
+      else
+        0
+      end
 
     # Authorization check - redirect non-owners
     if registry && registry.owner_id != user_id do
@@ -24,6 +36,9 @@ defmodule VicheWeb.RegistryDetailLive do
        |> assign(:registry, nil)
        |> assign(:is_owner, false)
        |> assign(:copied, false)
+       |> assign(:registry_tokens, registry_tokens)
+       |> assign(:selected_registry, "global")
+       |> assign(:registry_agent_count, 0)
        |> assign(:mobile_menu_open, false)
        |> put_flash(:error, "You don't have access to this registry")
        |> push_navigate(to: ~p"/registries")}
@@ -34,6 +49,9 @@ defmodule VicheWeb.RegistryDetailLive do
         |> assign(:registry, registry)
         |> assign(:is_owner, registry != nil)
         |> assign(:copied, false)
+        |> assign(:registry_tokens, registry_tokens)
+        |> assign(:selected_registry, selected_registry)
+        |> assign(:registry_agent_count, registry_agent_count)
         |> assign(:mobile_menu_open, false)
 
       {:ok, socket}

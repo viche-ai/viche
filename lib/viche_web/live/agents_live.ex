@@ -4,13 +4,14 @@ defmodule VicheWeb.AgentsLive do
   alias VicheWeb.Live.RegistryScope
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     if connected?(socket) do
       RegistryScope.subscribe("global")
       Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
     end
 
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     socket =
       socket
@@ -19,7 +20,8 @@ defmodule VicheWeb.AgentsLive do
       |> assign(:session_count, 3)
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
-      |> assign(:registries, RegistryScope.visible_registries(public_mode))
+      |> assign(:current_user_id, user_id)
+      |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:messages_today, Viche.MessageCounter.get())
       |> assign(:mobile_menu_open, false)
       |> load_agents()
@@ -85,7 +87,13 @@ defmodule VicheWeb.AgentsLive do
       when event in ["agent_joined", "agent_left"] do
     socket =
       socket
-      |> assign(:registries, RegistryScope.visible_registries(socket.assigns.public_mode))
+      |> assign(
+        :registries,
+        RegistryScope.visible_registries(
+          socket.assigns.public_mode,
+          socket.assigns.current_user_id
+        )
+      )
       |> load_agents()
 
     {:noreply, socket}

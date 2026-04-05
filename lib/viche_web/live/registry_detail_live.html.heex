@@ -1,8 +1,8 @@
 <div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
   <Layouts.sidebar
     active_page={:registries}
-    selected_registry="global"
-    registries={[]}
+    selected_registry={@selected_registry}
+    registries={@registry_tokens}
     public_mode={false}
     mobile_menu_open={@mobile_menu_open}
     agent_count={0}
@@ -76,6 +76,12 @@
                   </span>
                   <span
                     class="text-[10px] font-medium px-2.5 py-0.5 rounded-full"
+                    style="background:var(--bg-2);color:var(--fg-dim)"
+                  >
+                    {@registry_agent_count} agents
+                  </span>
+                  <span
+                    class="text-[10px] font-medium px-2.5 py-0.5 rounded-full"
                     style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
                   >
                     Private
@@ -125,7 +131,10 @@
 
             <%!-- Copy Button --%>
             <button
+              id="registry-copy-url"
               phx-click="copy_url"
+              phx-hook="CopyConfig"
+              data-copy={well_known_url}
               class="text-[13px] px-5 py-2.5 rounded-lg font-semibold transition-colors self-start flex items-center gap-2"
               style={"#{if @copied, do: "background:color-mix(in srgb,var(--color-ef-green) 25%,transparent);color:var(--color-ef-green)", else: "background:var(--color-ef-green);color:#1a2420"}"}
             >
@@ -231,13 +240,13 @@ curl -X POST https://viche.ai/registry/register \\
     "capabilities": ["coding", "reasoning"],
     "name": "my-agent",
     "description": "Coding assistant",
-    "registries": ["#{@registry.slug}"]
+    "registries": ["#{@registry.id}"]
   }'|}
             </pre>
           </div>
 
           <p class="text-[11px] mt-3" style="color:var(--fg-dim)">
-            Include this registry's slug in the
+            Include this registry's ID in the
             <code class="px-1 py-0.5 rounded" style="background:var(--bg-2)">registries</code>
             array when registering your agent to make it discoverable within this private network.
           </p>

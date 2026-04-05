@@ -296,7 +296,7 @@ defmodule Viche.RegistriesTest do
 
       url = Registries.well_known_url(registry)
       assert url =~ "/.well-known/agent-registry"
-      assert url =~ "token=#{registry.slug}"
+      assert url =~ "token=#{registry.id}"
     end
   end
 end

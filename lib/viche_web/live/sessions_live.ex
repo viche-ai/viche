@@ -4,7 +4,7 @@ defmodule VicheWeb.SessionsLive do
   alias VicheWeb.Live.RegistryScope
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     if connected?(socket) do
       RegistryScope.subscribe("global")
       subscribe_to_all_agents()
@@ -12,6 +12,7 @@ defmodule VicheWeb.SessionsLive do
     end
 
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     socket =
       socket
@@ -20,7 +21,8 @@ defmodule VicheWeb.SessionsLive do
       |> assign(:messages_today, 0)
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
-      |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
+      |> assign(:current_user_id, user_id)
+      |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> assign(:mobile_menu_open, false)
       |> load_inboxes()
@@ -90,7 +92,10 @@ defmodule VicheWeb.SessionsLive do
       socket
       |> assign(
         :registries,
-        if(socket.assigns.public_mode, do: [], else: Viche.Agents.list_registries())
+        RegistryScope.visible_registries(
+          socket.assigns.public_mode,
+          socket.assigns.current_user_id
+        )
       )
       |> assign(:agent_registry_map, new_agent_registry_map)
       |> load_inboxes()
@@ -105,7 +110,10 @@ defmodule VicheWeb.SessionsLive do
       socket
       |> assign(
         :registries,
-        if(socket.assigns.public_mode, do: [], else: Viche.Agents.list_registries())
+        RegistryScope.visible_registries(
+          socket.assigns.public_mode,
+          socket.assigns.current_user_id
+        )
       )
       |> assign(:agent_registry_map, new_agent_registry_map)
       |> load_inboxes()

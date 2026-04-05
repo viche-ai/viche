@@ -95,12 +95,28 @@ defmodule VicheWeb.Live.RegistryScope do
   end
 
   @doc """
-  Returns `[]` in public mode (selector is hidden), otherwise lists all
-  known registries.  Use in `mount/3` to populate the `:registries` assign.
+  Returns `[]` in public mode (selector is hidden), otherwise lists the
+  current user's registry tokens. Use in `mount/3` to populate the `:registries` assign.
   """
-  @spec visible_registries(boolean()) :: [String.t()]
-  def visible_registries(true), do: []
-  def visible_registries(false), do: Viche.Agents.list_registries()
+  @spec visible_registries(boolean(), String.t() | nil) :: [String.t()]
+  def visible_registries(true, _user_id), do: []
+
+  def visible_registries(false, user_id) do
+    user_registry_ids =
+      case user_id do
+        id when is_binary(id) ->
+          Viche.Registries.list_user_registries(id)
+          |> Enum.map(& &1.id)
+
+        _ ->
+          []
+      end
+
+    agent_registries = Viche.Agents.list_registries()
+
+    (user_registry_ids ++ agent_registries)
+    |> Enum.uniq()
+  end
 
   @doc """
   Returns the correct agent list for computing sidebar metrics.

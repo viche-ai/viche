@@ -1,8 +1,8 @@
 <div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
   <Layouts.sidebar
     active_page={:registries}
-    selected_registry="global"
-    registries={[]}
+    selected_registry={@selected_registry}
+    registries={@registry_tokens}
     public_mode={false}
     mobile_menu_open={@mobile_menu_open}
     agent_count={0}
@@ -90,6 +90,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <%= for registry <- @registries do %>
             <% well_known_url = Viche.Registries.well_known_url(registry)
+            agent_count = Map.get(@agent_counts, registry.id, 0)
             is_copied = @copied_id == registry.id %>
             <div
               class="rounded-xl p-4 flex flex-col gap-3"
@@ -105,12 +106,20 @@
                     {registry.slug}
                   </p>
                 </div>
-                <span
-                  class="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                  style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
-                >
-                  Private
-                </span>
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    style="background:var(--bg-2);color:var(--fg-dim)"
+                  >
+                    {agent_count} agents
+                  </span>
+                  <span
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+                  >
+                    Private
+                  </span>
+                </div>
               </div>
 
               <%!-- Description --%>
@@ -139,8 +148,11 @@
                   {well_known_url}
                 </div>
                 <button
+                  id={"registry-copy-#{registry.id}"}
                   phx-click="copy_url"
                   phx-value-id={registry.id}
+                  phx-hook="CopyConfig"
+                  data-copy={well_known_url}
                   class="text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-colors self-start flex items-center gap-1.5"
                   style={"#{if is_copied, do: "background:color-mix(in srgb,var(--color-ef-green) 20%,transparent);color:var(--color-ef-green)", else: "background:var(--bg-2);color:var(--fg-dim)"}"}
                 >
@@ -188,7 +200,7 @@
   <div
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     style="background:rgba(0,0,0,0.5)"
-    phx-click="close_create_modal"
+    phx-click-away={:close_create_modal}
     id="create-modal-backdrop"
   >
     <div
@@ -218,7 +230,7 @@
         <%!-- Name --%>
         <div class="flex flex-col gap-1.5">
           <label
-            for="registry_name"
+            for="name"
             class="text-[11px] font-semibold uppercase tracking-wide"
             style="color:var(--fg-dim)"
           >
@@ -226,22 +238,23 @@
           </label>
           <input
             type="text"
-            id="registry_name"
+            id="name"
             name="registry[name]"
-            value={@form[:name].value}
+            phx-feedback-for="name"
             placeholder="My Private Network"
+            value={@form[:name].value}
             class="w-full px-3 py-2.5 rounded-lg text-[13px]"
             style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
           />
-          <%= for error <- @form[:name].errors do %>
-            <p class="text-[11px]" style="color:#ef4444">{error.message}</p>
+          <%= for {msg, _opts} <- @form[:name].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
           <% end %>
         </div>
 
         <%!-- Slug --%>
         <div class="flex flex-col gap-1.5">
           <label
-            for="registry_slug"
+            for="slug"
             class="text-[11px] font-semibold uppercase tracking-wide"
             style="color:var(--fg-dim)"
           >
@@ -249,42 +262,43 @@
           </label>
           <input
             type="text"
-            id="registry_slug"
+            id="slug"
             name="registry[slug]"
-            value={@form[:slug].value}
+            phx-feedback-for="slug"
             placeholder="my-private-network"
+            value={@form[:slug].value}
             class="w-full px-3 py-2.5 rounded-lg text-[13px]"
             style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
           />
           <p class="text-[10px]" style="color:var(--fg-dim)">
             3-50 characters, lowercase letters, numbers, and hyphens only
           </p>
-          <%= for error <- @form[:slug].errors do %>
-            <p class="text-[11px]" style="color:#ef4444">{error.message}</p>
+          <%= for {msg, _opts} <- @form[:slug].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
           <% end %>
         </div>
 
         <%!-- Description --%>
         <div class="flex flex-col gap-1.5">
           <label
-            for="registry_description"
+            for="description"
             class="text-[11px] font-semibold uppercase tracking-wide"
             style="color:var(--fg-dim)"
           >
             Description <span class="font-normal">(optional)</span>
           </label>
           <textarea
-            id="registry_description"
+            id="description"
             name="registry[description]"
-            value={@form[:description].value}
+            phx-feedback-for="description"
             placeholder="A private network for my coding agents"
             rows="2"
             maxlength="280"
             class="w-full px-3 py-2.5 rounded-lg text-[13px] resize-none"
             style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
-          ></textarea>
-          <%= for error <- @form[:description].errors do %>
-            <p class="text-[11px]" style="color:#ef4444">{error.message}</p>
+          >{@form[:description].value}</textarea>
+          <%= for {msg, _opts} <- @form[:description].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
           <% end %>
         </div>
 
@@ -316,7 +330,7 @@
   <div
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     style="background:rgba(0,0,0,0.5)"
-    phx-click="close_delete_modal"
+    phx-click-away={:close_delete_modal}
     id="delete-modal-backdrop"
   >
     <div

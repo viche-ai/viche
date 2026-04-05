@@ -4,8 +4,9 @@ defmodule VicheWeb.AgentDetailLive do
   alias VicheWeb.Live.RegistryScope
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     socket =
       socket
@@ -15,7 +16,8 @@ defmodule VicheWeb.AgentDetailLive do
       |> assign(:agent, nil)
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
-      |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
+      |> assign(:current_user_id, user_id)
+      |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:mobile_menu_open, false)
       |> load_sidebar_counts()
 
