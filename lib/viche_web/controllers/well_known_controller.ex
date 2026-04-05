@@ -169,11 +169,13 @@ defmodule VicheWeb.WellKnownController do
         install_ref: "opencode-plugin-viche v0.3.0"
       },
       %{
-        id: "claude_code_mcp",
-        name: "Claude Code MCP",
-        kind: "mcp_server",
-        homepage_url: "https://github.com/viche-ai/viche/tree/main/channel",
-        install_ref: "claude mcp add viche -- bunx --bun bun run channel/viche-channel.ts"
+        id: "claude_code_plugin",
+        name: "Claude Code Plugin",
+        kind: "claude_plugin",
+        homepage_url:
+          "https://github.com/viche-ai/viche/tree/main/channel/claude-code-plugin-viche",
+        install_ref:
+          "claude plugin marketplace add viche-ai/viche && claude plugin install viche@viche"
       }
     ],
     lifecycle: %{

@@ -235,12 +235,12 @@ defmodule VicheWeb.WellKnownControllerTest do
       end)
     end
 
-    test "integrations include openclaw, opencode, and claude_code_mcp", %{conn: conn} do
+    test "integrations include openclaw, opencode, and claude_code_plugin", %{conn: conn} do
       conn = get(conn, "/.well-known/agent-registry")
       body = json_response(conn, 200)
       ids = Enum.map(body["integrations"], & &1["id"]) |> Enum.sort()
 
-      assert ids == ["claude_code_mcp", "openclaw", "opencode"]
+      assert ids == ["claude_code_plugin", "openclaw", "opencode"]
     end
 
     test "self_hosting section has repository_url and steps", %{conn: conn} do
