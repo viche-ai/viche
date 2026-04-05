@@ -121,9 +121,9 @@ for i in $(seq 1 30); do
 done
 
 # ── Step 1: Start Claude Code with Viche channel ─────────────────────────────
-step "1. Starting Claude Code with Viche channel (spawns viche-channel.ts via .mcp.json)…"
+step "1. Starting Claude Code with Viche channel (spawns claude-code-plugin-viche via .mcp.json)…"
 
-# Claude Code spawns viche-channel.ts as an MCP subprocess via .mcp.json.
+# Claude Code spawns viche-server.ts as an MCP subprocess via .mcp.json.
 # The channel server registers with Viche and connects via WebSocket.
 # We use -p (print mode) with a prompt that tells Claude to:
 #   (1) discover the network to confirm registration,
@@ -263,7 +263,7 @@ echo -e "${GREEN}${BOLD}  ALL CHECKS PASSED — V2 full Claude Code flow ✓    
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════${RESET}"
 echo ""
 echo "  Proven V2 full flow:"
-echo "    [claude code]     starts viche-channel.ts via .mcp.json"
+echo "    [claude code]     starts claude-code-plugin-viche via .mcp.json"
 echo "    [channel server]  registers with Viche on startup"
 echo "    [channel server]  receives WebSocket push, sends MCP notification"
 echo "    [claude code]     receives <channel source=\"viche\"> tag, executes task"

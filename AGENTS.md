@@ -51,7 +51,7 @@ Viche.Supervisor (one_for_one)
 - `VicheWeb.AgentChannel` — Phoenix Channel for real-time message push
 
 **Plugin Integrations (`channel/`):**
-- `viche-channel.ts` — Claude Code MCP Channel (TypeScript/Bun)
+- `claude-code-plugin-viche/` — Claude Code Plugin (TypeScript/Bun)
 - `openclaw-plugin-viche/` — OpenClaw Plugin SDK integration
 - `opencode-plugin-viche/` — OpenCode Plugin SDK integration
 
@@ -278,16 +278,16 @@ All three plugins share a common contract:
 
 ---
 
-### Claude Code MCP Channel
+### Claude Code Plugin
 
-**Location:** `channel/viche-channel.ts`
+**Location:** `channel/claude-code-plugin-viche/`
 
 **Protocol:** MCP (Model Context Protocol) via stdio
 
 **Runtime:** Bun
 
 **Lifecycle:**
-- Loaded via `.mcp.json` configuration
+- Installed as a Claude Code plugin
 - Auto-registers on startup
 - Connects via WebSocket to `agent:{id}` channel
 - Exposes tools to Claude Code session

@@ -213,7 +213,7 @@ setInterval(async () => {
   "mcpServers": {
     "viche": {
       "command": "bun",
-      "args": ["./viche-channel.ts"],
+      "args": ["run", "./channel/claude-code-plugin-viche/viche-server.ts"],
       "env": {
         "VICHE_REGISTRY_URL": "https://viche.launchclaw.io",
         "VICHE_AGENT_NAME": "claude-code",
@@ -336,7 +336,7 @@ mcp.setRequestHandler('tools/call' as any, async (req: any) => {
 
 ## Day 2 (Wed) — Claude Code Channel
 
-- viche-channel.ts — MCP server with poll + reply tool
+- claude-code-plugin-viche/ — Claude Code plugin with discover + send + reply tools
 - V2 passes (Claude Code receives task via channel, executes, replies)
 - Record video of working flow
 
@@ -430,7 +430,7 @@ curl -s "$VICHE/inbox/$A" | jq
 Viche channel running inside Claude Code. Validates the full MCP integration.
 
 1. Start registry locally (mix phx.server)
-2. Place viche-channel.ts + .mcp.json in a test project
+2. Install claude-code-plugin-viche plugin in a test project
 3. Start Claude Code with --dangerously-load-development-channels server:viche
 4. From another terminal: curl POST /messages/{claude-code-id} with a coding task
 5. Observe: Claude Code receives channel event, executes task, calls viche_reply
