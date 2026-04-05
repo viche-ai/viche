@@ -10,14 +10,30 @@ import { Socket } from "phoenix";
 // ── Configuration ──────────────────────────────────────────────────────────────
 
 const REGISTRY_URL =
-  process.env.VICHE_REGISTRY_URL || "http://localhost:4000";
-const AGENT_NAME = process.env.VICHE_AGENT_NAME || null;
-const CAPABILITIES = (process.env.VICHE_CAPABILITIES || "coding")
+  process.env.VICHE_REGISTRY_URL ||
+  process.env.CLAUDE_PLUGIN_OPTION_REGISTRY_URL ||
+  "http://localhost:4000";
+const AGENT_NAME =
+  process.env.VICHE_AGENT_NAME ||
+  process.env.CLAUDE_PLUGIN_OPTION_AGENT_NAME ||
+  "claude-code";
+const CAPABILITIES = (
+  process.env.VICHE_CAPABILITIES ||
+  process.env.CLAUDE_PLUGIN_OPTION_CAPABILITIES ||
+  "coding"
+)
   .split(",")
   .map((c) => c.trim())
   .filter(Boolean);
-const DESCRIPTION = process.env.VICHE_DESCRIPTION || null;
-const REGISTRY_TOKENS: string[] = (process.env.VICHE_REGISTRY_TOKEN || "")
+const DESCRIPTION =
+  process.env.VICHE_DESCRIPTION ||
+  process.env.CLAUDE_PLUGIN_OPTION_DESCRIPTION ||
+  "Claude Code AI assistant connected via Viche";
+const REGISTRY_TOKENS: string[] = (
+  process.env.VICHE_REGISTRY_TOKEN ||
+  process.env.CLAUDE_PLUGIN_OPTION_REGISTRIES ||
+  ""
+)
   .split(",")
   .map((t) => t.trim())
   .filter(Boolean);

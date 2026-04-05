@@ -294,11 +294,12 @@ All three plugins share a common contract:
 
 **Launch command:**
 ```bash
-claude --dangerously-load-development-channels server:viche --dangerously-skip-permissions
+claude --dangerously-load-development-channels plugin:viche@viche
 ```
 
 **Prerequisites:**
 - Phoenix server must be running first: `iex -S mix phx.server`
+- Plugin must be installed: `claude plugin marketplace add viche-ai/viche && claude plugin install viche@viche`
 
 **Inbound message handling:**
 - Messages arrive via WebSocket `new_message` event
@@ -531,12 +532,18 @@ export { default } from "../../channel/opencode-plugin-viche/index.js";
    iex -S mix phx.server
    ```
 
-2. **Launch Claude Code with Viche channel:**
+2. **Install the plugin (first time only):**
    ```bash
-   claude --dangerously-load-development-channels server:viche --dangerously-skip-permissions
+   claude plugin marketplace add viche-ai/viche
+   claude plugin install viche@viche
    ```
 
-3. **Verify registration:**
+3. **Launch Claude Code with Viche channel:**
+   ```bash
+   claude --dangerously-load-development-channels plugin:viche@viche
+   ```
+
+4. **Verify registration:**
    ```bash
    curl -s "http://localhost:4000/registry/discover?capability=*" | jq
    ```

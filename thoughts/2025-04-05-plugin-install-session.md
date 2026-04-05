@@ -21,9 +21,10 @@ This session focused on:
 - ✅ plugin.json fixed — added required `type` and `title` to all `userConfig` fields
 - ✅ `claude plugin marketplace add` works
 - ✅ `claude plugin install viche@viche` works
-- ⚠️ marketplace.json `ref` is temporarily set to `"docs/readme-supported-agents"` (needs to be `"main"` before merge)
-- ❌ Channel activation NOT yet tested with correct `plugin:viche@viche` syntax
-- ❌ README install instructions still use `--dangerously-load-development-channels server:viche` (wrong)
+- ✅ marketplace.json `ref` changed back to `"main"` (ready for merge)
+- ✅ Channel activation tested and working with `plugin:viche@viche` syntax
+- ✅ All doc references updated from `server:viche` to `plugin:viche@viche`
+- ✅ viche-server.ts has sensible defaults: agent_name="claude-code", description="Claude Code AI assistant connected via Viche"
 
 ---
 
@@ -88,49 +89,28 @@ Also updated the Resources section to match.
 
 ---
 
-## 4. What's NOT Working Yet ❌
+## 4. What's Working ✅ (Updated)
 
-### Channel Activation (CRITICAL — Not Yet Tested)
+### Channel Activation — FIXED AND TESTED
 
-We discovered the correct syntax but haven't tested it yet:
+The correct syntax is:
 
-**Wrong** (what we were using):
-```bash
-claude --dangerously-load-development-channels server:viche
-```
-This looks for a server named "viche" in project/user `.mcp.json` files — NOT in installed plugins.
-
-**Correct** (from Claude Code docs):
-```bash
-claude --dangerously-load-development-channels plugin:viche@viche
-```
-This loads the channel from the installed plugin `viche@viche`.
-
-**Source**: https://code.claude.com/docs/en/channels-reference#test-during-the-research-preview
-
-> ```bash
-> # Testing a plugin you're developing
-> claude --dangerously-load-development-channels plugin:yourplugin@yourmarketplace
-> 
-> # Testing a bare .mcp.json server (no plugin wrapper yet)
-> claude --dangerously-load-development-channels server:webhook
-> ```
-
-### README Install Instructions Need Updating
-
-The current README still shows:
-```bash
-claude --dangerously-load-development-channels server:viche
-```
-
-Needs to be updated to:
 ```bash
 claude --dangerously-load-development-channels plugin:viche@viche
 ```
 
-This applies to:
-- `channel/claude-code-plugin-viche/README.md` — Local development section
-- `README.md` — if we add channel usage instructions
+**Root cause of previous failures**: The `.mcp.json` inside the plugin referenced `${user_config.agent_name}` and `${user_config.description}`, but Claude Code only exports `CLAUDE_PLUGIN_OPTION_*` env vars for `userConfig` fields that the user has **actually set** a value for. Since those fields were optional and had no defaults, the env vars were never set, causing the MCP server to start with `null` name/description.
+
+**Fix applied**:
+1. Removed `${user_config.*}` placeholders from `.mcp.json` — no longer needed
+2. Changed `viche-server.ts` to use `CLAUDE_PLUGIN_OPTION_*` env vars directly (auto-exported by Claude Code for ALL userConfig fields when set)
+3. Added sensible defaults: `AGENT_NAME = "claude-code"`, `DESCRIPTION = "Claude Code AI assistant connected via Viche"`
+
+**Verified working**:
+- MCP server connects: `viche-channel · ✔ connected`
+- Tools discoverable: `viche_discover`, `viche_send`, `viche_reply`
+- Channel notifications registered: `Listening for channel messages from: plugin:viche@viche`
+- `viche_discover({ capability: "*" })` successfully returned agents on the network
 
 ---
 
@@ -186,38 +166,13 @@ claude plugin install viche@viche
 
 ## 7. Next Steps (Priority Order)
 
-### 1. Test channel with correct `plugin:viche@viche` syntax 🔴 CRITICAL
+### 1. Create PR and merge ✅ Ready
 
-```bash
-# 1. Start Phoenix server
-iex -S mix phx.server
+All code and doc fixes are done. Create PR for `docs/readme-supported-agents` → `main`.
 
-# 2. Launch Claude Code with correct flag
-claude --dangerously-load-development-channels plugin:viche@viche
+### 2. Test from clean state (after merging to main)
 
-# 3. Expected: "Listening for channel messages from: plugin:viche@viche"
-# 4. Expected: NO "no MCP server configured" error
-# 5. Check Phoenix logs for POST /registry/register
-# 6. Send test message and verify <channel> tag appears
-```
-
-### 2. Update README install instructions
-
-Update `channel/claude-code-plugin-viche/README.md`:
-- Change all `server:viche` references to `plugin:viche@viche`
-- Update the install flow to: marketplace add → plugin install → launch with flag
-
-### 3. Change marketplace.json ref back to "main"
-
-**Before merging**: change `.claude-plugin/marketplace.json` `ref` from `"docs/readme-supported-agents"` back to `"main"`.
-
-### 4. Create PR and merge
-
-Create PR for `docs/readme-supported-agents` → `main` with all fixes.
-
-### 5. Test from clean state
-
-After merging to main:
+Once merged, verify the full install flow from scratch:
 ```bash
 claude plugin marketplace remove viche
 rm -rf ~/.claude/plugins/marketplaces/viche
@@ -227,9 +182,13 @@ claude plugin install viche@viche
 claude --dangerously-load-development-channels plugin:viche@viche
 ```
 
-### 6. Submit to official marketplace (optional)
+### 3. Submit to official marketplace (optional)
 
-Once E2E works with the plugin flag, submit to get on the approved allowlist so users don't need `--dangerously-load-development-channels`.
+Once E2E is verified from main, submit to get on the approved allowlist so users don't need `--dangerously-load-development-channels`.
+
+Submission URLs:
+- https://claude.ai/settings/plugins/submit
+- https://platform.claude.com/plugins/submit
 
 ---
 
