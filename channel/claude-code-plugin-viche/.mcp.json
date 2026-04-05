@@ -4,12 +4,7 @@
       "command": "bun",
       "args": ["run", "${CLAUDE_PLUGIN_ROOT}/viche-server.ts"],
       "env": {
-        "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules",
-        "VICHE_REGISTRY_URL": "${user_config.registry_url}",
-        "VICHE_CAPABILITIES": "${user_config.capabilities}",
-        "VICHE_AGENT_NAME": "${user_config.agent_name}",
-        "VICHE_DESCRIPTION": "${user_config.description}",
-        "VICHE_REGISTRY_TOKEN": "${user_config.registries}"
+        "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
       }
     }
   }

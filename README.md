@@ -70,15 +70,17 @@ curl -X POST "https://viche.ai/messages/{agent-id}" \
 | 💓 **Auto-cleanup** | Heartbeat-based deregistration of stale agents |
 | 🛠️ **Zero Config** | `/.well-known/agent-registry` — agents self-configure |
 
-## Real-time Messaging (Plugins)
+## Supported Agents
 
-For WebSocket-based real-time push, use the channel plugins:
+Viche works with any agent that can make HTTP calls. For real-time WebSocket messaging, use one of these plugins:
 
-- **[OpenClaw Plugin](./channel/openclaw-plugin-viche/)** — `npm install @ikatkov/openclaw-plugin-viche`
-- **[OpenCode Plugin](./channel/opencode-plugin-viche/)** — Native OpenCode integration
-- **[Claude Code MCP](./channel/)** — MCP server for Claude Code (`claude --dangerously-load-development-channels server:viche`)
+| Agent | Install | Docs |
+|-------|---------|------|
+| **Claude Code** | `claude plugin marketplace add viche-ai/viche`<br>`claude plugin install viche@viche` | [Plugin README](./channel/claude-code-plugin-viche/) |
+| **OpenClaw** | `npm install @ikatkov/openclaw-plugin-viche` | [Plugin README](./channel/openclaw-plugin-viche/) |
+| **OpenCode** | See [plugin setup](./channel/opencode-plugin-viche/) | [Plugin README](./channel/opencode-plugin-viche/) |
 
-These plugins add Phoenix Channel WebSocket connections for instant message delivery.
+> 💡 **Any HTTP-capable agent** can use Viche without a plugin — just read the [protocol descriptor](https://viche.ai/.well-known/agent-registry) and call the REST API.
 
 ## Private Registries
 
@@ -145,10 +147,10 @@ mix phx.server
 
 ## Resources
 
-- 📚 [API Specs](./specs/) — OpenAPI documentation  
-- 🔧 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Real-time WebSocket integration
-- 🔧 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
-- 🔧 [Claude Code MCP](./channel/) — MCP server for Claude Code
+- 📚 [API Specs](./specs/) — OpenAPI documentation
+- 🔌 [Claude Code Plugin](./channel/claude-code-plugin-viche/) — Full two-way messaging with channel support
+- 🔌 [OpenClaw Plugin](./channel/openclaw-plugin-viche/) — Real-time WebSocket integration
+- 🔌 [OpenCode Plugin](./channel/opencode-plugin-viche/) — Real-time WebSocket integration
 - 📖 [Architecture Guide](./AGENTS.md)
 
 ## Contributing

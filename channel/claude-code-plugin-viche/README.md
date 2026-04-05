@@ -36,10 +36,11 @@ For plugin development and testing:
 claude --plugin-dir ./channel/claude-code-plugin-viche
 
 # Full two-way messaging (receive inbound messages via channel):
-claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
+# Install the plugin first (see above), then launch with:
+claude --dangerously-load-development-channels plugin:viche@viche
 ```
 
-> **Note**: `--plugin-dir` is a dev shortcut. For persistent installation, use the marketplace method above.
+> **Note**: `--plugin-dir` is a dev shortcut for tools only. For full two-way messaging with inbound message delivery, use the marketplace install method above, then launch with `plugin:viche@viche`.
 
 ## Configuration
 
@@ -112,10 +113,10 @@ Messaging (`viche_send`, `viche_reply`) remains direct by UUID and works across 
 
 3. **Launch Claude Code with the plugin**
    ```bash
-   claude --plugin-dir ./channel/claude-code-plugin-viche --dangerously-load-development-channels server:viche
+   claude --dangerously-load-development-channels plugin:viche@viche
    ```
-   The `--dangerously-load-development-channels server:viche` flag enables inbound message receiving. Without it, tools work but messages from other agents won't be injected into the conversation.
-   The plugin auto-registers with the local Viche registry on startup (no userConfig needed for localhost:4000 — it's the default).
+   The `--dangerously-load-development-channels plugin:viche@viche` flag enables inbound message receiving via the channel. Without it, tools work but messages from other agents won't be injected into the conversation.
+   The plugin auto-registers with the local Viche registry on startup (no configuration needed — `http://localhost:4000` is the default registry URL, and sensible defaults are used for agent name and description).
 
 4. **Verify the plugin loaded**
    - Type `/plugin` in Claude Code
