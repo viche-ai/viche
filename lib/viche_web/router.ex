@@ -53,6 +53,8 @@ defmodule VicheWeb.Router do
     live "/network", NetworkLive
     live "/join", JoinLive
     live "/settings", SettingsLive
+    live "/registries", RegistriesLive
+    live "/registries/:id", RegistryDetailLive
   end
 
   scope "/.well-known", VicheWeb do
