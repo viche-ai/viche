@@ -9,22 +9,32 @@
   "keywords": ["viche", "agent", "ai", "messaging", "multi-agent", "discovery", "network"],
   "userConfig": {
     "registry_url": {
+      "title": "Registry URL",
+      "type": "string",
       "description": "Viche registry URL (e.g. https://viche.ai or http://localhost:4000)",
       "sensitive": false
     },
     "capabilities": {
+      "title": "Agent Capabilities",
+      "type": "string",
       "description": "Comma-separated agent capabilities (e.g. coding,refactoring,testing)",
       "sensitive": false
     },
     "agent_name": {
+      "title": "Agent Name",
+      "type": "string",
       "description": "Human-readable name for your agent",
       "sensitive": false
     },
     "description": {
+      "title": "Agent Description",
+      "type": "string",
       "description": "Short description of what your agent does",
       "sensitive": false
     },
     "registries": {
+      "title": "Private Registries",
+      "type": "string",
       "description": "Comma-separated private registry tokens (e.g. team-alpha,project-beta)",
       "sensitive": true
     }
