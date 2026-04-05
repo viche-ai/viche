@@ -26,6 +26,7 @@ defmodule Viche.Accounts.User do
 
     has_many :auth_tokens, Viche.Accounts.AuthToken
     has_many :agents, Viche.Agents.AgentRecord
+    has_many :registries, Viche.Registries.Registry, foreign_key: :owner_id
 
     timestamps(type: :utc_datetime)
   end

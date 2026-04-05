@@ -45,7 +45,8 @@ defmodule Viche.Registries.Registry do
     |> validate_format(:name, ~r/^[a-zA-Z0-9][a-zA-Z0-9 -]{1,50}$/,
       message: "must be 2-50 characters, letters, numbers, spaces and hyphens only"
     )
-    |> downcase_slug()
+    # Only downcase slug if it's in changes (not on every update)
+    |> maybe_downcase_slug()
     |> validate_format(:slug, @slug_regex,
       message:
         "must be 3-50 characters, lowercase letters, numbers, and hyphens only, cannot end with a hyphen"
@@ -55,9 +56,10 @@ defmodule Viche.Registries.Registry do
     |> unique_constraint(:slug)
   end
 
-  defp downcase_slug(%Ecto.Changeset{changes: %{slug: slug}} = changeset) do
-    change(changeset, slug: String.downcase(slug))
+  # Only downcase slug if it's being changed (not on every update)
+  defp maybe_downcase_slug(%Ecto.Changeset{changes: %{slug: _}} = changeset) do
+    update_change(changeset, :slug, &String.downcase/1)
   end
 
-  defp downcase_slug(changeset), do: changeset
+  defp maybe_downcase_slug(changeset), do: changeset
 end
