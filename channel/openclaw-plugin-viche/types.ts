@@ -311,8 +311,19 @@ export interface CorrelationEntry {
  */
 export interface VicheState {
   agentId: string | null;
+  channel: VicheChannel | null;
   correlations: Map<string, CorrelationEntry>;
   mostRecentSessionKey: string | null;
+}
+
+export interface VicheChannelPush {
+  receive(status: "ok", callback: (response: unknown) => void): VicheChannelPush;
+  receive(status: "error", callback: (response: unknown) => void): VicheChannelPush;
+  receive(status: "timeout", callback: () => void): VicheChannelPush;
+}
+
+export interface VicheChannel {
+  push(event: string, payload: Record<string, unknown>): VicheChannelPush;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,10 +348,6 @@ export interface AgentInfo {
 
 export interface DiscoverResponse {
   agents: AgentInfo[];
-}
-
-export interface RegisterResponse {
-  id: string;
 }
 
 export interface InboundMessagePayload {

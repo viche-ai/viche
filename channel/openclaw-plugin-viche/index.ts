@@ -44,6 +44,7 @@ export default {
     // Shared state: written by service on startup, read by tool handlers.
     const state: VicheState = {
       agentId: null,
+      channel: null,
       correlations: new Map(),
       mostRecentSessionKey: null,
     };

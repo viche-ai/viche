@@ -870,4 +870,55 @@ defmodule Viche.AgentsTest do
       assert agent.polling_timeout_ms == 60_000
     end
   end
+
+  describe "register_agent_for_websocket/2" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "cleans up newly registered agent when pubsub subscribe fails" do
+      assert {:error, :subscribe_failed} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent"},
+                 subscribe_fun: fn _topic -> {:error, :subscribe_failed} end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when websocket_connected step fails" do
+      assert {:error, :websocket_connect_failed} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-2"},
+                 websocket_connected_fun: fn _agent_id -> {:error, :websocket_connect_failed} end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-2"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when subscribe callback returns unexpected value" do
+      assert {:error, {:websocket_registration_failed, %{subscribe: :unexpected}}} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-3"},
+                 subscribe_fun: fn _topic -> :unexpected end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-3"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when websocket callback returns unexpected value" do
+      assert {:error, {:websocket_registration_failed, %{websocket_connected: :unexpected}}} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-4"},
+                 websocket_connected_fun: fn _agent_id -> :unexpected end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-4"})
+      assert Agents.list_agents() == []
+    end
+  end
 end

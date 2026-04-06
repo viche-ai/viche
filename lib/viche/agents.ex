@@ -183,6 +183,71 @@ defmodule Viche.Agents do
   def register_agent(_attrs), do: {:error, :capabilities_required}
 
   @doc """
+  Registers an agent for channel register-on-join and marks it as websocket-connected.
+
+  This operation is atomic from the caller's perspective: if the PubSub subscription
+  or websocket connection step fails after agent registration, the newly created
+  agent is deregistered.
+  """
+  @spec register_agent_for_websocket(map(), keyword()) ::
+          {:ok, Agent.t()}
+          | {:error, :capabilities_required}
+          | {:error, :invalid_capabilities}
+          | {:error, :invalid_name}
+          | {:error, :invalid_description}
+          | {:error, :invalid_registry_token}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, term()}
+  def register_agent_for_websocket(attrs, opts \\ []) do
+    subscribe_fun =
+      Keyword.get(opts, :subscribe_fun, fn topic ->
+        Phoenix.PubSub.subscribe(Viche.PubSub, topic)
+      end)
+
+    websocket_connected_fun = Keyword.get(opts, :websocket_connected_fun, &websocket_connected/1)
+
+    case register_agent(attrs) do
+      {:ok, agent} ->
+        with :ok <- subscribe_agent_topic(agent.id, subscribe_fun),
+             :ok <- normalize_websocket_connected_result(websocket_connected_fun.(agent.id)) do
+          {:ok, agent}
+        else
+          {:error, reason} ->
+            cleanup_orphaned_agent(agent.id)
+            {:error, reason}
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc "Marks an existing agent as websocket-connected."
+  @spec websocket_connected(String.t()) :: :ok | {:error, :agent_not_found}
+  def websocket_connected(agent_id), do: notify_agent(agent_id, :websocket_connected)
+
+  @doc "Marks an existing agent as websocket-disconnected."
+  @spec websocket_disconnected(String.t()) :: :ok | {:error, :agent_not_found}
+  def websocket_disconnected(agent_id), do: notify_agent(agent_id, :websocket_disconnected)
+
+  @doc "Returns :ok when agent belongs to the registry token."
+  @spec authorize_registry_join(String.t(), String.t()) ::
+          :ok | {:error, :agent_not_found} | {:error, :not_in_registry}
+  def authorize_registry_join(agent_id, token) do
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{_pid, meta}] ->
+        if token in (meta.registries || []) do
+          :ok
+        else
+          {:error, :not_in_registry}
+        end
+
+      [] ->
+        {:error, :agent_not_found}
+    end
+  end
+
+  @doc """
   Returns all agent IDs owned by the given user.
   """
   @spec list_agent_ids_for_user(String.t()) :: [String.t()]
@@ -571,6 +636,45 @@ defmodule Viche.Agents do
   end
 
   defp normalize_and_validate_registries(_), do: {:error, :invalid_registry_token}
+
+  @spec subscribe_agent_topic(String.t(), (String.t() -> term())) :: :ok | {:error, term()}
+  defp subscribe_agent_topic(agent_id, subscribe_fun) do
+    topic = "agent:#{agent_id}"
+
+    case subscribe_fun.(topic) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
+      other -> {:error, {:websocket_registration_failed, %{subscribe: other}}}
+    end
+  end
+
+  @spec normalize_websocket_connected_result(term()) :: :ok | {:error, term()}
+  defp normalize_websocket_connected_result(:ok), do: :ok
+  defp normalize_websocket_connected_result({:error, reason}), do: {:error, reason}
+
+  defp normalize_websocket_connected_result(other) do
+    {:error, {:websocket_registration_failed, %{websocket_connected: other}}}
+  end
+
+  @spec cleanup_orphaned_agent(String.t()) :: :ok
+  defp cleanup_orphaned_agent(agent_id) do
+    case deregister(agent_id) do
+      :ok -> :ok
+      {:error, :agent_not_found} -> :ok
+    end
+  end
+
+  @spec notify_agent(String.t(), atom()) :: :ok | {:error, :agent_not_found}
+  defp notify_agent(agent_id, event) do
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{pid, _meta}] ->
+        send(pid, event)
+        :ok
+
+      [] ->
+        {:error, :agent_not_found}
+    end
+  end
 
   @spec start_agent(map(), [String.t()], [String.t()]) :: {:ok, Agent.t()}
   defp start_agent(attrs, caps, registries) do

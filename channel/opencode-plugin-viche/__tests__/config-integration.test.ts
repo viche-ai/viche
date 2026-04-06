@@ -5,7 +5,7 @@
  *
  * Mock strategy (mirrors index.test.ts):
  *   - `phoenix` is mocked via mock.module before the dynamic import.
- *   - `global.fetch` is overridden per-test to capture outgoing HTTP calls.
+ *   - Socket constructor args are captured to verify ws URL resolution.
  *   - The OpenCode `client` is a plain object with mock methods.
  *   - A real temp directory is used so `.opencode/viche.json` is read from disk.
  */
@@ -24,6 +24,7 @@ const mockChannelLeave = mock(() => {});
 const mockChannelOn = mock((_event: string, _cb: unknown) => {});
 const mockSocketConnect = mock(() => {});
 const mockSocketDisconnect = mock(() => {});
+const socketConstructorArgs: Array<[string, unknown?]> = [];
 
 /** Configures join() to resolve with "ok" after a short tick. */
 function makeJoinOk() {
@@ -33,7 +34,10 @@ function makeJoinOk() {
       receive(event: string, cb: (...args: unknown[]) => void) {
         cbs[event] = cb;
         if (event === "ok") {
-          setTimeout(() => cb({}), 5);
+          setTimeout(
+            () => cb({ agent_id: "aaaabbbb-0000-4000-a000-000000000001" }),
+            5
+          );
         }
         return push;
       },
@@ -56,6 +60,10 @@ class MockSocket {
   connect = mockSocketConnect;
   disconnect = mockSocketDisconnect;
   channel = mockSocketChannel;
+
+  constructor(url: string, opts?: unknown) {
+    socketConstructorArgs.push([url, opts]);
+  }
 }
 
 // Register phoenix mock before the dynamic import so service.ts picks it up.
@@ -112,7 +120,6 @@ function makeClient() {
 
 describe("vichePlugin — registryUrl config file integration", () => {
   let savedEnv: SavedEnv;
-  let savedFetch: typeof global.fetch;
   let tempDir: string | undefined;
 
   beforeEach(() => {
@@ -123,8 +130,8 @@ describe("vichePlugin — registryUrl config file integration", () => {
       delete process.env[key];
     }
 
-    savedFetch = global.fetch;
     tempDir = undefined;
+    socketConstructorArgs.length = 0;
 
     // Reset Phoenix mock call counts.
     mockChannelJoin.mockReset();
@@ -149,9 +156,6 @@ describe("vichePlugin — registryUrl config file integration", () => {
       }
     }
 
-    // Restore fetch.
-    global.fetch = savedFetch;
-
     // Clean up temp directory.
     if (tempDir !== undefined) {
       rmSync(tempDir, { recursive: true, force: true });
@@ -173,19 +177,6 @@ describe("vichePlugin — registryUrl config file integration", () => {
     // Ensure VICHE_REGISTRY_URL is NOT set (cleared in beforeEach, but be explicit).
     delete process.env.VICHE_REGISTRY_URL;
 
-    // Capture every URL passed to fetch.
-    const capturedUrls: string[] = [];
-    global.fetch = mock((input: RequestInfo | URL, _init?: RequestInit) => {
-      capturedUrls.push(String(input));
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        json: () =>
-          Promise.resolve({ id: "aaaabbbb-0000-4000-a000-000000000001" }),
-      } as Response);
-    });
-
     const client = makeClient();
 
     // Initialise the plugin pointing at the temp project directory.
@@ -199,8 +190,8 @@ describe("vichePlugin — registryUrl config file integration", () => {
       },
     });
 
-    expect(capturedUrls).toHaveLength(1);
-    expect(capturedUrls[0]).toBe(`${CUSTOM_URL}/registry/register`);
+    expect(socketConstructorArgs).toHaveLength(1);
+    expect(socketConstructorArgs[0]?.[0]).toBe("ws://custom-viche:9999/agent/websocket");
   });
 
   // ── Sanity: VICHE_REGISTRY_URL env var still takes effect ─────────────────
@@ -216,18 +207,6 @@ describe("vichePlugin — registryUrl config file integration", () => {
 
     process.env.VICHE_REGISTRY_URL = ENV_URL;
 
-    const capturedUrls: string[] = [];
-    global.fetch = mock((input: RequestInfo | URL, _init?: RequestInit) => {
-      capturedUrls.push(String(input));
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        json: () =>
-          Promise.resolve({ id: "ccccdddd-0000-4000-a000-000000000002" }),
-      } as Response);
-    });
-
     const client = makeClient();
     const hooks = await vichePlugin({ client, directory: tempDir });
 
@@ -238,7 +217,7 @@ describe("vichePlugin — registryUrl config file integration", () => {
       },
     });
 
-    expect(capturedUrls).toHaveLength(1);
-    expect(capturedUrls[0]).toBe(`${ENV_URL}/registry/register`);
+    expect(socketConstructorArgs).toHaveLength(1);
+    expect(socketConstructorArgs[0]?.[0]).toBe("ws://env-override-viche:8888/agent/websocket");
   });
 });

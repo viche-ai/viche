@@ -2,8 +2,8 @@
  * Background service for opencode-plugin-viche.
  *
  * Responsibilities:
- *   1. Per-session agent lifecycle: register with Viche, connect WebSocket,
- *      join the `agent:{agentId}` Phoenix Channel.
+ *   1. Per-session agent lifecycle: connect WebSocket and register by joining
+ *      the `agent:register` Phoenix Channel.
  *   2. Inject a [Viche Network Connected] identity message into each session
  *      on creation via `client.session.prompt`.
  *   3. Relay inbound `new_message` channel events into the session via
@@ -22,7 +22,6 @@
 import { Socket } from "phoenix";
 import type {
   InboundMessagePayload,
-  RegisterResponse,
   SessionState,
   VicheConfig,
   VicheState,
@@ -40,42 +39,26 @@ const BACKOFF_MS = 2_000;
 // Registration
 // ---------------------------------------------------------------------------
 
-async function registerOnce(config: VicheConfig): Promise<string> {
-  const body: Record<string, unknown> = {
+function registrationParams(config: VicheConfig): Record<string, unknown> {
+  const params: Record<string, unknown> = {
     capabilities: config.capabilities,
   };
-  if (config.agentName) body.name = config.agentName;
-  if (config.description) body.description = config.description;
-  if (config.registries?.length) body.registries = config.registries;
-
-  const resp = await fetch(`${config.registryUrl}/registry/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    throw new Error(`Registration failed: ${resp.status} ${resp.statusText}`);
-  }
-
-  const data = (await resp.json()) as RegisterResponse;
-  if (!data.id || typeof data.id !== "string") {
-    throw new Error(
-      `Registration response missing agent id: ${JSON.stringify(data)}`
-    );
-  }
-  return data.id;
+  if (config.agentName) params.name = config.agentName;
+  if (config.description) params.description = config.description;
+  if (config.registries?.length) params.registries = config.registries;
+  return params;
 }
 
 async function registerAgent(
   config: VicheConfig,
-  backoffMs: number
-): Promise<string> {
+  backoffMs: number,
+  onMessage: (payload: InboundMessagePayload) => void
+): Promise<{ agentId: string; socket: PhoenixSocket; channel: PhoenixChannel }> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      return await registerOnce(config);
+      return await connectWebSocket(config, onMessage);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < MAX_ATTEMPTS) {
@@ -95,20 +78,19 @@ async function registerAgent(
 
 function connectWebSocket(
   config: VicheConfig,
-  agentId: string,
   onMessage: (payload: InboundMessagePayload) => void
-): Promise<{ socket: PhoenixSocket; channel: PhoenixChannel }> {
+): Promise<{ agentId: string; socket: PhoenixSocket; channel: PhoenixChannel }> {
   // Phoenix JS appends the transport suffix ("/websocket") to the endpoint.
   // The Viche socket is mounted at "/agent/websocket", so the full transport
   // URL becomes "/agent/websocket/websocket" — which is what the server expects.
   const wsBase = config.registryUrl.replace(/^http/, "ws");
-  const socket: PhoenixSocket = new Socket(
-    `${wsBase}/agent/websocket`,
-    { params: { agent_id: agentId } }
-  );
+  const socket: PhoenixSocket = new Socket(`${wsBase}/agent/websocket`);
   socket.connect();
 
-  const channel: PhoenixChannel = socket.channel(`agent:${agentId}`, {});
+  const channel: PhoenixChannel = socket.channel(
+    "agent:register",
+    registrationParams(config)
+  );
   channel.on("new_message", (payload: InboundMessagePayload) =>
     onMessage(payload)
   );
@@ -123,11 +105,26 @@ function connectWebSocket(
     }
   };
 
-  return new Promise<{ socket: PhoenixSocket; channel: PhoenixChannel }>(
+  return new Promise<{ agentId: string; socket: PhoenixSocket; channel: PhoenixChannel }>(
     (resolve, reject) => {
       channel
         .join()
-        .receive("ok", () => {
+        .receive("ok", (resp: unknown) => {
+          const agentId =
+            resp && typeof resp === "object"
+              ? (resp as { agent_id?: unknown }).agent_id
+              : undefined;
+
+          if (typeof agentId !== "string" || agentId.length === 0) {
+            cleanup();
+            reject(
+              new Error(
+                `Viche: register join response missing agent_id: ${JSON.stringify(resp)}`
+              )
+            );
+            return;
+          }
+
           for (const token of config.registries ?? []) {
             const registryChannel = socket.channel(`registry:${token}`, {});
             registryChannel
@@ -138,7 +135,7 @@ function connectWebSocket(
                 );
               });
           }
-          resolve({ socket, channel });
+          resolve({ agentId, socket, channel });
         })
         .receive("error", (resp: unknown) => {
           cleanup();
@@ -230,8 +227,6 @@ export function createVicheService(
   // ---------------------------------------------------------------------------
 
   async function initSession(sessionID: string): Promise<SessionState> {
-    let agentId = await registerAgent(config, effectiveBackoffMs);
-
     const onMessage = (payload: InboundMessagePayload) => {
       // Reject messages whose ID does not conform to the AGENTS.md convention
       // ("msg-" prefix followed by UUID). This guards against malformed or
@@ -247,28 +242,11 @@ export function createVicheService(
 
     // connectWebSocket owns socket cleanup on join failure (disconnects before
     // rejecting) so we never hold a stale socket reference here.
-    let socket: PhoenixSocket;
-    let channel: PhoenixChannel;
-
-    try {
-      ({ socket, channel } = await connectWebSocket(config, agentId, onMessage));
-    } catch (err) {
-      if (
-        err instanceof Error &&
-        (err.cause as Record<string, unknown> | undefined)?.["reason"] === "agent_not_found"
-      ) {
-        // connectWebSocket already disconnected the stale socket; re-register
-        // and try once more.
-        agentId = await registerAgent(config, effectiveBackoffMs);
-        ({ socket, channel } = await connectWebSocket(
-          config,
-          agentId,
-          onMessage
-        ));
-      } else {
-        throw err;
-      }
-    }
+    const { agentId, socket, channel } = await registerAgent(
+      config,
+      effectiveBackoffMs,
+      onMessage
+    );
 
     const sessionState: SessionState = { agentId, socket, channel };
     state.sessions.set(sessionID, sessionState);

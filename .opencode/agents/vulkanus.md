@@ -1,7 +1,7 @@
 ---
 description: TDD-focused implementation agent. Enforces strict RED → GREEN → VALIDATE → REFACTOR cycle. Works with or without plan files. Delegates specialized work to subagents.
 mode: all
-model: anthropic/claude-sonnet-4-6
+model: openai/gpt-5.3-codex
 temperature: 0.1
 thinking:
   type: enabled

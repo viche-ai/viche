@@ -40,15 +40,15 @@ const REGISTRY_TOKENS: string[] = (
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface RegisterBody {
+interface RegisterJoinPayload {
   capabilities: string[];
   name?: string;
   description?: string;
   registries?: string[];
 }
 
-interface RegisterResponse {
-  id: string;
+interface RegisterJoinResponse {
+  agent_id: string;
 }
 
 interface AgentInfo {
@@ -61,62 +61,16 @@ interface DiscoverResponse {
   agents: AgentInfo[];
 }
 
-// ── Registration ───────────────────────────────────────────────────────────────
-
-async function register(): Promise<string> {
-  const body: RegisterBody = { capabilities: CAPABILITIES };
-  if (AGENT_NAME) body.name = AGENT_NAME;
-  if (DESCRIPTION) body.description = DESCRIPTION;
-  if (REGISTRY_TOKENS.length) body.registries = REGISTRY_TOKENS;
-
-  const response = await fetch(`${REGISTRY_URL}/registry/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Registration failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const data = (await response.json()) as RegisterResponse;
-  return data.id;
-}
-
-async function registerWithRetry(): Promise<string> {
-  const MAX_ATTEMPTS = 3;
-  const BACKOFF_MS = 2000;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      return await register();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (attempt === MAX_ATTEMPTS) {
-        throw new Error(
-          `Viche: registration failed after ${MAX_ATTEMPTS} attempts: ${message}`
-        );
-      }
-      process.stderr.write(
-        `Viche: registration attempt ${attempt} failed: ${message}. Retrying in ${BACKOFF_MS / 1000}s...\n`
-      );
-      await sleep(BACKOFF_MS);
-    }
-  }
-
-  // Unreachable, but TypeScript needs it
-  throw new Error("Unreachable");
-}
-
 // ── WebSocket / Phoenix Channel ────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PhoenixChannel = any;
 
 let activeChannel: PhoenixChannel | null = null;
+let activeAgentId: string | null = null;
 const registryChannels = new Map<string, PhoenixChannel>();
+const NOT_CONNECTED_MESSAGE =
+  "Not connected to Viche registry yet. Please wait for registration to complete.";
 
 function channelPush<T>(
   channel: PhoenixChannel,
@@ -136,68 +90,129 @@ function channelPush<T>(
   });
 }
 
-function connectWebSocket(agentId: string, server: Server): void {
+function connectAndRegister(server: Server): Promise<void> {
+  const registerPayload: RegisterJoinPayload = { capabilities: CAPABILITIES };
+  if (AGENT_NAME) registerPayload.name = AGENT_NAME;
+  if (DESCRIPTION) registerPayload.description = DESCRIPTION;
+  if (REGISTRY_TOKENS.length) registerPayload.registries = REGISTRY_TOKENS;
+
   const wsBase = REGISTRY_URL.replace(/^http/, "ws");
   const wsUrl = `${wsBase}/agent/websocket`;
 
-  const socket = new Socket(wsUrl, { params: { agent_id: agentId } });
-  socket.connect();
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
 
-  const channel: PhoenixChannel = socket.channel(`agent:${agentId}`, {});
+    const socket = new Socket(wsUrl);
 
-  channel.on(
-    "new_message",
-    (payload: { id: string; type?: string; from: string; body: string }) => {
-      const messageType = payload.type ?? "task";
-      const displayType =
-        messageType.charAt(0).toUpperCase() + messageType.slice(1);
+    socket.onError((err: unknown) => {
+      if (!settled) {
+        settled = true;
+        reject(
+          new Error(
+            `WebSocket connection error: ${
+              err instanceof Error ? err.message : JSON.stringify(err)
+            }`
+          )
+        );
+      }
+    });
 
-      server
-        .notification({
-          method: "notifications/claude/channel",
-          params: {
-            content: `[${displayType} from ${payload.from}] ${payload.body}`,
-            meta: {
-              message_id: payload.id,
-              from: payload.from,
-              type: messageType,
+    socket.connect();
+
+    const channel: PhoenixChannel = socket.channel("agent:register", registerPayload);
+
+    channel.on(
+      "new_message",
+      (payload: { id: string; type?: string; from: string; body: string }) => {
+        const messageType = payload.type ?? "task";
+        const displayType =
+          messageType.charAt(0).toUpperCase() + messageType.slice(1);
+
+        server
+          .notification({
+            method: "notifications/claude/channel",
+            params: {
+              content: `[${displayType} from ${payload.from}] ${payload.body}`,
+              meta: {
+                message_id: payload.id,
+                from: payload.from,
+                type: messageType,
+              },
             },
-          },
-        })
-        .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          process.stderr.write(`Viche: notification error — ${msg}\n`);
-        });
-    }
-  );
-
-  channel
-    .join()
-    .receive("ok", () => {
-      activeChannel = channel;
-      process.stderr.write(
-        `Viche: registered as ${agentId}, connected via WebSocket\n`
-      );
-
-      for (const token of REGISTRY_TOKENS) {
-        const registryChannel = socket.channel(`registry:${token}`, {});
-        registryChannel
-          .join()
-          .receive("ok", () => {
-            registryChannels.set(token, registryChannel);
           })
-          .receive("error", (resp: unknown) => {
-            process.stderr.write(
-              `Viche: registry channel join failed for ${token}: ${JSON.stringify(resp)}\n`
-            );
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            process.stderr.write(`Viche: notification error — ${msg}\n`);
           });
       }
-    })
-    .receive("error", (resp: unknown) => {
+    );
+
+    channel
+      .join()
+      .receive("ok", (resp: RegisterJoinResponse) => {
+        activeChannel = channel;
+        activeAgentId = resp.agent_id;
+        process.stderr.write(
+          `Viche: registered as ${activeAgentId}, connected via WebSocket\n`
+        );
+
+        for (const token of REGISTRY_TOKENS) {
+          const registryChannel = socket.channel(`registry:${token}`, {});
+          registryChannel
+            .join()
+            .receive("ok", () => {
+              registryChannels.set(token, registryChannel);
+            })
+            .receive("error", (registryResp: unknown) => {
+              process.stderr.write(
+                `Viche: registry channel join failed for ${token}: ${JSON.stringify(registryResp)}\n`
+              );
+            });
+        }
+
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      })
+      .receive("error", (resp: unknown) => {
+        if (!settled) {
+          settled = true;
+          reject(new Error(`Channel join failed: ${JSON.stringify(resp)}`));
+        }
+      })
+      .receive("timeout", () => {
+        if (!settled) {
+          settled = true;
+          reject(new Error("Channel join timed out"));
+        }
+      });
+  });
+}
+
+async function connectAndRegisterWithRetry(server: Server): Promise<void> {
+  const MAX_ATTEMPTS = 3;
+  const BACKOFF_MS = 2000;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await connectAndRegister(server);
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (attempt === MAX_ATTEMPTS) {
+        throw new Error(
+          `Viche: websocket registration failed after ${MAX_ATTEMPTS} attempts: ${message}`
+        );
+      }
       process.stderr.write(
-        `Viche: channel join failed — ${JSON.stringify(resp)}\n`
+        `Viche: websocket registration attempt ${attempt} failed: ${message}. Retrying in ${BACKOFF_MS / 1000}s...\n`
       );
-    });
+      await sleep(BACKOFF_MS);
+    }
+  }
+
+  throw new Error("Unreachable");
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
@@ -218,6 +233,12 @@ function formatAgentList(agents: AgentInfo[]): string {
   return `Found ${agents.length} agent(s):\n${lines.join("\n")}`;
 }
 
+function notConnectedResponse() {
+  return {
+    content: [{ type: "text" as const, text: NOT_CONNECTED_MESSAGE }],
+  };
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -235,9 +256,6 @@ async function main(): Promise<void> {
         'Viche channel: tasks from other AI agents arrive as <channel source="viche"> tags. Execute the task immediately, then call viche_reply with your result.',
     }
   );
-
-  // Register agent with retry (HTTP, needed before WebSocket join)
-  const agentId = await registerWithRetry();
 
   // List tools handler
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -316,34 +334,48 @@ async function main(): Promise<void> {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const toolName = request.params.name;
 
-    if (!activeChannel) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Viche channel is not yet connected. Please wait a moment and try again.",
-          },
-        ],
-      };
-    }
-
     if (toolName === "viche_discover") {
       const args = request.params.arguments as { capability: string; token?: string };
       try {
-        const token = args.token;
-        let discoverChannel: PhoenixChannel;
+        const token = args.token?.trim();
+        let discoverChannel: PhoenixChannel | null = null;
 
-        if (token && registryChannels.has(token)) {
-          discoverChannel = registryChannels.get(token)!;
+        if (token) {
+          discoverChannel = registryChannels.get(token) ?? null;
         } else if (registryChannels.size > 0) {
-          discoverChannel = registryChannels.values().next().value!;
+          discoverChannel = registryChannels.values().next().value ?? null;
         } else {
           discoverChannel = activeChannel;
         }
 
-        const resp = await channelPush<DiscoverResponse>(discoverChannel, "discover", {
+        if (token && !discoverChannel) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Discovery failed: not joined to requested registry token '${token}'.`,
+              },
+            ],
+          };
+        }
+
+        if (!discoverChannel) {
+          return notConnectedResponse();
+        }
+
+        const discoverPayload: { capability: string; registry?: string } = {
           capability: args.capability,
-        });
+        };
+
+        if (token) {
+          discoverPayload.registry = token;
+        }
+
+        const resp = await channelPush<DiscoverResponse>(
+          discoverChannel,
+          "discover",
+          discoverPayload
+        );
 
         return {
           content: [{ type: "text", text: formatAgentList(resp.agents ?? []) }],
@@ -364,6 +396,10 @@ async function main(): Promise<void> {
       };
       const msgType = args.type ?? "task";
       try {
+        if (!activeChannel) {
+          return notConnectedResponse();
+        }
+
         await channelPush(activeChannel, "send_message", {
           to: args.to,
           body: args.body,
@@ -388,6 +424,10 @@ async function main(): Promise<void> {
     if (toolName === "viche_reply") {
       const args = request.params.arguments as { to: string; body: string };
       try {
+        if (!activeChannel) {
+          return notConnectedResponse();
+        }
+
         await channelPush(activeChannel, "send_message", {
           to: args.to,
           body: args.body,
@@ -411,8 +451,8 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Connect to Phoenix Channel (non-blocking; notifications arrive via WebSocket)
-  connectWebSocket(agentId, server);
+  // Connect to Phoenix Channel and register via channel join
+  await connectAndRegisterWithRetry(server);
 }
 
 main().catch((err) => {

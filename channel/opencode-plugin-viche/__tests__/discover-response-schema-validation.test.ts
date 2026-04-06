@@ -1,7 +1,4 @@
-// Argus finding: missing schema validation for discovery response allows malformed agent payloads
-// Scores: encapsulation=3, expression=2, usefulness=7, enforcement=2
-
-import { describe, it, expect, mock, afterEach } from "bun:test";
+import { describe, it, expect, mock } from "bun:test";
 import { createVicheTools } from "../tools.js";
 import type { SessionState, VicheConfig, VicheState } from "../types.js";
 
@@ -23,30 +20,22 @@ function makeState(): VicheState {
 const fakeSessionState: SessionState = {
   agentId: "abc123de-0000-4000-a000-000000000000",
   socket: {},
-  channel: {},
+  channel: {
+    push: mock((_event: string, _payload: Record<string, unknown>) => ({
+      receive(status: "ok" | "error" | "timeout", cb: (resp?: unknown) => void) {
+        if (status === "ok") cb({ agents: [{ id: "bad-agent", capabilities: 42 }] });
+        return this;
+      },
+    })),
+  },
 };
 
 describe("Argus: discovery response invariant enforcement", () => {
-  afterEach(() => {
-    (global as unknown as Record<string, unknown>)["fetch"] = undefined;
-  });
-
-  it("should reject malformed agent capabilities from discovery response, but currently crashes", async () => {
+  it("rejects malformed discovery payloads without throwing", async () => {
     const config = makeConfig();
     const state = makeState();
     const ensureSessionReady = mock((_sessionID: string) => Promise.resolve(fakeSessionState));
     const tools = createVicheTools(config, state, ensureSessionReady);
-
-    // Invalid domain state entering from API boundary: capabilities must be string[]
-    // but response contains a number.
-    global.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        json: () => Promise.resolve({ agents: [{ id: "bad-agent", capabilities: 42 }] }),
-      } as Response)
-    );
 
     let thrown: unknown;
     let result: string | undefined;

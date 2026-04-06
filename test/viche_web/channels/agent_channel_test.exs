@@ -42,6 +42,65 @@ defmodule VicheWeb.AgentChannelTest do
                |> socket("agent_socket:nonexistent", %{agent_id: "nonexistent"})
                |> subscribe_and_join(VicheWeb.AgentChannel, "agent:nonexistent")
     end
+
+    test "register-on-join creates an agent and returns its id" do
+      params = %{
+        "capabilities" => ["testing", "ws"],
+        "name" => "register-join-agent",
+        "description" => "registered via channel join",
+        "registries" => ["global"]
+      }
+
+      assert {:ok, %{agent_id: agent_id}, socket} =
+               AgentSocket
+               |> socket("agent_socket:register", %{})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "agent:register", params)
+
+      assert is_binary(agent_id)
+      assert socket.assigns.agent_id == agent_id
+      assert {:ok, [_]} = Agents.discover(%{name: "register-join-agent"})
+    end
+
+    test "register-on-join returns error when capabilities are missing" do
+      assert {:error, %{reason: "capabilities_required"}} =
+               AgentSocket
+               |> socket("agent_socket:register", %{})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "agent:register", %{"name" => "oops"})
+    end
+
+    test "register-on-join returns error when capabilities are invalid" do
+      assert {:error, %{reason: "invalid_capabilities"}} =
+               AgentSocket
+               |> socket("agent_socket:register", %{})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "agent:register", %{
+                 "capabilities" => ["ok", 123]
+               })
+    end
+
+    test "register-on-join returns error when optional params are invalid" do
+      assert {:error, %{reason: "invalid_name"}} =
+               AgentSocket
+               |> socket("agent_socket:register", %{})
+               |> subscribe_and_join(VicheWeb.AgentChannel, "agent:register", %{
+                 "capabilities" => ["ok"],
+                 "name" => 123
+               })
+    end
+  end
+
+  describe "AgentSocket.connect/3" do
+    test "allows websocket connect without agent_id for register flow" do
+      assert {:ok, socket} = connect(AgentSocket, %{})
+      refute Map.has_key?(socket.assigns, :agent_id)
+    end
+
+    test "connect without agent_id cannot join existing agent topic" do
+      {:ok, socket} = connect(AgentSocket, %{})
+      {:ok, existing_agent} = Agents.register_agent(%{capabilities: ["testing"]})
+
+      assert {:error, %{reason: "agent_id_required"}} =
+               subscribe_and_join(socket, VicheWeb.AgentChannel, "agent:#{existing_agent.id}")
+    end
   end
 
   describe "handle_in/3 - discover" do
@@ -386,6 +445,31 @@ defmodule VicheWeb.AgentChannelTest do
       assert is_binary(payload.id)
       assert is_binary(payload.sent_at)
     end
+
+    test "register-on-join client receives new_message push for newly created agent" do
+      params = %{
+        "capabilities" => ["testing"],
+        "name" => "rt-register-agent"
+      }
+
+      {:ok, %{agent_id: registered_id}, _socket} =
+        AgentSocket
+        |> socket("agent_socket:register-rt", %{})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:register", params)
+
+      {:ok, sender} = Agents.register_agent(%{capabilities: ["sender"], name: "sender-agent"})
+
+      assert {:ok, _message_id} =
+               Agents.send_message(%{
+                 to: registered_id,
+                 from: sender.id,
+                 body: "hello registered"
+               })
+
+      assert_push "new_message", payload
+      assert payload.body == "hello registered"
+      assert payload.from == sender.id
+    end
   end
 
   describe "join/3 - sends :websocket_connected to AgentServer" do
@@ -622,6 +706,7 @@ defmodule VicheWeb.AgentChannelTest do
       agent_id: agent_id
     } do
       [{pid, _}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+      ref = Process.monitor(pid)
 
       {:ok, _, socket} =
         AgentSocket
@@ -632,8 +717,11 @@ defmodule VicheWeb.AgentChannelTest do
       Process.unlink(socket.channel_pid)
       close(socket)
 
-      # Agent should still be alive immediately after disconnect
-      assert Process.alive?(pid)
+      # Agent should stay up during grace period (no DOWN yet)
+      refute_receive {:DOWN, ^ref, :process, ^pid, _reason}, 100
+
+      # It eventually shuts down when grace period expires
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 2_000
     end
   end
 end
