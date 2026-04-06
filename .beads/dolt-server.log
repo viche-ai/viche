@@ -1,16 +1,24 @@
-Starting server with Config HP="127.0.0.1:65345"|T="28800000"|R="false"|L="info"
-time="2026-04-05T10:25:57+02:00" level=info msg="Creating root@localhost superuser"
-time="2026-04-05T10:25:57+02:00" level=info msg="Server ready. Accepting connections."
-time="2026-04-05T10:25:57+02:00" level=warning msg="secure_file_priv is set to \"\", which is insecure."
-time="2026-04-05T10:25:57+02:00" level=warning msg="Any user with GRANT FILE privileges will be able to read any file which the sql-server process can read."
-time="2026-04-05T10:25:57+02:00" level=warning msg="Please consider restarting the server with secure_file_priv set to a safe (or non-existent) directory."
-time="2026-04-05T10:25:57+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=1
-time="2026-04-05T10:25:57+02:00" level=info msg=ConnectionClosed connectionID=1
-time="2026-04-05T10:25:57+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=2
-time="2026-04-05T10:25:57+02:00" level=info msg=ConnectionClosed connectionID=2
-time="2026-04-05T10:25:57+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=3
-time="2026-04-05T10:25:57+02:00" level=info msg=ConnectionClosed connectionID=3
-time="2026-04-05T10:25:57+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=4
-time="2026-04-05T10:25:57+02:00" level=info msg=ConnectionClosed connectionID=4
-time="2026-04-05T10:25:57+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=5
-time="2026-04-05T10:25:57+02:00" level=info msg=ConnectionClosed connectionID=5
+Starting server with Config HP="127.0.0.1:52096"|T="28800000"|R="false"|L="info"
+time="2026-04-06T18:15:58+02:00" level=info msg="Creating root@localhost superuser"
+time="2026-04-06T18:15:58+02:00" level=info msg="Server ready. Accepting connections."
+time="2026-04-06T18:15:58+02:00" level=warning msg="secure_file_priv is set to \"\", which is insecure."
+time="2026-04-06T18:15:58+02:00" level=warning msg="Any user with GRANT FILE privileges will be able to read any file which the sql-server process can read."
+time="2026-04-06T18:15:58+02:00" level=warning msg="Please consider restarting the server with secure_file_priv set to a safe (or non-existent) directory."
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=1
+time="2026-04-06T18:15:58+02:00" level=info msg=ConnectionClosed connectionID=1
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=2
+time="2026-04-06T18:15:58+02:00" level=info msg=ConnectionClosed connectionID=2
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=3
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=4
+time="2026-04-06T18:15:58+02:00" level=info msg=ConnectionClosed connectionID=3
+time="2026-04-06T18:15:58+02:00" level=warning msg="error running query" connectTime="2026-04-06 18:15:58.535515 +0200 CEST m=+0.251866751" connectionDb=viche connectionID=4 error="table not found: config" queryTime="2026-04-06 18:15:58.537204 +0200 CEST m=+0.253555168"
+time="2026-04-06T18:15:58+02:00" level=warning msg="error running query" connectTime="2026-04-06 18:15:58.535515 +0200 CEST m=+0.251866751" connectionDb=viche connectionID=4 error="table not found: config" queryTime="2026-04-06 18:15:58.541981 +0200 CEST m=+0.258332459"
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=5
+time="2026-04-06T18:15:58+02:00" level=warning msg="error running query" connectTime="2026-04-06 18:15:58.542377 +0200 CEST m=+0.258728876" connectionDb=viche connectionID=5 error="Duplicate key name 'idx_issues_issue_type'" queryTime="2026-04-06 18:15:58.642874 +0200 CEST m=+0.359225751"
+time="2026-04-06T18:15:58+02:00" level=warning msg="error running query" connectTime="2026-04-06 18:15:58.542377 +0200 CEST m=+0.258728876" connectionDb=viche connectionID=5 error="foreign key `fk_dep_depends_on` was not found on the table `dependencies`" queryTime="2026-04-06 18:15:58.643491 +0200 CEST m=+0.359842626"
+time="2026-04-06T18:15:58+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=6
+time="2026-04-06T18:15:58+02:00" level=info msg=ConnectionClosed connectionID=6
+time="2026-04-06T18:15:59+02:00" level=info msg=NewConnection DisableClientMultiStatements=false connectionID=7
+time="2026-04-06T18:15:59+02:00" level=info msg=ConnectionClosed connectionID=7
+time="2026-04-06T18:16:02+02:00" level=info msg=ConnectionClosed connectionID=5
+time="2026-04-06T18:16:02+02:00" level=info msg=ConnectionClosed connectionID=4

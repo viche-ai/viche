@@ -24,7 +24,7 @@
 
 listener:
   host: 127.0.0.1
-  port: 65345
+  port: 52096
   # max_connections: 1000
   # back_log: 50
   # max_connections_timeout_millis: 60000

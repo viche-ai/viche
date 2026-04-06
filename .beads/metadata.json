@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "viche",
+  "project_id": "2c55c8d2-3bc1-4f4d-b9f6-3ff9cc3ec629"
+}

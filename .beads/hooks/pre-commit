@@ -1,0 +1,148 @@
+#!/bin/sh
+# Pre-commit hook: runs plugin checks and `mix precommit` before every commit.
+#
+# This hook is version-controlled in .githooks/ and auto-configured by `mix setup`
+# via: git config core.hooksPath .githooks
+
+set -e
+
+STAGED_FILES=$(git diff --cached --name-only)
+
+# ── OpenCode plugin checks ────────────────────────────────────────────────────
+if echo "$STAGED_FILES" | grep -q "^channel/opencode-plugin-viche/"; then
+  echo "------------------------------------------------------------"
+  echo "  Pre-commit: opencode-plugin-viche files changed"
+  echo "  (bun install, tsc, build, test)"
+  echo "------------------------------------------------------------"
+
+  cd channel/opencode-plugin-viche
+
+  echo "  → bun install --frozen-lockfile"
+  if ! bun install --frozen-lockfile; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: bun install failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bunx tsc --noEmit"
+  if ! bunx tsc --noEmit; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: TypeScript check failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bun run build"
+  if ! bun run build; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: build failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → bun run test"
+  if ! bun run test; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: tests failed in opencode-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo ""
+  echo "  opencode-plugin-viche checks passed."
+  echo "------------------------------------------------------------"
+
+  cd ../..
+fi
+
+# ── OpenClaw plugin checks ────────────────────────────────────────────────────
+if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
+  echo "------------------------------------------------------------"
+  echo "  Pre-commit: openclaw-plugin-viche files changed"
+  echo "  (npm install, tsc, build)"
+  echo "------------------------------------------------------------"
+
+  cd channel/openclaw-plugin-viche
+
+  echo "  → npm install"
+  if ! npm install; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: npm install failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → npx tsc --noEmit"
+  if ! npx tsc --noEmit; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: TypeScript check failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → npm run build"
+  if ! npm run build; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: build failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo ""
+  echo "  openclaw-plugin-viche checks passed."
+  echo "------------------------------------------------------------"
+
+  cd ../..
+fi
+
+# ── Elixir checks ─────────────────────────────────────────────────────────────
+echo "------------------------------------------------------------"
+echo "  Pre-commit: running mix precommit"
+echo "  (compile, deps check, format, credo, tests, dialyzer)"
+echo "------------------------------------------------------------"
+
+if ! mix precommit; then
+  echo ""
+  echo "------------------------------------------------------------"
+  echo "  BLOCKED: pre-commit validation failed."
+  echo "  Fix the issues above, then try committing again."
+  echo "------------------------------------------------------------"
+  exit 1
+fi
+
+echo ""
+echo "------------------------------------------------------------"
+echo "  Pre-commit validation passed. Proceeding with commit."
+echo "------------------------------------------------------------"
+
+# --- BEGIN BEADS INTEGRATION v0.62.0 ---
+# This section is managed by beads. Do not remove these markers.
+if command -v bd >/dev/null 2>&1; then
+  export BD_GIT_HOOK=1
+  _bd_timeout=${BEADS_HOOK_TIMEOUT:-300}
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$_bd_timeout" bd hooks run pre-commit "$@"
+    _bd_exit=$?
+    if [ $_bd_exit -eq 124 ]; then
+      echo >&2 "beads: hook 'pre-commit' timed out after ${_bd_timeout}s — continuing without beads"
+      _bd_exit=0
+    fi
+  else
+    bd hooks run pre-commit "$@"
+    _bd_exit=$?
+  fi
+  if [ $_bd_exit -eq 3 ]; then
+    echo >&2 "beads: database not initialized — skipping hook 'pre-commit'"
+    _bd_exit=0
+  fi
+  if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
+fi
+# --- END BEADS INTEGRATION v0.62.0 ---
