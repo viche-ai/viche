@@ -55,3 +55,4 @@ config/*.secret.exs
 .dolt/
 *.db
 .beads-credential-key
+.beads/dolt-server.log
