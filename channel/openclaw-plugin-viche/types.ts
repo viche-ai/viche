@@ -138,8 +138,20 @@ type SafeParseResult =
   | { success: true; data: VicheConfig }
   | { success: false; error: { issues: Issue[] } };
 
+const REGISTRY_TOKEN_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const REGISTRY_TOKEN_MIN_LENGTH = 4;
+const REGISTRY_TOKEN_MAX_LENGTH = 256;
+
 function issue(path: Array<string | number>, message: string): SafeParseResult {
   return { success: false, error: { issues: [{ path, message }] } };
+}
+
+function validRegistryToken(token: string): boolean {
+  return (
+    token.length >= REGISTRY_TOKEN_MIN_LENGTH &&
+    token.length <= REGISTRY_TOKEN_MAX_LENGTH &&
+    REGISTRY_TOKEN_PATTERN.test(token)
+  );
 }
 
 /**
@@ -168,9 +180,10 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
     if (raw.capabilities !== undefined) {
       if (
         !Array.isArray(raw.capabilities) ||
+        raw.capabilities.length === 0 ||
         !raw.capabilities.every((c) => typeof c === "string")
       ) {
-        return issue(["capabilities"], "must be an array of strings");
+        return issue(["capabilities"], "must be a non-empty array of strings");
       }
     }
 
@@ -188,15 +201,29 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
     if (raw.registries !== undefined) {
       if (
         !Array.isArray(raw.registries) ||
-        !raw.registries.every((r) => typeof r === "string")
+        !raw.registries.every((r) => typeof r === "string" && validRegistryToken(r))
       ) {
-        return issue(["registries"], "must be an array of strings");
+        return issue(
+          ["registries"],
+          "must be an array of valid registry tokens (4-256 chars, [a-zA-Z0-9._-])",
+        );
       }
     }
 
     // registryToken (legacy string — converted to single-element array)
     if (raw.registryToken !== undefined && typeof raw.registryToken !== "string") {
       return issue(["registryToken"], "must be a string");
+    }
+
+    if (
+      typeof raw.registryToken === "string" &&
+      raw.registryToken.length > 0 &&
+      !validRegistryToken(raw.registryToken)
+    ) {
+      return issue(
+        ["registryToken"],
+        "must be a valid registry token (4-256 chars, [a-zA-Z0-9._-])",
+      );
     }
 
     // defaultInboundSession
@@ -252,6 +279,7 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
       capabilities: {
         type: "array",
         items: { type: "string" },
+        minItems: 1,
         default: ["coding"],
         description: "Capability strings this agent publishes to the Viche registry",
       },
@@ -265,11 +293,19 @@ export const VicheConfigSchema: OpenClawPluginConfigSchema<VicheConfig> = {
       },
       registries: {
         type: "array",
-        items: { type: "string" },
+        items: {
+          type: "string",
+          minLength: REGISTRY_TOKEN_MIN_LENGTH,
+          maxLength: REGISTRY_TOKEN_MAX_LENGTH,
+          pattern: REGISTRY_TOKEN_PATTERN.source,
+        },
         description: "Registry tokens to join one or more private registries for scoped discovery and messaging",
       },
       registryToken: {
         type: "string",
+        minLength: REGISTRY_TOKEN_MIN_LENGTH,
+        maxLength: REGISTRY_TOKEN_MAX_LENGTH,
+        pattern: REGISTRY_TOKEN_PATTERN.source,
         description: "Legacy: single registry token (converted to registries array). Use registries instead.",
       },
       defaultInboundSession: {

@@ -229,15 +229,36 @@ defmodule VicheWeb.AgentChannel do
   end
 
   defp handle_discover(base_query, socket) do
-    query = build_discover_query(base_query, socket)
+    case ensure_registry_membership(socket) do
+      :ok ->
+        query = build_discover_query(base_query, socket)
 
-    case Viche.Agents.discover(query) do
-      {:ok, agents} ->
-        {:reply, {:ok, %{agents: agents}}, socket}
+        case Viche.Agents.discover(query) do
+          {:ok, agents} ->
+            {:reply, {:ok, %{agents: agents}}, socket}
+
+          {:error, reason} ->
+            {:reply,
+             {:error, %{error: to_string(reason), message: "discovery failed: #{reason}"}},
+             socket}
+        end
+
+      {:error, :not_in_registry} ->
+        {:reply, {:ok, %{agents: []}}, socket}
 
       {:error, reason} ->
         {:reply, {:error, %{error: to_string(reason), message: "discovery failed: #{reason}"}},
          socket}
+    end
+  end
+
+  defp ensure_registry_membership(socket) do
+    case Map.get(socket.assigns, :registry_token) do
+      nil ->
+        :ok
+
+      token ->
+        Viche.Agents.authorize_registry_join(socket.assigns.agent_id, token)
     end
   end
 
