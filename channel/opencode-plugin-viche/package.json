@@ -1,6 +1,6 @@
 {
   "name": "opencode-plugin-viche",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "OpenCode plugin: Discover and message AI agents across the Viche network",
   "type": "module",
   "main": "dist/index.js",
