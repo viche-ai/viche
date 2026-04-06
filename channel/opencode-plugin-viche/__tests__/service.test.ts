@@ -13,6 +13,7 @@ type JoinOutcome = {
 };
 
 let _onHandlers: Record<string, (...args: unknown[]) => void> = {};
+let _channelErrorHandler: ((reason: unknown) => void) | null = null;
 let joinOutcomes: JoinOutcome[] = [];
 
 function makeJoinSequence() {
@@ -48,12 +49,17 @@ const mockChannel = {
   on: mock((event: string, cb: (...args: unknown[]) => void) => {
     _onHandlers[event] = cb;
   }),
+  onError: mock((cb: (reason: unknown) => void) => {
+    _channelErrorHandler = cb;
+  }),
   leave: mock(() => {}),
 };
 
 const mockSocketMethods = {
   connect: mock(() => {}),
   disconnect: mock(() => {}),
+  onOpen: mock((_cb: () => void) => {}),
+  onClose: mock((_cb: () => void) => {}),
   channel: mock((_topic: string, _params: unknown) => mockChannel),
 };
 
@@ -62,6 +68,8 @@ const socketConstructorArgs: Array<[string, unknown?]> = [];
 class MockSocket {
   connect = mockSocketMethods.connect;
   disconnect = mockSocketMethods.disconnect;
+  onOpen = mockSocketMethods.onOpen;
+  onClose = mockSocketMethods.onClose;
   channel = mockSocketMethods.channel;
 
   constructor(url: string, opts?: unknown) {
@@ -108,6 +116,7 @@ describe("createVicheService", () => {
     client = makeClient();
 
     _onHandlers = {};
+    _channelErrorHandler = null;
     joinOutcomes = [];
     socketConstructorArgs.length = 0;
 
@@ -117,10 +126,16 @@ describe("createVicheService", () => {
     mockChannel.on.mockImplementation((event: string, cb: (...args: unknown[]) => void) => {
       _onHandlers[event] = cb;
     });
+    mockChannel.onError.mockReset();
+    mockChannel.onError.mockImplementation((cb: (reason: unknown) => void) => {
+      _channelErrorHandler = cb;
+    });
     mockChannel.leave.mockReset();
 
     mockSocketMethods.connect.mockReset();
     mockSocketMethods.disconnect.mockReset();
+    mockSocketMethods.onOpen.mockReset();
+    mockSocketMethods.onClose.mockReset();
     mockSocketMethods.channel.mockReset();
     mockSocketMethods.channel.mockImplementation(
       (_topic: string, _params: unknown) => mockChannel
@@ -139,12 +154,22 @@ describe("createVicheService", () => {
     const session = await service.ensureSessionReady("sess-1");
 
     expect(session.agentId).toBe("abc12345-0000-4000-a000-000000000000");
-    expect(mockSocketMethods.channel).toHaveBeenCalledWith("agent:register", {
+    const [, registerPayload] = mockSocketMethods.channel.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(registerPayload).toEqual({
       capabilities: ["coding"],
-      name: undefined,
-      description: undefined,
-      registries: undefined,
     });
+    expect(Object.prototype.hasOwnProperty.call(registerPayload, "name")).toBe(
+      false
+    );
+    expect(
+      Object.prototype.hasOwnProperty.call(registerPayload, "description")
+    ).toBe(false);
+    expect(
+      Object.prototype.hasOwnProperty.call(registerPayload, "registries")
+    ).toBe(false);
   });
 
   it("returns existing session from state without re-registering", async () => {
@@ -177,7 +202,41 @@ describe("createVicheService", () => {
     expect(mockSocketMethods.connect).toHaveBeenCalledTimes(1);
     const [wsUrl, opts] = socketConstructorArgs[0]!;
     expect(wsUrl).toBe("ws://localhost:4000/agent/websocket");
-    expect(opts).toBeUndefined();
+    expect(typeof opts).toBe("object");
+    const reconnectAfterMs =
+      (opts as { reconnectAfterMs?: (tries: number) => number }).reconnectAfterMs;
+    expect(reconnectAfterMs?.(1)).toBe(1000);
+    expect(reconnectAfterMs?.(2)).toBe(2000);
+    expect(reconnectAfterMs?.(3)).toBe(5000);
+    expect(reconnectAfterMs?.(4)).toBe(10000);
+    expect(reconnectAfterMs?.(99)).toBe(10000);
+  });
+
+  it("re-registers session after channel error and updates agentId", async () => {
+    joinOutcomes = [
+      {
+        event: "ok",
+        payload: { agent_id: "first-0000-4000-a000-000000000000" },
+      },
+      {
+        event: "ok",
+        payload: { agent_id: "second-0000-4000-a000-000000000000" },
+      },
+    ];
+
+    const service = createVicheService(config, state, client, "/project", { backoffMs: 0 });
+    const session = await service.ensureSessionReady("sess-reconnect");
+    expect(session.agentId).toBe("first-0000-4000-a000-000000000000");
+    expect(mockChannel.join.mock.calls.length).toBe(1);
+
+    _channelErrorHandler?.({ reason: "agent_not_found" });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    expect(mockChannel.join.mock.calls.length).toBe(2);
+    expect(state.sessions.get("sess-reconnect")?.agentId).toBe(
+      "second-0000-4000-a000-000000000000"
+    );
+    expect(mockSocketMethods.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it("injects identity context via client.session.prompt with noReply: true", async () => {

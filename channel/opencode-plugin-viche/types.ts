@@ -37,6 +37,9 @@ export interface SessionState {
   /** Phoenix Channel instance joined on "agent:register". */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   channel: any;
+  /** Registry channels joined for discovery broadcasts. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registryChannels?: any[];
 }
 
 // ---------------------------------------------------------------------------

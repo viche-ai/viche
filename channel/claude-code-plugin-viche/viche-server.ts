@@ -65,12 +65,51 @@ interface DiscoverResponse {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PhoenixChannel = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PhoenixSocket = any;
 
 let activeChannel: PhoenixChannel | null = null;
+let activeSocket: PhoenixSocket | null = null;
 let activeAgentId: string | null = null;
 const registryChannels = new Map<string, PhoenixChannel>();
+let recovering = false;
 const NOT_CONNECTED_MESSAGE =
   "Not connected to Viche registry yet. Please wait for registration to complete.";
+
+function clearRegistryChannels(): void {
+  for (const channel of registryChannels.values()) {
+    try {
+      channel.leave?.();
+    } catch {
+      // Best-effort teardown: leave/disconnect failures are non-fatal because reconnect builds fresh socket/channel state.
+    }
+  }
+  registryChannels.clear();
+}
+
+function clearActiveConnection(): void {
+  if (activeChannel) {
+    try {
+      activeChannel.leave?.();
+    } catch {
+      // Ignore cleanup failures.
+    }
+    activeChannel = null;
+  }
+
+  clearRegistryChannels();
+
+  if (activeSocket) {
+    try {
+      activeSocket.disconnect?.();
+    } catch {
+      // Ignore cleanup failures.
+    }
+    activeSocket = null;
+  }
+
+  activeAgentId = null;
+}
 
 function channelPush<T>(
   channel: PhoenixChannel,
@@ -101,11 +140,26 @@ function connectAndRegister(server: Server): Promise<void> {
 
   return new Promise<void>((resolve, reject) => {
     let settled = false;
+    let channel: PhoenixChannel | undefined;
 
-    const socket = new Socket(wsUrl);
+    const socket: PhoenixSocket = new Socket(wsUrl, {
+      reconnectAfterMs: (tries: number) =>
+        ([1000, 2000, 5000, 10000] as const)[tries - 1] ?? 10000,
+    });
 
     socket.onError((err: unknown) => {
       if (!settled) {
+        try {
+          channel?.leave?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+        try {
+          socket.disconnect?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+
         settled = true;
         reject(
           new Error(
@@ -117,11 +171,73 @@ function connectAndRegister(server: Server): Promise<void> {
       }
     });
 
+    socket.onClose(() => {
+      process.stderr.write(
+        "Viche: WebSocket disconnected — will reconnect automatically\n"
+      );
+    });
+
+    socket.onOpen(() => {
+      process.stderr.write("Viche: WebSocket (re)connected\n");
+    });
+
+    const registerChannel: PhoenixChannel = socket.channel(
+      "agent:register",
+      registerPayload
+    );
+    channel = registerChannel;
+
     socket.connect();
 
-    const channel: PhoenixChannel = socket.channel("agent:register", registerPayload);
+    registerChannel.onError?.((reason: unknown) => {
+      if (!settled || recovering || activeChannel !== registerChannel) {
+        return;
+      }
 
-    channel.on(
+      recovering = true;
+
+      const reasonString =
+        typeof reason === "string" ? reason : JSON.stringify(reason);
+      process.stderr.write(
+        `Viche: channel error (${reasonString}) — reconnecting and re-registering\n`
+      );
+
+      const staleChannel = activeChannel;
+      const staleSocket = activeSocket;
+
+      activeChannel = null;
+      activeSocket = null;
+      activeAgentId = null;
+      clearRegistryChannels();
+
+      try {
+        staleChannel?.leave?.();
+      } catch {
+        // Ignore stale channel cleanup failures.
+      }
+
+      try {
+        staleSocket?.disconnect?.();
+      } catch {
+        // Ignore stale socket cleanup failures.
+      }
+
+      void connectAndRegisterWithRetry(server)
+        .then(() => {
+          process.stderr.write(
+            `Viche: recovered — re-registered as ${activeAgentId}\n`
+          );
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          process.stderr.write(`Viche: channel recovery failed: ${message}\n`);
+        })
+        .finally(() => {
+          recovering = false;
+        });
+    });
+
+    registerChannel.on(
       "new_message",
       (payload: { id: string; type?: string; from: string; body: string }) => {
         const messageType = payload.type ?? "task";
@@ -147,10 +263,13 @@ function connectAndRegister(server: Server): Promise<void> {
       }
     );
 
-    channel
+    registerChannel
       .join()
       .receive("ok", (resp: RegisterJoinResponse) => {
-        activeChannel = channel;
+        clearRegistryChannels();
+
+        activeSocket = socket;
+        activeChannel = registerChannel;
         activeAgentId = resp.agent_id;
         process.stderr.write(
           `Viche: registered as ${activeAgentId}, connected via WebSocket\n`
@@ -176,12 +295,34 @@ function connectAndRegister(server: Server): Promise<void> {
         }
       })
       .receive("error", (resp: unknown) => {
+        try {
+          registerChannel.leave?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+        try {
+          socket.disconnect?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+
         if (!settled) {
           settled = true;
           reject(new Error(`Channel join failed: ${JSON.stringify(resp)}`));
         }
       })
       .receive("timeout", () => {
+        try {
+          registerChannel.leave?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+        try {
+          socket.disconnect?.();
+        } catch {
+          // Ignore cleanup failures.
+        }
+
         if (!settled) {
           settled = true;
           reject(new Error("Channel join timed out"));
@@ -517,6 +658,13 @@ async function main(): Promise<void> {
 
   // Connect to Phoenix Channel and register via channel join
   await connectAndRegisterWithRetry(server);
+
+  const shutdown = () => {
+    clearActiveConnection();
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 main().catch((err) => {
