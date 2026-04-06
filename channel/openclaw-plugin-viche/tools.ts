@@ -203,7 +203,7 @@ export function registerVicheTools(
               `${config.registryUrl}/messages/${encodeURIComponent(params.to)}`,
               {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-Agent-Id": state.agentId! },
                 body: JSON.stringify({
                   from: state.agentId,
                   body: params.body,
@@ -280,7 +280,7 @@ export function registerVicheTools(
               `${config.registryUrl}/messages/${encodeURIComponent(params.to)}`,
               {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-Agent-Id": state.agentId! },
                 body: JSON.stringify({
                   from: state.agentId,
                   body: params.body,
