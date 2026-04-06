@@ -5,13 +5,16 @@
  *   1. Environment variables  (VICHE_REGISTRY_URL, VICHE_AGENT_NAME,
  *                               VICHE_CAPABILITIES, VICHE_DESCRIPTION)
  *   2. File: <projectDir>/.opencode/viche.json
- *   3. Built-in defaults
+ *   3. File: ~/.opencode/viche.json  (home directory fallback)
+ *   4. Built-in defaults
  *
- * The config file is optional — a missing or malformed file is silently
- * ignored and falls back to defaults.
+ * The config files are optional. A missing project file silently falls back
+ * to the home-directory file; an existing but malformed or unreadable project
+ * file stops the fallback chain and the remaining sources supply the values.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { VicheConfig } from "./types.js";
 
@@ -59,21 +62,52 @@ export function isValidToken(token: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Load and parse .opencode/viche.json, returning an empty object on any
- * error (missing file, bad permissions, invalid JSON, non-object root).
+ * Attempt to read and parse a single viche.json file.
+ *
+ * Returns the parsed config object when the file exists and contains valid
+ * JSON, `null` when the file is absent (ENOENT), and `{}` in all other
+ * failure cases (bad permissions, invalid JSON, non-object root).
+ *
+ * The `null` vs `{}` distinction lets `loadFileConfig` apply the fallback
+ * rule precisely: only fall through to the home dir when the project-level
+ * file is **truly absent**, not when it exists but is unusable.
  */
-function loadFileConfig(projectDir: string): RawFileConfig {
-  const configPath = join(projectDir, ".opencode", "viche.json");
+function readRawConfig(path: string): RawFileConfig | null {
+  let raw: string;
   try {
-    const raw = readFileSync(configPath, "utf-8");
+    raw = readFileSync(path, "utf-8");
+  } catch (err) {
+    // Return null only for "file not found" so the caller tries the next
+    // location.  All other read errors (EACCES, EISDIR, …) return {} to
+    // stop the fallback chain — the project file exists but is unusable.
+    return (err as NodeJS.ErrnoException).code === "ENOENT" ? null : {};
+  }
+  try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return {};
     }
     return parsed as RawFileConfig;
   } catch {
-    return {};
+    return {}; // invalid JSON — stop fallback chain
   }
+}
+
+/**
+ * Load file-based config, trying the project directory first and then the
+ * user's home directory as a fallback.
+ *
+ * Fallback to the home directory only happens when the project-level file is
+ * absent (ENOENT). An existing but malformed, unreadable, or non-object
+ * project file stops the fallback chain — it is treated as "config present,
+ * but with no usable values" rather than "no config".
+ */
+function loadFileConfig(projectDir: string): RawFileConfig {
+  const projectConfig = readRawConfig(join(projectDir, ".opencode", "viche.json"));
+  if (projectConfig !== null) return projectConfig;
+
+  // Project file absent — try ~/.opencode/viche.json
+  return readRawConfig(join(homedir(), ".opencode", "viche.json")) ?? {};
 }
 
 /**

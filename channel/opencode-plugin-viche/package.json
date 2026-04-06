@@ -1,6 +1,6 @@
 {
   "name": "opencode-plugin-viche",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "OpenCode plugin: Discover and message AI agents across the Viche network",
   "type": "module",
   "main": "dist/index.js",
@@ -16,7 +16,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "bun test __tests__/{config,index,service,tools}.test.ts",
+    "test": "bun test __tests__/config.test.ts __tests__/config-home-fallback.test.ts __tests__/config-integration.test.ts __tests__/index.test.ts __tests__/service.test.ts __tests__/tools.test.ts __tests__/multi-registry-resilience.test.ts __tests__/discover-response-schema-validation.test.ts",
     "test:e2e": "bun test __tests__/e2e.test.ts",
     "test:all": "bun run test && bun run test:e2e",
     "build": "tsc",
