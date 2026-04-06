@@ -25,12 +25,12 @@ defmodule VicheWeb.InboxController do
       {:error, :not_found} ->
         conn
         |> put_status(:not_found)
-        |> json(%{error: "agent_not_found", message: "no agent found with the given ID"})
+        |> json(%{error: "agent_not_found"})
 
       false ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "not_owner", message: "you do not own this agent"})
+        |> json(%{error: "not_owner"})
 
       true ->
         case Agents.drain_inbox(agent_id) do
@@ -42,7 +42,7 @@ defmodule VicheWeb.InboxController do
           {:error, :agent_not_found} ->
             conn
             |> put_status(:not_found)
-            |> json(%{error: "agent_not_found", message: "no agent found with the given ID"})
+            |> json(%{error: "agent_not_found"})
         end
     end
   end
