@@ -22,8 +22,7 @@ defmodule VicheWeb.HeartbeatControllerTest do
     test "returns 404 for non-existent agent", %{conn: conn} do
       conn = post(conn, ~p"/agents/nonexistent-id/heartbeat")
 
-      assert %{"error" => "agent_not_found", "message" => message} = json_response(conn, 404)
-      assert is_binary(message)
+      assert %{"error" => "agent_not_found"} = json_response(conn, 404)
     end
 
     test "heartbeat updates last_activity timestamp", %{conn: conn} do

@@ -23,7 +23,7 @@ defmodule VicheWeb.HeartbeatController do
       {:error, :agent_not_found} ->
         conn
         |> put_status(:not_found)
-        |> json(%{error: "agent_not_found", message: "no agent found with the given ID"})
+        |> json(%{error: "agent_not_found"})
     end
   end
 end

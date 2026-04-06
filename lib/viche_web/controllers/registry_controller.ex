@@ -52,52 +52,37 @@ defmodule VicheWeb.RegistryController do
       {:error, :invalid_polling_timeout} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{
-          error: "invalid_polling_timeout",
-          message: "polling_timeout_ms must be an integer >= 5000"
-        })
+        |> json(%{error: "invalid_polling_timeout"})
 
       {:error, :invalid_grace_period} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{
-          error: "invalid_grace_period",
-          message: "grace_period_ms must be an integer >= 1000"
-        })
+        |> json(%{error: "invalid_grace_period"})
 
       {:error, :capabilities_required} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{
-          error: "capabilities_required",
-          message: "capabilities must be a non-empty list of strings"
-        })
+        |> json(%{error: "capabilities_required"})
 
       {:error, :invalid_capabilities} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "invalid_capabilities", message: "every capability must be a string"})
+        |> json(%{error: "invalid_capabilities"})
 
       {:error, :invalid_name} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "invalid_name", message: "name must be a string or omitted"})
+        |> json(%{error: "invalid_name"})
 
       {:error, :invalid_description} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{
-          error: "invalid_description",
-          message: "description must be a string or omitted"
-        })
+        |> json(%{error: "invalid_description"})
 
       {:error, :invalid_registry_token} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{
-          error: "invalid_registry_token",
-          message: "each registry token must be 4-256 chars, alphanumeric/._-"
-        })
+        |> json(%{error: "invalid_registry_token"})
     end
   end
 
@@ -112,12 +97,12 @@ defmodule VicheWeb.RegistryController do
       {:error, :not_found} ->
         conn
         |> put_status(:not_found)
-        |> json(%{error: "agent_not_found", message: "no agent found with the given ID"})
+        |> json(%{error: "agent_not_found"})
 
       false ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "not_owner", message: "you do not own this agent"})
+        |> json(%{error: "not_owner"})
 
       true ->
         case Agents.deregister(agent_id) do
@@ -127,7 +112,7 @@ defmodule VicheWeb.RegistryController do
           {:error, :agent_not_found} ->
             conn
             |> put_status(:not_found)
-            |> json(%{error: "agent_not_found", message: "no agent found with the given ID"})
+            |> json(%{error: "agent_not_found"})
         end
     end
   end
@@ -142,7 +127,7 @@ defmodule VicheWeb.RegistryController do
         |> put_status(:unprocessable_entity)
         |> json(%{
           error: "invalid_token",
-          message: "token must be 4-256 characters, alphanumeric with . _ -"
+          details: "Token must be 4-256 characters, alphanumeric with . _ -"
         })
 
       :ok ->

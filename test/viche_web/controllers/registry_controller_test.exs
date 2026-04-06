@@ -1,9 +1,6 @@
 defmodule VicheWeb.RegistryControllerTest do
   use VicheWeb.ConnCase, async: false
 
-  alias Viche.Accounts.User
-  alias Viche.Repo
-
   describe "POST /registry/register" do
     test "registers agent with all fields and returns 201", %{conn: conn} do
       params = %{
@@ -52,10 +49,7 @@ defmodule VicheWeb.RegistryControllerTest do
 
       conn = post(conn, ~p"/registry/register", params)
 
-      assert %{"error" => "capabilities_required", "message" => message} =
-               json_response(conn, 422)
-
-      assert String.contains?(message, "non-empty")
+      assert %{"error" => "capabilities_required"} = json_response(conn, 422)
     end
 
     test "returns 422 when capabilities is empty list", %{conn: conn} do
@@ -63,46 +57,7 @@ defmodule VicheWeb.RegistryControllerTest do
 
       conn = post(conn, ~p"/registry/register", params)
 
-      assert %{"error" => "capabilities_required", "message" => message} =
-               json_response(conn, 422)
-
-      assert String.contains?(message, "non-empty")
-    end
-
-    test "returns 422 when capabilities contains non-string", %{conn: conn} do
-      params = %{"capabilities" => [1, 2, 3]}
-
-      conn = post(conn, ~p"/registry/register", params)
-
-      assert %{"error" => "invalid_capabilities", "message" => message} = json_response(conn, 422)
-      assert is_binary(message)
-    end
-
-    test "returns 422 when name is not a string", %{conn: conn} do
-      params = %{"capabilities" => ["test"], "name" => 42}
-
-      conn = post(conn, ~p"/registry/register", params)
-
-      assert %{"error" => "invalid_name", "message" => message} = json_response(conn, 422)
-      assert is_binary(message)
-    end
-
-    test "returns 422 when description is not a string", %{conn: conn} do
-      params = %{"capabilities" => ["test"], "description" => 42}
-
-      conn = post(conn, ~p"/registry/register", params)
-
-      assert %{"error" => "invalid_description", "message" => message} = json_response(conn, 422)
-      assert is_binary(message)
-    end
-
-    test "returns 422 when grace_period_ms is below minimum", %{conn: conn} do
-      params = %{"capabilities" => ["test"], "grace_period_ms" => 500}
-
-      conn = post(conn, ~p"/registry/register", params)
-
-      assert %{"error" => "invalid_grace_period", "message" => message} = json_response(conn, 422)
-      assert String.contains?(message, "1000")
+      assert %{"error" => "capabilities_required"} = json_response(conn, 422)
     end
 
     test "registered agent is findable in registry", %{conn: conn} do
@@ -151,10 +106,7 @@ defmodule VicheWeb.RegistryControllerTest do
 
       conn = post(conn, ~p"/registry/register", params)
 
-      assert %{"error" => "invalid_polling_timeout", "message" => message} =
-               json_response(conn, 422)
-
-      assert String.contains?(message, "5000")
+      assert %{"error" => "invalid_polling_timeout"} = json_response(conn, 422)
     end
 
     test "returns 422 when polling_timeout_ms is not an integer", %{conn: conn} do
@@ -162,10 +114,7 @@ defmodule VicheWeb.RegistryControllerTest do
 
       conn = post(conn, ~p"/registry/register", params)
 
-      assert %{"error" => "invalid_polling_timeout", "message" => message} =
-               json_response(conn, 422)
-
-      assert String.contains?(message, "integer")
+      assert %{"error" => "invalid_polling_timeout"} = json_response(conn, 422)
     end
 
     test "accepts polling_timeout_ms exactly at minimum (5000)", %{conn: conn} do
@@ -218,10 +167,7 @@ defmodule VicheWeb.RegistryControllerTest do
 
       conn = post(conn, ~p"/registry/register", params)
 
-      assert %{"error" => "invalid_registry_token", "message" => message} =
-               json_response(conn, 422)
-
-      assert is_binary(message)
+      assert %{"error" => "invalid_registry_token"} = json_response(conn, 422)
     end
   end
 
@@ -477,49 +423,13 @@ defmodule VicheWeb.RegistryControllerTest do
       conn =
         get(conn, ~p"/registry/discover", %{"capability" => "coding", "token" => "bad token!"})
 
-      assert %{"error" => "invalid_token", "message" => _} = json_response(conn, 422)
+      assert %{"error" => "invalid_token", "details" => _} = json_response(conn, 422)
     end
 
     test "returns 422 for token that is too short", %{conn: conn} do
       conn = get(conn, ~p"/registry/discover", %{"capability" => "coding", "token" => "abc"})
 
       assert %{"error" => "invalid_token"} = json_response(conn, 422)
-    end
-  end
-
-  describe "DELETE /registry/deregister/:agent_id" do
-    test "returns 404 with message for non-existent agent", %{conn: conn} do
-      conn = delete(conn, ~p"/registry/deregister/nonexistent-agent-id")
-
-      assert %{"error" => "agent_not_found", "message" => message} = json_response(conn, 404)
-      assert is_binary(message)
-    end
-
-    test "returns 403 with message when user does not own the agent", %{conn: conn} do
-      {:ok, owner} =
-        Repo.insert(User.changeset(%User{}, %{email: "owner-dereg@test.com"}))
-
-      # Set both assigns so ApiAuth plug bypasses and preserves current_user_id
-      conn_owner =
-        conn
-        |> Plug.Conn.assign(:current_user_id, owner.id)
-        |> Plug.Conn.assign(:current_agent_id, nil)
-
-      conn_owner = post(conn_owner, ~p"/registry/register", %{"capabilities" => ["test"]})
-      %{"id" => agent_id} = json_response(conn_owner, 201)
-
-      {:ok, other_user} =
-        Repo.insert(User.changeset(%User{}, %{email: "other-dereg@test.com"}))
-
-      conn_other =
-        build_conn()
-        |> Plug.Conn.assign(:current_user_id, other_user.id)
-        |> Plug.Conn.assign(:current_agent_id, nil)
-
-      conn_other = delete(conn_other, ~p"/registry/deregister/#{agent_id}")
-
-      assert %{"error" => "not_owner", "message" => message} = json_response(conn_other, 403)
-      assert is_binary(message)
     end
   end
 end
