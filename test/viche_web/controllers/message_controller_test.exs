@@ -121,7 +121,8 @@ defmodule VicheWeb.MessageControllerTest do
           "body" => "hello"
         })
 
-      assert %{"error" => "agent_not_found"} = json_response(conn, 404)
+      assert %{"error" => "agent_not_found", "message" => message} = json_response(conn, 404)
+      assert is_binary(message)
     end
 
     test "returns 422 when type is missing", %{conn: conn} do

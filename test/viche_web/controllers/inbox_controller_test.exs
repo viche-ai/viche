@@ -1,7 +1,9 @@
 defmodule VicheWeb.InboxControllerTest do
   use VicheWeb.ConnCase, async: false
 
+  alias Viche.Accounts.User
   alias Viche.AgentServer
+  alias Viche.Repo
 
   defp register_agent(conn, capabilities) do
     conn = post(conn, ~p"/registry/register", %{"capabilities" => capabilities})
@@ -147,7 +149,35 @@ defmodule VicheWeb.InboxControllerTest do
     test "returns 404 for non-existent agent", %{conn: conn} do
       conn = get(conn, ~p"/inbox/nonexistent-agent-id")
 
-      assert %{"error" => "agent_not_found"} = json_response(conn, 404)
+      assert %{"error" => "agent_not_found", "message" => message} = json_response(conn, 404)
+      assert is_binary(message)
+    end
+
+    test "returns 403 with message when user does not own the agent", %{conn: conn} do
+      {:ok, owner} =
+        Repo.insert(User.changeset(%User{}, %{email: "inbox-owner@test.com"}))
+
+      # Set both assigns so ApiAuth plug bypasses and preserves current_user_id
+      conn_owner =
+        conn
+        |> Plug.Conn.assign(:current_user_id, owner.id)
+        |> Plug.Conn.assign(:current_agent_id, nil)
+
+      conn_owner = post(conn_owner, ~p"/registry/register", %{"capabilities" => ["test"]})
+      %{"id" => agent_id} = json_response(conn_owner, 201)
+
+      {:ok, other_user} =
+        Repo.insert(User.changeset(%User{}, %{email: "inbox-other@test.com"}))
+
+      conn_other =
+        build_conn()
+        |> Plug.Conn.assign(:current_user_id, other_user.id)
+        |> Plug.Conn.assign(:current_agent_id, nil)
+
+      conn_other = get(conn_other, ~p"/inbox/#{agent_id}")
+
+      assert %{"error" => "not_owner", "message" => message} = json_response(conn_other, 403)
+      assert is_binary(message)
     end
 
     test "inbox drain is atomic via GenServer serialization", %{conn: conn} do
