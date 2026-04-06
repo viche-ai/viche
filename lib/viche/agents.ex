@@ -331,6 +331,49 @@ defmodule Viche.Agents do
   end
 
   @doc """
+  Deregisters an agent from a specific registry token or from all registries.
+
+  This operation does not terminate the agent process or disconnect websockets.
+  """
+  @spec deregister_from_registries(String.t(), map()) ::
+          {:ok, Agent.t()} | {:error, :agent_not_found | :not_in_registry | :invalid_token}
+  def deregister_from_registries(agent_id, opts \\ %{})
+
+  def deregister_from_registries(agent_id, %{registry: token}) do
+    with true <- valid_token?(token) || {:error, :invalid_token},
+         [{_pid, meta}] <- Registry.lookup(Viche.AgentRegistry, agent_id) do
+      if token in (meta.registries || []) do
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        {:ok, agent, actually_left} = AgentServer.deregister_from_registries(via, [token])
+        broadcast_agent_left(agent_id, actually_left)
+        {:ok, agent}
+      else
+        {:error, :not_in_registry}
+      end
+    else
+      [] -> {:error, :agent_not_found}
+      {:error, _} = err -> err
+    end
+  end
+
+  def deregister_from_registries(agent_id, opts) when is_map(opts) do
+    case Registry.lookup(Viche.AgentRegistry, agent_id) do
+      [{_pid, meta}] ->
+        registries_to_leave = meta.registries || []
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+
+        {:ok, agent, actually_left} =
+          AgentServer.deregister_from_registries(via, registries_to_leave)
+
+        broadcast_agent_left(agent_id, actually_left)
+        {:ok, agent}
+
+      [] ->
+        {:error, :agent_not_found}
+    end
+  end
+
+  @doc """
   Discovers agents by capability or name, scoped to a registry namespace.
 
   ## Parameters

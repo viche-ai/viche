@@ -168,6 +168,32 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
+  def handle_in("deregister", %{"registry" => token}, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Viche.Agents.deregister_from_registries(agent_id, %{registry: token}) do
+      {:ok, agent} ->
+        {:reply, {:ok, %{registries: agent.registries}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason), message: "deregister failed: #{reason}"}},
+         socket}
+    end
+  end
+
+  def handle_in("deregister", _params, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Viche.Agents.deregister_from_registries(agent_id, %{}) do
+      {:ok, agent} ->
+        {:reply, {:ok, %{registries: agent.registries}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason), message: "deregister failed: #{reason}"}},
+         socket}
+    end
+  end
+
   def handle_in(event, _params, socket) do
     Logger.warning("Unknown event received on agent channel: #{inspect(event)}")
     {:reply, {:error, %{error: "unknown_event", message: "unrecognized event: #{event}"}}, socket}

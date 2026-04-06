@@ -358,4 +358,67 @@ export function registerVicheTools(
       };
     }) as unknown as AnyAgentTool,
   );
+
+  // ── viche_deregister ──────────────────────────────────────────────────────
+  // Captures `ctx.sessionKey` to update "most-recent" session activity.
+
+  api.registerTool(
+    ((ctx: OpenClawPluginToolContext) => {
+      const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
+
+      return {
+        name: "viche_deregister",
+        description:
+          "Deregister from a registry on the Viche network. " +
+          "If registry is specified, leaves only that registry. " +
+          "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
+        parameters: Type.Object({
+          registry: Type.Optional(
+            Type.String({
+              description:
+                "Registry token to leave. If omitted, deregisters from all registries.",
+              minLength: 4,
+              maxLength: 256,
+              pattern: "^[a-zA-Z0-9._-]+$",
+            }),
+          ),
+        }),
+        async execute(
+          _toolCallId: string,
+          params: { registry?: string },
+          _signal?: AbortSignal,
+        ): Promise<AgentToolResult> {
+          const guard = requireConnected(state);
+          if (guard) return guard;
+
+          state.mostRecentSessionKey = sessionKey;
+
+          const payload: Record<string, unknown> = {};
+          if (params.registry) {
+            payload.registry = params.registry;
+          }
+
+          try {
+            const response = (await pushChannel(state.channel!, "deregister", payload)) as {
+              registries: string[];
+            };
+
+            const registries = response.registries ?? [];
+            if (registries.length === 0) {
+              return textResult(
+                "Deregistered from all registries. You are now undiscoverable but still connected.",
+              );
+            }
+
+            return textResult(
+              `Deregistered from registry '${params.registry}'. Remaining registries: ${registries.join(", ")}`,
+            );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return textResult(`Failed to deregister: ${msg}`);
+          }
+        },
+      };
+    }) as unknown as AnyAgentTool,
+  );
 }

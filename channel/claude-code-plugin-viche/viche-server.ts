@@ -23,7 +23,7 @@ const CAPABILITIES = (
   "coding"
 )
   .split(",")
-  .map((c) => c.trim())
+  .map((c: string) => c.trim())
   .filter(Boolean);
 const DESCRIPTION =
   process.env.VICHE_DESCRIPTION ||
@@ -35,7 +35,7 @@ const REGISTRY_TOKENS: string[] = (
   ""
 )
   .split(",")
-  .map((t) => t.trim())
+  .map((t: string) => t.trim())
   .filter(Boolean);
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -327,6 +327,24 @@ async function main(): Promise<void> {
           required: ["to", "body"],
         },
       },
+      {
+        name: "viche_deregister",
+        description:
+          "Deregister from a registry on the Viche network. " +
+          "If registry is specified, leaves only that registry. " +
+          "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
+        inputSchema: {
+          type: "object" as const,
+          properties: {
+            registry: {
+              type: "string",
+              description:
+                "Optional registry token to leave. If omitted, deregisters from all registries.",
+            },
+          },
+          required: [],
+        },
+      },
     ],
   }));
 
@@ -440,6 +458,52 @@ async function main(): Promise<void> {
         const message = err instanceof Error ? err.message : String(err);
         return {
           content: [{ type: "text", text: `Failed to send reply: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_deregister") {
+      const args = request.params.arguments as { registry?: string };
+      try {
+        if (!activeChannel) {
+          return notConnectedResponse();
+        }
+
+        const payload: Record<string, unknown> = {};
+        if (args.registry) {
+          payload.registry = args.registry;
+        }
+
+        const resp = await channelPush<{ registries: string[] }>(
+          activeChannel,
+          "deregister",
+          payload
+        );
+
+        const registries = resp.registries ?? [];
+        if (registries.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Deregistered from all registries. You are now undiscoverable but still connected.",
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deregistered from registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Failed to deregister: ${message}` }],
         };
       }
     }

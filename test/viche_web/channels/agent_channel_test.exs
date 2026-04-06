@@ -355,6 +355,125 @@ defmodule VicheWeb.AgentChannelTest do
     end
   end
 
+  describe "handle_in/3 - deregister" do
+    test "partial deregister leaves only the requested registry" do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["testing"], registries: ["global", "team-alpha"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      ref = push(socket, "deregister", %{"registry" => "team-alpha"})
+      assert_reply ref, :ok, %{registries: ["global"]}
+    end
+
+    test "partial deregister returns not_in_registry for absent token" do
+      clear_all_agents()
+
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["global"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      ref = push(socket, "deregister", %{"registry" => "team-alpha"})
+      assert_reply ref, :error, %{error: "not_in_registry", message: _}
+    end
+
+    test "partial deregister returns invalid_token for malformed token" do
+      clear_all_agents()
+
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["global"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      ref = push(socket, "deregister", %{"registry" => "ab"})
+      assert_reply ref, :error, %{error: "invalid_token", message: _}
+    end
+
+    test "full deregister removes all registries and socket remains usable" do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["testing"], registries: ["global", "team-alpha"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      ref = push(socket, "deregister", %{})
+      assert_reply ref, :ok, %{registries: []}
+
+      # Socket should remain connected/usable after deregistering from all registries.
+      discover_ref = push(socket, "discover", %{"capability" => "testing"})
+      assert_reply discover_ref, :ok, %{agents: _agents}
+    end
+
+    test "full deregister broadcasts agent_left to all prior registries" do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["testing"], registries: ["global", "team-alpha"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      {:ok, _global_resp, _global_socket} =
+        AgentSocket
+        |> socket("observer_global", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:global")
+
+      {:ok, _alpha_resp, _alpha_socket} =
+        AgentSocket
+        |> socket("observer_alpha", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-alpha")
+
+      ref = push(socket, "deregister", %{})
+      assert_reply ref, :ok, %{registries: []}
+
+      expected_id = agent.id
+      assert_push "agent_left", %{id: ^expected_id}
+      assert_push "agent_left", %{id: ^expected_id}
+    end
+
+    test "registry channel subscribers receive agent_left on partial deregister" do
+      clear_all_agents()
+
+      {:ok, observer} =
+        Agents.register_agent(%{capabilities: ["observer"], registries: ["team-alpha"]})
+
+      {:ok, actor} =
+        Agents.register_agent(%{capabilities: ["actor"], registries: ["team-alpha"]})
+
+      {:ok, _, _observer_socket} =
+        AgentSocket
+        |> socket("agent_socket:#{observer.id}", %{agent_id: observer.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-alpha")
+
+      {:ok, _, actor_socket} =
+        AgentSocket
+        |> socket("agent_socket:#{actor.id}", %{agent_id: actor.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{actor.id}")
+
+      ref = push(actor_socket, "deregister", %{"registry" => "team-alpha"})
+      assert_reply ref, :ok, %{registries: []}
+
+      expected_id = actor.id
+      assert_push "agent_left", %{id: ^expected_id}
+    end
+  end
+
   describe "handle_in/3 - unknown event" do
     setup %{agent_id: agent_id} do
       {:ok, _, socket} =

@@ -471,6 +471,144 @@ defmodule Viche.AgentsTest do
     end
   end
 
+  describe "deregister_from_registries/2" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "partial deregister removes specific registry and keeps process alive" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      assert updated.registries == ["global"]
+
+      assert [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent.id)
+      assert meta.registries == ["global"]
+    end
+
+    test "partial deregister broadcasts only to the affected registry" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:team-alpha")
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+
+      assert {:ok, _updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      expected_id = agent.id
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:team-alpha",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{topic: "registry:global", event: "agent_left"}
+    end
+
+    test "partial deregister returns not_in_registry when token is absent" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:error, :not_in_registry} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-beta"})
+    end
+
+    test "partial deregister validates registry token" do
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["coding"]})
+
+      assert {:error, :invalid_token} =
+               Agents.deregister_from_registries(agent.id, %{registry: "ab"})
+    end
+
+    test "partial deregister returns agent_not_found for unknown id" do
+      assert {:error, :agent_not_found} =
+               Agents.deregister_from_registries("nonexistent", %{registry: "global"})
+    end
+
+    test "partial deregister updates discover visibility per registry" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, _updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      assert {:ok, team_alpha_agents} =
+               Agents.discover(%{capability: "coding", registry: "team-alpha"})
+
+      assert {:ok, global_agents} = Agents.discover(%{capability: "coding", registry: "global"})
+
+      team_alpha_ids = Enum.map(team_alpha_agents, & &1.id)
+      global_ids = Enum.map(global_agents, & &1.id)
+
+      refute agent.id in team_alpha_ids
+      assert agent.id in global_ids
+    end
+
+    test "full deregister removes all registries and keeps process alive" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, updated} = Agents.deregister_from_registries(agent.id, %{})
+      assert updated.registries == []
+
+      assert [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent.id)
+      assert meta.registries == []
+    end
+
+    test "full deregister broadcasts to all prior registries" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:team-alpha")
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+
+      assert {:ok, _updated} = Agents.deregister_from_registries(agent.id, %{})
+
+      expected_id = agent.id
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:team-alpha",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:global",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+    end
+
+    test "full deregister is idempotent when already empty" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:ok, first} = Agents.deregister_from_registries(agent.id, %{})
+      assert first.registries == []
+
+      assert {:ok, second} = Agents.deregister_from_registries(agent.id, %{})
+      assert second.registries == []
+    end
+
+    test "fully deregistered agent is undiscoverable" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, _updated} = Agents.deregister_from_registries(agent.id, %{})
+
+      assert {:ok, global_agents} = Agents.discover(%{capability: "coding", registry: "global"})
+      global_ids = Enum.map(global_agents, & &1.id)
+
+      refute agent.id in global_ids
+    end
+  end
+
   describe "discover/1 scoped by registry" do
     setup do
       clear_all_agents()

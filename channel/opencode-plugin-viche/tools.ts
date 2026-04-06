@@ -359,5 +359,59 @@ export function createVicheTools(
     },
   };
 
-  return { viche_discover, viche_send, viche_reply };
+  // ── viche_deregister ───────────────────────────────────────────────────────
+
+  const viche_deregister: ToolDefinition = {
+    description:
+      "Deregister from a registry on the Viche network. " +
+      "If registry is specified, leaves only that registry. " +
+      "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
+    args: {
+      registry: z
+        .string()
+        .min(4)
+        .max(256)
+        .regex(/^[a-zA-Z0-9._-]+$/)
+        .optional()
+        .describe(
+          "Registry token to leave (4-256 chars, alphanumeric + . _ -). If omitted, deregisters from all registries."
+        ),
+    },
+    async execute(
+      args: { registry?: string },
+      context: { sessionID: string }
+    ): Promise<string> {
+      let sessionState: SessionState;
+      try {
+        sessionState = await ensureSessionReady(context.sessionID);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `Failed to initialise session: ${msg}`;
+      }
+
+      const payload: Record<string, unknown> = {};
+      if (args.registry) {
+        payload.registry = args.registry;
+      }
+
+      const result = await pushWithAck<{ registries: string[] }>(
+        sessionState.channel,
+        "deregister",
+        payload
+      );
+
+      if (!result.ok) {
+        return `Failed to deregister: ${result.error ?? "unknown channel error"}`;
+      }
+
+      const registries = result.payload?.registries ?? [];
+      if (registries.length === 0) {
+        return "Deregistered from all registries. You are now undiscoverable but still connected.";
+      }
+
+      return `Deregistered from registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`;
+    },
+  };
+
+  return { viche_discover, viche_send, viche_reply, viche_deregister };
 }

@@ -3,8 +3,15 @@
   "version": "1.0.0",
   "description": "Claude Code plugin: Connect to the Viche agent network for multi-agent collaboration",
   "private": true,
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "phoenix": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "typescript": "^5.8.3"
   }
 }
