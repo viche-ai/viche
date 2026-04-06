@@ -107,6 +107,17 @@ defmodule Viche.Agents do
     |> Map.new(fn {id, meta} -> {id, meta.registries || ["global"]} end)
   end
 
+  @doc "Returns a map of registry token => live agent count."
+  @spec registry_agent_counts() :: %{String.t() => non_neg_integer()}
+  def registry_agent_counts do
+    list_agent_registries()
+    |> Enum.reduce(%{}, fn {_id, registries}, acc ->
+      Enum.reduce(registries, acc, fn registry, counts ->
+        Map.update(counts, registry, 1, &(&1 + 1))
+      end)
+    end)
+  end
+
   @doc """
   Returns a single agent enriched with live status data.
   """

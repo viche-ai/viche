@@ -362,7 +362,9 @@ defmodule VicheWeb.RegistryControllerTest do
       Viche.AgentSupervisor
       |> DynamicSupervisor.which_children()
       |> Enum.each(fn {_, pid, _, _} ->
+        ref = Process.monitor(pid)
         DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+        assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
       end)
 
       conn = get(conn, ~p"/registry/discover", %{"capability" => "*"})

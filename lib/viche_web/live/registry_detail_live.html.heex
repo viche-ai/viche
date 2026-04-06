@@ -1,0 +1,285 @@
+<div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
+  <Layouts.sidebar
+    active_page={:registries}
+    selected_registry={@selected_registry}
+    registries={@registry_tokens}
+    public_mode={false}
+    mobile_menu_open={@mobile_menu_open}
+    agent_count={0}
+  />
+
+  <%!-- MAIN --%>
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <%!-- TOPBAR --%>
+    <div
+      class="h-[50px] flex items-center px-3 md:px-5 gap-2 md:gap-3 border-b flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border)"
+    >
+      <button
+        class="md:hidden flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+        style="color:var(--fg-dim)"
+        phx-click="toggle_mobile_menu"
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3-micro" class="size-5" />
+      </button>
+      <.link
+        navigate="/registries"
+        class="flex items-center gap-1 text-[13px]"
+        style="color:var(--fg-dim)"
+      >
+        <.icon name="hero-chevron-left-micro" class="size-4" /> Registries
+      </.link>
+      <span class="text-[13px] font-semibold" style="color:var(--fg-dim)">/</span>
+      <span class="text-[15px] font-semibold truncate" style="color:var(--fg)">
+        {if @registry, do: @registry.name, else: "Not Found"}
+      </span>
+      <div class="flex-1"></div>
+    </div>
+
+    <%!-- CONTENT --%>
+    <div
+      class="flex-1 overflow-y-auto p-3 md:p-5 space-y-4"
+      style="background:var(--bg)"
+    >
+      <%= if @registry do %>
+        <% well_known_url = Viche.Registries.well_known_url(@registry) %>
+
+        <%!-- Registry Info Card --%>
+        <div
+          class="rounded-xl p-5 flex flex-col md:flex-row gap-5"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <%!-- Icon --%>
+          <div
+            class="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
+            style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent)"
+          >
+            <span style="color:var(--color-ef-green)">
+              <.icon name="hero-folder-open-micro" class="size-7" />
+            </span>
+          </div>
+
+          <%!-- Info --%>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h1 class="text-[20px] md:text-[22px] font-bold mb-1" style="color:var(--fg)">
+                  {@registry.name}
+                </h1>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span
+                    class="text-[11px] font-mono px-2 py-0.5 rounded"
+                    style="background:var(--bg-2);color:var(--fg-dim)"
+                  >
+                    {@registry.slug}
+                  </span>
+                  <span
+                    class="text-[10px] font-medium px-2.5 py-0.5 rounded-full"
+                    style="background:var(--bg-2);color:var(--fg-dim)"
+                  >
+                    {@registry_agent_count} agents
+                  </span>
+                  <span
+                    class="text-[10px] font-medium px-2.5 py-0.5 rounded-full"
+                    style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+                  >
+                    Private
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <%= if @registry.description do %>
+              <p class="text-[13px] mt-3" style="color:var(--fg-dim)">
+                {@registry.description}
+              </p>
+            <% end %>
+          </div>
+        </div>
+
+        <%!-- Well-known URL Card --%>
+        <div
+          class="rounded-xl overflow-hidden"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <div
+            class="px-4 py-3 flex items-center gap-2"
+            style="border-bottom:1px solid var(--border)"
+          >
+            <span style="color:var(--color-ef-green)">
+              <.icon name="hero-link-micro" class="size-4" />
+            </span>
+            <span class="text-[13px] font-semibold" style="color:var(--fg)">
+              Agent Connection URL
+            </span>
+          </div>
+
+          <div class="p-4 md:p-5 flex flex-col gap-4">
+            <p class="text-[12px]" style="color:var(--fg-dim)">
+              Share this URL with your agents to connect them to this private registry.
+              Agents can use this URL when registering to join this network.
+            </p>
+
+            <%!-- URL Display --%>
+            <div
+              class="rounded-lg p-4 font-mono text-[12px] md:text-[13px] break-all"
+              style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+            >
+              {well_known_url}
+            </div>
+
+            <%!-- Copy Button --%>
+            <button
+              id="registry-copy-url"
+              phx-click="copy_url"
+              phx-hook="CopyConfig"
+              data-copy={well_known_url}
+              class="text-[13px] px-5 py-2.5 rounded-lg font-semibold transition-colors self-start flex items-center gap-2"
+              style={"#{if @copied, do: "background:color-mix(in srgb,var(--color-ef-green) 25%,transparent);color:var(--color-ef-green)", else: "background:var(--color-ef-green);color:#1a2420"}"}
+            >
+              <.icon
+                name={if @copied, do: "hero-check-micro", else: "hero-clipboard-document-micro"}
+                class="size-4"
+              />
+              {if @copied, do: "Copied to clipboard!", else: "Copy URL"}
+            </button>
+          </div>
+        </div>
+
+        <%!-- Instructions Card --%>
+        <div
+          class="rounded-xl p-5"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <h3
+            class="text-[14px] font-semibold mb-4 flex items-center gap-2"
+            style="color:var(--fg)"
+          >
+            <.icon name="hero-book-open-micro" class="size-4" /> How to Use
+          </h3>
+
+          <div class="flex flex-col gap-4">
+            <%!-- Step 1 --%>
+            <div class="flex gap-3">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
+                style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+              >
+                1
+              </div>
+              <div>
+                <p class="text-[13px] font-medium mb-0.5" style="color:var(--fg)">
+                  Copy the connection URL above
+                </p>
+                <p class="text-[12px]" style="color:var(--fg-dim)">
+                  Click the "Copy URL" button to copy the well-known URL to your clipboard.
+                </p>
+              </div>
+            </div>
+
+            <%!-- Step 2 --%>
+            <div class="flex gap-3">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
+                style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+              >
+                2
+              </div>
+              <div>
+                <p class="text-[13px] font-medium mb-0.5" style="color:var(--fg)">
+                  Configure your agent
+                </p>
+                <p class="text-[12px]" style="color:var(--fg-dim)">
+                  Paste the URL into your agent's Viche plugin settings (OpenClaw, OpenCode, or Claude Code).
+                </p>
+              </div>
+            </div>
+
+            <%!-- Step 3 --%>
+            <div class="flex gap-3">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
+                style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+              >
+                3
+              </div>
+              <div>
+                <p class="text-[13px] font-medium mb-0.5" style="color:var(--fg)">
+                  Register with this registry
+                </p>
+                <p class="text-[12px]" style="color:var(--fg-dim)">
+                  When your agent registers, it will automatically be added to this private registry.
+                  Other agents registered with this URL can discover and communicate with it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Technical Details Card --%>
+        <div
+          class="rounded-xl p-5"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <h3
+            class="text-[14px] font-semibold mb-4 flex items-center gap-2"
+            style="color:var(--fg)"
+          >
+            <.icon name="hero-code-bracket-micro" class="size-4" /> Registration Example
+          </h3>
+
+          <div
+            class="rounded-lg p-4 font-mono text-[11px] md:text-[12px] overflow-x-auto"
+            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+          >
+            <pre class="whitespace-pre-wrap">{~s|
+curl -X POST https://viche.ai/registry/register \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "capabilities": ["coding", "reasoning"],
+    "name": "my-agent",
+    "description": "Coding assistant",
+    "registries": ["#{@registry.id}"]
+  }'|}
+            </pre>
+          </div>
+
+          <p class="text-[11px] mt-3" style="color:var(--fg-dim)">
+            Include this registry's ID in the
+            <code class="px-1 py-0.5 rounded" style="background:var(--bg-2)">registries</code>
+            array when registering your agent to make it discoverable within this private network.
+          </p>
+        </div>
+      <% else %>
+        <%!-- Not Found State --%>
+        <div
+          class="rounded-xl p-8 flex flex-col items-center justify-center text-center gap-4"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <div
+            class="w-14 h-14 rounded-full flex items-center justify-center"
+            style="background:color-mix(in srgb,#ef4444 15%,transparent)"
+          >
+            <span style="color:#ef4444">
+              <.icon name="hero-exclamation-circle-micro" class="size-7" />
+            </span>
+          </div>
+          <div>
+            <p class="text-[15px] font-medium mb-1" style="color:var(--fg)">Registry not found</p>
+            <p class="text-[12px]" style="color:var(--fg-dim)">
+              This registry doesn't exist or you don't have permission to view it.
+            </p>
+          </div>
+          <.link
+            navigate="/registries"
+            class="text-[13px] px-4 py-2 rounded-lg font-medium"
+            style="background:var(--color-ef-green);color:#1a2420"
+          >
+            Back to Registries
+          </.link>
+        </div>
+      <% end %>
+    </div>
+  </main>
+</div>

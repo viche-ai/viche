@@ -191,7 +191,7 @@ defmodule VicheWeb.Layouts do
   """
   attr :active_page, :atom,
     required: true,
-    values: [:dashboard, :network, :agents, :agent_detail, :sessions, :settings],
+    values: [:dashboard, :network, :agents, :agent_detail, :sessions, :settings, :registries],
     doc: "which nav item is highlighted as active"
 
   attr :selected_registry, :string, required: true, doc: "registry token appended to nav links"
@@ -321,6 +321,21 @@ defmodule VicheWeb.Layouts do
           <.link navigate={~p"/sessions?registry=#{@selected_registry}"} class="nav-item">
             <.icon name="hero-envelope-micro" class="size-4" />
             <span>Inboxes</span>
+          </.link>
+        <% end %>
+
+        <%= if @active_page == :registries do %>
+          <div
+            class="nav-item active"
+            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
+          >
+            <.icon name="hero-folder-open-micro" class="size-4" />
+            <span>My Registries</span>
+          </div>
+        <% else %>
+          <.link navigate={~p"/registries"} class="nav-item">
+            <.icon name="hero-folder-open-micro" class="size-4" />
+            <span>My Registries</span>
           </.link>
         <% end %>
 

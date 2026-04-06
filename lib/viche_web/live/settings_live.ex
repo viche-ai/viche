@@ -6,9 +6,10 @@ defmodule VicheWeb.SettingsLive do
   defp default_settings, do: Viche.SettingsStore.defaults()
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     agents =
       if public_mode do
@@ -34,7 +35,8 @@ defmodule VicheWeb.SettingsLive do
       |> assign(:messages_today, Viche.MessageCounter.get())
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
-      |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
+      |> assign(:current_user_id, user_id)
+      |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:mobile_menu_open, false)
 
     {:ok, socket}

@@ -1,0 +1,384 @@
+<div style="background:var(--bg);color:var(--fg)" class="flex h-screen overflow-hidden">
+  <Layouts.sidebar
+    active_page={:registries}
+    selected_registry={@selected_registry}
+    registries={@registry_tokens}
+    public_mode={false}
+    mobile_menu_open={@mobile_menu_open}
+    agent_count={0}
+  />
+
+  <%!-- MAIN --%>
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <%!-- TOPBAR --%>
+    <div
+      class="h-[50px] flex items-center px-3 md:px-5 gap-2 md:gap-3 border-b flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border)"
+    >
+      <button
+        class="md:hidden flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
+        style="color:var(--fg-dim)"
+        phx-click="toggle_mobile_menu"
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3-micro" class="size-5" />
+      </button>
+      <span class="text-[15px] font-semibold" style="color:var(--fg)">My Registries</span>
+      <div class="flex-1"></div>
+      <button
+        phx-click="open_create_modal"
+        class="text-[12px] md:text-[13px] px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5"
+        style="background:var(--color-ef-green);color:#1a2420"
+      >
+        <.icon name="hero-plus-micro" class="size-4" />
+        <span class="hidden sm:inline">New Registry</span>
+      </button>
+    </div>
+
+    <%!-- CONTENT --%>
+    <div
+      class="flex-1 overflow-y-auto p-3 md:p-5 space-y-4"
+      style="background:var(--bg)"
+    >
+      <%!-- Info Banner --%>
+      <div
+        class="rounded-xl p-4 flex gap-3 items-start"
+        style="background:color-mix(in srgb,var(--color-ef-blue) 10%,transparent);border:1px solid color-mix(in srgb,var(--color-ef-blue) 25%,transparent)"
+      >
+        <span style="color:var(--color-ef-blue)">
+          <.icon name="hero-information-circle-micro" class="size-5 flex-shrink-0 mt-0.5" />
+        </span>
+        <div class="text-[13px]" style="color:var(--color-ef-blue)">
+          <p class="font-medium mb-1">Private Registries</p>
+          <p class="text-[12px]" style="color:var(--fg-dim)">
+            Create private registries to host agents in isolated namespaces.
+            Share the well-known URL with your agents to connect them to your private network.
+          </p>
+        </div>
+      </div>
+
+      <%= if @registries == [] do %>
+        <%!-- Empty State --%>
+        <div
+          class="rounded-xl p-8 flex flex-col items-center justify-center text-center gap-4"
+          style="background:var(--bg-1);border:1px solid var(--border)"
+        >
+          <div
+            class="w-14 h-14 rounded-full flex items-center justify-center"
+            style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent)"
+          >
+            <span style="color:var(--color-ef-green)">
+              <.icon name="hero-folder-plus-micro" class="size-7" />
+            </span>
+          </div>
+          <div>
+            <p class="text-[15px] font-medium mb-1" style="color:var(--fg)">No registries yet</p>
+            <p class="text-[12px]" style="color:var(--fg-dim)">
+              Create your first private registry to start building your agent network.
+            </p>
+          </div>
+          <button
+            phx-click="open_create_modal"
+            class="text-[13px] px-4 py-2 rounded-lg font-medium"
+            style="background:var(--color-ef-green);color:#1a2420"
+          >
+            Create Registry
+          </button>
+        </div>
+      <% else %>
+        <%!-- Registries Grid --%>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <%= for registry <- @registries do %>
+            <% well_known_url = Viche.Registries.well_known_url(registry)
+            agent_count = Map.get(@agent_counts, registry.id, 0)
+            is_copied = @copied_id == registry.id %>
+            <div
+              class="rounded-xl p-4 flex flex-col gap-3"
+              style="background:var(--bg-1);border:1px solid var(--border)"
+            >
+              <%!-- Header --%>
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-[14px] font-semibold truncate" style="color:var(--fg)">
+                    {registry.name}
+                  </h3>
+                  <p class="text-[11px] font-mono mt-0.5" style="color:var(--fg-dim)">
+                    {registry.slug}
+                  </p>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    style="background:var(--bg-2);color:var(--fg-dim)"
+                  >
+                    {agent_count} agents
+                  </span>
+                  <span
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    style="background:color-mix(in srgb,var(--color-ef-green) 15%,transparent);color:var(--color-ef-green)"
+                  >
+                    Private
+                  </span>
+                </div>
+              </div>
+
+              <%!-- Description --%>
+              <%= if registry.description do %>
+                <p class="text-[12px] line-clamp-2" style="color:var(--fg-dim)">
+                  {registry.description}
+                </p>
+              <% else %>
+                <p class="text-[12px] italic" style="color:var(--fg-dim)">
+                  No description
+                </p>
+              <% end %>
+
+              <%!-- Well-known URL --%>
+              <div class="flex flex-col gap-1.5">
+                <span
+                  class="text-[10px] font-semibold uppercase tracking-wide"
+                  style="color:var(--fg-dim)"
+                >
+                  Well-known URL
+                </span>
+                <div
+                  class="rounded-lg p-2.5 font-mono text-[11px] break-all"
+                  style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+                >
+                  {well_known_url}
+                </div>
+                <button
+                  id={"registry-copy-#{registry.id}"}
+                  phx-click="copy_url"
+                  phx-value-id={registry.id}
+                  phx-hook="CopyConfig"
+                  data-copy={well_known_url}
+                  class="text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-colors self-start flex items-center gap-1.5"
+                  style={"#{if is_copied, do: "background:color-mix(in srgb,var(--color-ef-green) 20%,transparent);color:var(--color-ef-green)", else: "background:var(--bg-2);color:var(--fg-dim)"}"}
+                >
+                  <.icon
+                    name={
+                      if is_copied, do: "hero-check-micro", else: "hero-clipboard-document-micro"
+                    }
+                    class="size-3.5"
+                  />
+                  {if is_copied, do: "Copied!", else: "Copy URL"}
+                </button>
+              </div>
+
+              <%!-- Actions --%>
+              <div
+                class="flex items-center gap-2 pt-2 mt-auto"
+                style="border-top:1px solid var(--border)"
+              >
+                <.link
+                  navigate={~p"/registries/#{registry.id}"}
+                  class="text-[11px] px-3 py-1.5 rounded-lg font-medium flex items-center gap-1"
+                  style="background:var(--color-ef-green);color:#1a2420"
+                >
+                  <.icon name="hero-arrow-right-micro" class="size-3.5" /> View Details
+                </.link>
+                <button
+                  phx-click="open_delete_modal"
+                  phx-value-id={registry.id}
+                  class="text-[11px] px-3 py-1.5 rounded-lg font-medium ml-auto flex items-center gap-1"
+                  style="background:color-mix(in srgb,#ef4444 15%,transparent);color:#ef4444"
+                >
+                  <.icon name="hero-trash-micro" class="size-3.5" />
+                </button>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </main>
+</div>
+
+<%!-- Create Modal --%>
+<%= if @show_create_modal do %>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.5)"
+    phx-click-away={:close_create_modal}
+    id="create-modal-backdrop"
+  >
+    <div
+      class="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+      style="background:var(--bg-1);border:1px solid var(--border)"
+      id="create-modal"
+    >
+      <%!-- Modal Header --%>
+      <div class="flex items-center justify-between">
+        <h2 class="text-[17px] font-semibold" style="color:var(--fg)">Create Registry</h2>
+        <button
+          phx-click="close_create_modal"
+          class="w-8 h-8 rounded-lg flex items-center justify-center"
+          style="color:var(--fg-dim)"
+        >
+          <.icon name="hero-x-mark-micro" class="size-5" />
+        </button>
+      </div>
+
+      <%!-- Form --%>
+      <.form
+        for={@form}
+        phx-submit="create_registry"
+        phx-change="validate_create"
+        class="flex flex-col gap-4"
+      >
+        <%!-- Name --%>
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="name"
+            class="text-[11px] font-semibold uppercase tracking-wide"
+            style="color:var(--fg-dim)"
+          >
+            Name
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="registry[name]"
+            phx-feedback-for="name"
+            placeholder="My Private Network"
+            value={@form[:name].value}
+            class="w-full px-3 py-2.5 rounded-lg text-[13px]"
+            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+          />
+          <%= for {msg, _opts} <- @form[:name].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
+          <% end %>
+        </div>
+
+        <%!-- Slug --%>
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="slug"
+            class="text-[11px] font-semibold uppercase tracking-wide"
+            style="color:var(--fg-dim)"
+          >
+            Slug
+          </label>
+          <input
+            type="text"
+            id="slug"
+            name="registry[slug]"
+            phx-feedback-for="slug"
+            placeholder="my-private-network"
+            value={@form[:slug].value}
+            class="w-full px-3 py-2.5 rounded-lg text-[13px]"
+            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+          />
+          <p class="text-[10px]" style="color:var(--fg-dim)">
+            3-50 characters, lowercase letters, numbers, and hyphens only
+          </p>
+          <%= for {msg, _opts} <- @form[:slug].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
+          <% end %>
+        </div>
+
+        <%!-- Description --%>
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="description"
+            class="text-[11px] font-semibold uppercase tracking-wide"
+            style="color:var(--fg-dim)"
+          >
+            Description <span class="font-normal">(optional)</span>
+          </label>
+          <textarea
+            id="description"
+            name="registry[description]"
+            phx-feedback-for="description"
+            placeholder="A private network for my coding agents"
+            rows="2"
+            maxlength="280"
+            class="w-full px-3 py-2.5 rounded-lg text-[13px] resize-none"
+            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+          >{@form[:description].value}</textarea>
+          <%= for {msg, _opts} <- @form[:description].errors do %>
+            <p class="text-[11px]" style="color:#ef4444">{msg}</p>
+          <% end %>
+        </div>
+
+        <%!-- Actions --%>
+        <div class="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            phx-click="close_create_modal"
+            class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium"
+            style="background:var(--bg-2);color:var(--fg-dim)"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium"
+            style="background:var(--color-ef-green);color:#1a2420"
+          >
+            Create Registry
+          </button>
+        </div>
+      </.form>
+    </div>
+  </div>
+<% end %>
+
+<%!-- Delete Modal --%>
+<%= if @show_delete_modal && @registry_to_delete do %>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.5)"
+    phx-click-away={:close_delete_modal}
+    id="delete-modal-backdrop"
+  >
+    <div
+      class="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
+      style="background:var(--bg-1);border:1px solid var(--border)"
+      id="delete-modal"
+    >
+      <%!-- Icon --%>
+      <div class="flex justify-center">
+        <div
+          class="w-12 h-12 rounded-full flex items-center justify-center"
+          style="background:color-mix(in srgb,#ef4444 15%,transparent)"
+        >
+          <span style="color:#ef4444">
+            <.icon name="hero-exclamation-triangle-micro" class="size-6" />
+          </span>
+        </div>
+      </div>
+
+      <%!-- Content --%>
+      <div class="text-center">
+        <h3 class="text-[15px] font-semibold mb-1" style="color:var(--fg)">
+          Delete Registry?
+        </h3>
+        <p class="text-[12px]" style="color:var(--fg-dim)">
+          Are you sure you want to delete <strong style="color:var(--fg)">{@registry_to_delete.name}</strong>?
+          This action cannot be undone.
+        </p>
+      </div>
+
+      <%!-- Actions --%>
+      <div class="flex items-center gap-3 pt-2">
+        <button
+          phx-click="close_delete_modal"
+          class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium"
+          style="background:var(--bg-2);color:var(--fg-dim)"
+        >
+          Cancel
+        </button>
+        <button
+          phx-click="delete_registry"
+          phx-value-id={@registry_to_delete.id}
+          class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium"
+          style="background:#ef4444;color:white"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+<% end %>

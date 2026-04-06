@@ -4,7 +4,7 @@ defmodule VicheWeb.NetworkLive do
   alias VicheWeb.Live.RegistryScope
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     if connected?(socket) do
       RegistryScope.subscribe("global")
       Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
@@ -13,12 +13,14 @@ defmodule VicheWeb.NetworkLive do
     end
 
     public_mode = Application.get_env(:viche, :public_mode, false)
+    user_id = session["user_id"]
 
     socket =
       socket
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
-      |> assign(:registries, if(public_mode, do: [], else: Viche.Agents.list_registries()))
+      |> assign(:current_user_id, user_id)
+      |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> assign(:feed_by_registry, %{})
       |> assign(:feed, [])
@@ -92,7 +94,10 @@ defmodule VicheWeb.NetworkLive do
       socket
       |> assign(
         :registries,
-        if(socket.assigns.public_mode, do: [], else: Viche.Agents.list_registries())
+        RegistryScope.visible_registries(
+          socket.assigns.public_mode,
+          socket.assigns.current_user_id
+        )
       )
       |> assign(:agent_registry_map, new_agent_registry_map)
       |> assign(:feed_by_registry, feed_by_registry)
@@ -136,7 +141,10 @@ defmodule VicheWeb.NetworkLive do
       socket
       |> assign(
         :registries,
-        if(socket.assigns.public_mode, do: [], else: Viche.Agents.list_registries())
+        RegistryScope.visible_registries(
+          socket.assigns.public_mode,
+          socket.assigns.current_user_id
+        )
       )
       |> assign(:agent_registry_map, new_agent_registry_map)
       |> assign(:feed_by_registry, feed_by_registry)

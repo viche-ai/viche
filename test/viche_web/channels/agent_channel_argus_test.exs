@@ -20,6 +20,6 @@ defmodule VicheWeb.AgentChannelArgusTest do
     # This test PASSES if the bug is fixed (channel replies with an error gracefully)
     ref = push(socket, "discover", %{"capability" => 123})
 
-    assert_reply ref, :error, %{}
+    assert_reply ref, :error, %{error: _, message: _}, 500
   end
 end
