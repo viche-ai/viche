@@ -80,7 +80,7 @@ jobs:
         run: cd channel/claude-code-plugin-viche && bun install --frozen-lockfile
 
       - name: Setup database
-        run: mix ecto.create
+        run: mix ecto.setup
 
       - name: Start Phoenix server
         run: |
