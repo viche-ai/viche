@@ -209,6 +209,29 @@ describe("createVicheTools (WebSocket transport)", () => {
     expect(result).toContain("Failed to list registries: Channel timeout during list_registries");
   });
 
+  it("viche_whoami returns the session agent ID", async () => {
+    const push = makeChannelPush("ok");
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_whoami.execute({}, TEST_CONTEXT);
+
+    expect(result).toBe("Your agent ID: abc123de-0000-4000-a000-000000000000");
+  });
+
+  it("viche_whoami returns error when session fails to initialise", async () => {
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.reject(new Error("registration failed"))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_whoami.execute({}, TEST_CONTEXT);
+
+    expect(result).toBe("Failed to initialise session: registration failed");
+  });
+
   it("viche_leave_registry rejects malformed ack payload", async () => {
     const push = makeChannelPush("ok", {});
     const ensureSessionReady = mock((_sessionID: string) =>
