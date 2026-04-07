@@ -7,16 +7,16 @@ FAILED=0
 echo "========================================"
 echo "Starting Phoenix server (MIX_ENV=test)"
 echo "========================================"
-MIX_ENV=test mix phx.server &
+PHX_SERVER=true PORT=4000 MIX_ENV=test mix phx.server &
 SERVER_PID=$!
 
 trap "kill $SERVER_PID 2>/dev/null || true" EXIT
 
 echo "========================================"
-echo "Waiting for health check (30s timeout)"
+echo "Waiting for health check (60s timeout)"
 echo "========================================"
 HEALTH_URL="http://localhost:4000/health"
-for _ in {1..30}; do
+for _ in {1..60}; do
   if curl -fsS "$HEALTH_URL" >/dev/null; then
     echo "Phoenix server is healthy"
     break
@@ -25,7 +25,7 @@ for _ in {1..30}; do
 done
 
 if ! curl -fsS "$HEALTH_URL" >/dev/null; then
-  echo "ERROR: Phoenix health check failed after 30 seconds"
+  echo "ERROR: Phoenix health check failed after 60 seconds"
   exit 1
 fi
 

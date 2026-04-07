@@ -84,12 +84,12 @@ jobs:
 
       - name: Start Phoenix server
         run: |
-          mix phx.server &
+          PHX_SERVER=true PORT=4000 mix phx.server &
           echo "SERVER_PID=$!" >> $GITHUB_ENV
 
       - name: Wait for Phoenix server
         run: |
-          timeout 30 bash -c 'until curl -sf http://localhost:4000/health >/dev/null 2>&1; do sleep 1; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:4000/health >/dev/null 2>&1; do sleep 1; done'
           echo "Phoenix server ready"
 
       - name: Run OpenCode E2E tests
