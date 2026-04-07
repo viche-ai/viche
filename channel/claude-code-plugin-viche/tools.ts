@@ -126,6 +126,16 @@ const TOOL_DEFINITIONS = [
       required: [],
     },
   },
+  {
+    name: "viche_whoami",
+    description:
+      "Return your own agent ID on the Viche network. Use this to identify yourself when coordinating with other agents.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 export function formatAgentList(agents: AgentInfo[]): string {
@@ -167,7 +177,7 @@ function formatToolError(err: unknown): string {
 export function registerToolHandlers(
   server: Server,
   getChannel: () => PhoenixChannel | null,
-  _getAgentId: () => string | null,
+  getAgentId: () => string | null,
   getRegistryChannels: () => Map<string, PhoenixChannel>
 ): void {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -404,6 +414,16 @@ export function registerToolHandlers(
           content: [{ type: "text", text: `Failed to list registries: ${message}` }],
         };
       }
+    }
+
+    if (toolName === "viche_whoami") {
+      const agentId = getAgentId();
+      if (!agentId) {
+        return notConnectedResponse();
+      }
+      return {
+        content: [{ type: "text" as const, text: `Your agent ID: ${agentId}` }],
+      };
     }
 
     throw new Error(`Unknown tool: ${toolName}`);

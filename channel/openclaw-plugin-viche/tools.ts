@@ -1,13 +1,14 @@
 /**
  * Tool definitions for openclaw-plugin-viche.
  *
- * Six tools are exposed to the LLM:
+ * Seven tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability
  *   - viche_send      — send a message to another agent
  *   - viche_reply     — reply to an agent that sent a task
  *   - viche_leave_registry      — leave one/all registries
  *   - viche_join_registry       — join a registry dynamically
  *   - viche_list_my_registries  — list registries this agent has joined
+ *   - viche_whoami              — return this agent's own ID
  *
  * Tools send Phoenix Channel events through the shared channel reference
  * maintained by the background service.
@@ -511,5 +512,27 @@ export function registerVicheTools(
         },
       };
     }) as unknown as AnyAgentTool,
+  );
+
+  // ── viche_whoami ──────────────────────────────────────────────────────────
+
+  api.registerTool(
+    ((_ctx: OpenClawPluginToolContext) => ({
+      name: "viche_whoami",
+      description:
+        "Return your own agent ID on the Viche network. " +
+        "Use this to identify yourself when coordinating with other agents.",
+      parameters: Type.Object({}),
+      async execute(
+        _toolCallId: string,
+        _params: Record<string, unknown>,
+        _signal?: AbortSignal,
+      ): Promise<AgentToolResult> {
+        const guard = requireConnected(state);
+        if (guard) return guard;
+
+        return textResult(`Your agent ID: ${state.agentId}`);
+      },
+    })) as unknown as AnyAgentTool,
   );
 }

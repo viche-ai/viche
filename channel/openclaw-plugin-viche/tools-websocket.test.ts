@@ -157,4 +157,41 @@ describe("registerVicheTools over channel pushes", () => {
       "Failed to list registries: invalid registries response",
     );
   });
+
+  it("viche_whoami returns the agent's own ID without a channel push", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", {});
+    const state = {
+      agentId: "my-agent-id-abc123",
+      channel,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_whoami");
+    const result = await tool.execute("call-whoami", {});
+
+    expect(channel.push).not.toHaveBeenCalled();
+    expect(result.content[0]?.text).toBe("Your agent ID: my-agent-id-abc123");
+  });
+
+  it("viche_whoami returns not-connected message when agentId is null", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", {});
+    const state = {
+      agentId: null as string | null,
+      channel: null,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_whoami");
+    const result = await tool.execute("call-whoami", {});
+
+    expect(result.content[0]?.text).toContain("not yet connected");
+  });
 });

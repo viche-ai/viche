@@ -1,13 +1,14 @@
 /**
  * Tool definitions for opencode-plugin-viche.
  *
- * Six tools are exposed to the LLM:
+ * Seven tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability (Phoenix Channel push)
  *   - viche_send      — send a message to another agent (requires session)
  *   - viche_reply     — reply to an agent that sent a task (requires session)
  *   - viche_leave_registry      — leave one/all registries
  *   - viche_join_registry       — join a registry dynamically
  *   - viche_list_my_registries  — list registries this agent has joined
+ *   - viche_whoami              — return this agent's own ID
  *
  * Tools use Phoenix Channel pushes via the per-session WebSocket channel.
  * Registration remains HTTP in the service layer (before WebSocket connect).
@@ -470,6 +471,29 @@ export function createVicheTools(
     },
   };
 
+  // ── viche_whoami ────────────────────────────────────────────────────────────
+
+  const viche_whoami: ToolDefinition = {
+    description:
+      "Return your own agent ID on the Viche network. " +
+      "Use this to identify yourself when coordinating with other agents.",
+    args: {},
+    async execute(
+      _args: Record<string, unknown>,
+      context: { sessionID: string }
+    ): Promise<string> {
+      let sessionState: SessionState;
+      try {
+        sessionState = await ensureSessionReady(context.sessionID);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `Failed to initialise session: ${msg}`;
+      }
+
+      return `Your agent ID: ${sessionState.agentId}`;
+    },
+  };
+
   // ── viche_list_my_registries ───────────────────────────────────────────────
 
   const viche_list_my_registries: ToolDefinition = {
@@ -514,5 +538,6 @@ export function createVicheTools(
     viche_leave_registry,
     viche_join_registry,
     viche_list_my_registries,
+    viche_whoami,
   };
 }

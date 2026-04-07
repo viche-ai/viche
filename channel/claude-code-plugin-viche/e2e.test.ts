@@ -271,11 +271,11 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
     }
   });
 
-  it("1) listTools returns all six tools", async () => {
+  it("1) listTools returns all seven tools", async () => {
     const response = await session.client.listTools();
     const toolNames = response.tools.map((tool) => tool.name).sort();
 
-    expect(response.tools).toHaveLength(6);
+    expect(response.tools).toHaveLength(7);
     expect(toolNames).toEqual([
       "viche_discover",
       "viche_join_registry",
@@ -283,6 +283,7 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
       "viche_list_my_registries",
       "viche_reply",
       "viche_send",
+      "viche_whoami",
     ]);
   });
 
@@ -350,6 +351,16 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
 
     const scopedAgents = await discover("*", token);
     expect(scopedAgents.some((agent) => agent.id === agentId)).toBeTrue();
+  });
+
+  it("12) viche_whoami returns the agent's own ID", async () => {
+    const result = await session.client.callTool({
+      name: "viche_whoami",
+      arguments: {},
+    });
+    const text = getToolText(result);
+    expect(text).toContain("Your agent ID:");
+    expect(text).toContain(agentId);
   });
 
   it("11) viche_list_my_registries returns registries and duplicate join errors", async () => {
