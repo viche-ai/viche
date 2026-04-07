@@ -793,6 +793,200 @@ defmodule VicheWeb.AgentChannelTest do
     end
   end
 
+  # ---------------------------------------------------------------------------
+  # Registry-scoped discover via payload (Phase 0 bug fix)
+  # ---------------------------------------------------------------------------
+
+  describe "handle_in/3 - discover with registry in payload" do
+    setup do
+      clear_all_agents()
+
+      {:ok, agent_a} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-in-team-a",
+          registries: ["global", "team-a"]
+        })
+
+      {:ok, agent_b} =
+        Agents.register_agent(%{
+          capabilities: ["coding"],
+          name: "agent-in-team-b",
+          registries: ["global", "team-b"]
+        })
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_a.id}", %{agent_id: agent_a.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent_a.id}")
+
+      %{socket: socket, id_a: agent_a.id, id_b: agent_b.id}
+    end
+
+    test "discover with registry in payload scopes results to that registry", %{
+      socket: socket,
+      id_a: id_a,
+      id_b: id_b
+    } do
+      ref = push(socket, "discover", %{"capability" => "*", "registry" => "team-a"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      ids = Enum.map(agents, & &1.id)
+      assert id_a in ids
+      refute id_b in ids
+    end
+
+    test "discover without registry param returns global (backward compat)", %{
+      socket: socket,
+      id_a: id_a,
+      id_b: id_b
+    } do
+      ref = push(socket, "discover", %{"capability" => "*"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      ids = Enum.map(agents, & &1.id)
+      # Both are in global
+      assert id_a in ids
+      assert id_b in ids
+    end
+
+    test "payload registry takes precedence over channel context", %{id_a: id_a, id_b: id_b} do
+      clear_all_agents()
+
+      {:ok, agent_x} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-x"]})
+
+      {:ok, agent_y} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-y"]})
+
+      # Join registry:team-x channel
+      {:ok, _, socket_x} =
+        AgentSocket
+        |> socket("agent_socket:#{agent_x.id}", %{agent_id: agent_x.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "registry:team-x")
+
+      # But push discover with team-y in payload — payload should win
+      ref = push(socket_x, "discover", %{"capability" => "*", "registry" => "team-y"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      ids = Enum.map(agents, & &1.id)
+      assert agent_y.id in ids
+      refute agent_x.id in ids
+      _ = {id_a, id_b}
+    end
+
+    test "non-member can discover any registry (no membership check)", %{
+      socket: socket,
+      id_a: id_a
+    } do
+      # socket is for agent_a (in team-a), but we query team-a (which we ARE in)
+      # Test that a non-member of "private-team" can still query it
+      {:ok, private_agent} =
+        Agents.register_agent(%{capabilities: ["secret"], registries: ["private-team"]})
+
+      ref = push(socket, "discover", %{"capability" => "*", "registry" => "private-team"})
+      assert_reply ref, :ok, %{agents: agents}
+
+      ids = Enum.map(agents, & &1.id)
+      assert private_agent.id in ids
+      _ = id_a
+    end
+
+    test "discover with non-binary registry value is handled gracefully (falls back to socket context)",
+         %{socket: socket, id_a: id_a} do
+      # Non-binary registry values should not crash; fall back to no registry (global)
+      ref = push(socket, "discover", %{"capability" => "*", "registry" => 123})
+      assert_reply ref, :ok, %{agents: agents}
+      assert is_list(agents)
+      # Should still return results (global fallback)
+      _ = id_a
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # join_registry and list_registries WebSocket events (Phase 3)
+  # ---------------------------------------------------------------------------
+
+  describe "handle_in/3 - join_registry" do
+    setup do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["testing"], registries: ["global"]})
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      %{socket: socket, agent_id: agent.id}
+    end
+
+    test "join_registry adds agent to new registry and returns updated list", %{
+      socket: socket
+    } do
+      ref = push(socket, "join_registry", %{"token" => "new-team"})
+      assert_reply ref, :ok, %{registries: registries}
+      assert "global" in registries
+      assert "new-team" in registries
+    end
+
+    test "join_registry returns already_in_registry for duplicate token", %{
+      socket: socket
+    } do
+      ref = push(socket, "join_registry", %{"token" => "global"})
+      assert_reply ref, :error, %{error: "already_in_registry"}
+    end
+
+    test "join_registry returns invalid_token for bad token", %{socket: socket} do
+      ref = push(socket, "join_registry", %{"token" => "ab"})
+      assert_reply ref, :error, %{error: "invalid_token"}
+    end
+
+    test "join_registry without token returns missing_field error", %{socket: socket} do
+      ref = push(socket, "join_registry", %{})
+      assert_reply ref, :error, %{error: "missing_field", field: "token"}
+    end
+  end
+
+  describe "handle_in/3 - list_registries" do
+    setup do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{
+          capabilities: ["testing"],
+          registries: ["global", "team-alpha"]
+        })
+
+      {:ok, _, socket} =
+        AgentSocket
+        |> socket("agent_socket:#{agent.id}", %{agent_id: agent.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{agent.id}")
+
+      %{socket: socket, agent_id: agent.id}
+    end
+
+    test "list_registries returns all agent's registries", %{socket: socket} do
+      ref = push(socket, "list_registries", %{})
+      assert_reply ref, :ok, %{registries: registries}
+      assert "global" in registries
+      assert "team-alpha" in registries
+      assert length(registries) == 2
+    end
+
+    test "list_registries after join returns updated list", %{socket: socket} do
+      # First join a new registry
+      join_ref = push(socket, "join_registry", %{"token" => "new-team"})
+      assert_reply join_ref, :ok, _
+
+      # Then list - should include new-team
+      list_ref = push(socket, "list_registries", %{})
+      assert_reply list_ref, :ok, %{registries: registries}
+      assert "new-team" in registries
+    end
+  end
+
   describe "terminate/2 - sends :websocket_disconnected to AgentServer" do
     test "closing the socket triggers grace period and eventually deregisters the agent", %{
       agent_id: agent_id

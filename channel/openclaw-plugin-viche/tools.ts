@@ -1,10 +1,13 @@
 /**
  * Tool definitions for openclaw-plugin-viche.
  *
- * Three tools are exposed to the LLM:
+ * Six tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability
  *   - viche_send      — send a message to another agent
  *   - viche_reply     — reply to an agent that sent a task
+ *   - viche_leave_registry      — leave one/all registries
+ *   - viche_join_registry       — join a registry dynamically
+ *   - viche_list_my_registries  — list registries this agent has joined
  *
  * Tools send Phoenix Channel events through the shared channel reference
  * maintained by the background service.
@@ -359,7 +362,7 @@ export function registerVicheTools(
     }) as unknown as AnyAgentTool,
   );
 
-  // ── viche_deregister ──────────────────────────────────────────────────────
+  // ── viche_leave_registry ──────────────────────────────────────────────────
   // Captures `ctx.sessionKey` to update "most-recent" session activity.
 
   api.registerTool(
@@ -367,9 +370,9 @@ export function registerVicheTools(
       const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
 
       return {
-        name: "viche_deregister",
+        name: "viche_leave_registry",
         description:
-          "Deregister from a registry on the Viche network. " +
+          "Leave a registry on the Viche network. " +
           "If registry is specified, leaves only that registry. " +
           "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
         parameters: Type.Object({
@@ -406,16 +409,104 @@ export function registerVicheTools(
             const registries = response.registries ?? [];
             if (registries.length === 0) {
               return textResult(
-                "Deregistered from all registries. You are now undiscoverable but still connected.",
+                "Left all registries. You are now undiscoverable but still connected.",
               );
             }
 
             return textResult(
-              `Deregistered from registry '${params.registry}'. Remaining registries: ${registries.join(", ")}`,
+              `Left registry '${params.registry}'. Remaining registries: ${registries.join(", ")}`,
             );
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            return textResult(`Failed to deregister: ${msg}`);
+            return textResult(`Failed to leave registry: ${msg}`);
+          }
+        },
+      };
+    }) as unknown as AnyAgentTool,
+  );
+
+  // ── viche_join_registry ───────────────────────────────────────────────────
+
+  api.registerTool(
+    ((ctx: OpenClawPluginToolContext) => {
+      const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
+
+      return {
+        name: "viche_join_registry",
+        description:
+          "Join a registry on the Viche network. " +
+          "Adds your agent to the specified registry for scoped discovery.",
+        parameters: Type.Object({
+          token: Type.String({
+            description:
+              "Registry token to join (4-256 chars, alphanumeric + . _ -).",
+            minLength: 4,
+            maxLength: 256,
+            pattern: "^[a-zA-Z0-9._-]+$",
+          }),
+        }),
+        async execute(
+          _toolCallId: string,
+          params: { token: string },
+          _signal?: AbortSignal,
+        ): Promise<AgentToolResult> {
+          const guard = requireConnected(state);
+          if (guard) return guard;
+
+          state.mostRecentSessionKey = sessionKey;
+
+          try {
+            const response = (await pushChannel(state.channel!, "join_registry", {
+              token: params.token,
+            })) as { registries: string[] };
+
+            const registries = response.registries ?? [];
+            return textResult(
+              `Joined registry '${params.token}'. Current registries: ${registries.join(", ")}`,
+            );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return textResult(`Failed to join registry: ${msg}`);
+          }
+        },
+      };
+    }) as unknown as AnyAgentTool,
+  );
+
+  // ── viche_list_my_registries ──────────────────────────────────────────────
+
+  api.registerTool(
+    ((ctx: OpenClawPluginToolContext) => {
+      const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
+
+      return {
+        name: "viche_list_my_registries",
+        description:
+          "List the registries your agent is currently a member of on the Viche network.",
+        parameters: Type.Object({}),
+        async execute(
+          _toolCallId: string,
+          _params: Record<string, unknown>,
+          _signal?: AbortSignal,
+        ): Promise<AgentToolResult> {
+          const guard = requireConnected(state);
+          if (guard) return guard;
+
+          state.mostRecentSessionKey = sessionKey;
+
+          try {
+            const response = (await pushChannel(state.channel!, "list_registries", {})) as {
+              registries: string[];
+            };
+
+            if (!Array.isArray(response.registries)) {
+              return textResult("Failed to list registries: invalid registries response");
+            }
+
+            return textResult(`Your registries: ${response.registries.join(", ")}`);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return textResult(`Failed to list registries: ${msg}`);
           }
         },
       };

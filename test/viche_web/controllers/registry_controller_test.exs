@@ -489,6 +489,78 @@ defmodule VicheWeb.RegistryControllerTest do
     end
   end
 
+  describe "POST /registry/:agent_id/join" do
+    setup do
+      Viche.AgentSupervisor
+      |> DynamicSupervisor.which_children()
+      |> Enum.each(fn {_, pid, _, _} ->
+        DynamicSupervisor.terminate_child(Viche.AgentSupervisor, pid)
+      end)
+
+      conn_a =
+        post(build_conn(), ~p"/registry/register", %{
+          "capabilities" => ["coding"],
+          "registries" => ["global"]
+        })
+
+      %{"id" => agent_id} = json_response(conn_a, 201)
+      %{agent_id: agent_id}
+    end
+
+    test "happy path returns 200 with updated registries", %{conn: conn, agent_id: agent_id} do
+      conn = post(conn, ~p"/registry/#{agent_id}/join", %{"token" => "new-team"})
+      assert %{"registries" => registries} = json_response(conn, 200)
+      assert "global" in registries
+      assert "new-team" in registries
+    end
+
+    test "returns 409 when token already in registries", %{conn: conn, agent_id: agent_id} do
+      conn = post(conn, ~p"/registry/#{agent_id}/join", %{"token" => "global"})
+      assert %{"error" => "already_in_registry"} = json_response(conn, 409)
+    end
+
+    test "returns 404 for non-existent agent", %{conn: conn} do
+      conn = post(conn, ~p"/registry/nonexistent/join", %{"token" => "new-team"})
+      assert %{"error" => "agent_not_found"} = json_response(conn, 404)
+    end
+
+    test "returns 422 for invalid token", %{conn: conn, agent_id: agent_id} do
+      conn = post(conn, ~p"/registry/#{agent_id}/join", %{"token" => "ab"})
+      assert %{"error" => "invalid_token"} = json_response(conn, 422)
+    end
+
+    test "returns 422 when token field is missing", %{conn: conn, agent_id: agent_id} do
+      conn = post(conn, ~p"/registry/#{agent_id}/join", %{})
+      assert %{"error" => "missing_token"} = json_response(conn, 422)
+    end
+
+    test "returns 403 when user does not own the agent", %{conn: conn} do
+      {:ok, owner} =
+        Repo.insert(User.changeset(%User{}, %{email: "owner-join@test.com"}))
+
+      conn_owner =
+        conn
+        |> Plug.Conn.assign(:current_user_id, owner.id)
+        |> Plug.Conn.assign(:current_agent_id, nil)
+
+      conn_owner = post(conn_owner, ~p"/registry/register", %{"capabilities" => ["test"]})
+      %{"id" => agent_id} = json_response(conn_owner, 201)
+
+      {:ok, other_user} =
+        Repo.insert(User.changeset(%User{}, %{email: "other-join@test.com"}))
+
+      conn_other =
+        build_conn()
+        |> Plug.Conn.assign(:current_user_id, other_user.id)
+        |> Plug.Conn.assign(:current_agent_id, nil)
+
+      conn_other = post(conn_other, ~p"/registry/#{agent_id}/join", %{"token" => "team-x"})
+
+      assert %{"error" => "not_owner", "message" => message} = json_response(conn_other, 403)
+      assert is_binary(message)
+    end
+  end
+
   describe "DELETE /registry/deregister/:agent_id" do
     test "returns 404 with message for non-existent agent", %{conn: conn} do
       conn = delete(conn, ~p"/registry/deregister/nonexistent-agent-id")

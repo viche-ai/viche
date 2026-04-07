@@ -98,4 +98,63 @@ describe("registerVicheTools over channel pushes", () => {
     });
     expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0);
   });
+
+  it("viche_join_registry uses join_registry event and formats success", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", { registries: ["global", "new-team"] });
+    const state = {
+      agentId: "self-agent",
+      channel,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_join_registry", "agent:tenant-a:session-1");
+    const result = await tool.execute("call-join", { token: "new-team" });
+
+    expect(channel.push).toHaveBeenCalledWith("join_registry", { token: "new-team" });
+    expect(result.content[0]?.text).toBe("Joined registry 'new-team'. Current registries: global, new-team");
+  });
+
+  it("viche_list_my_registries uses list_registries event and formats success", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", { registries: ["global", "team-a"] });
+    const state = {
+      agentId: "self-agent",
+      channel,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_list_my_registries", "agent:tenant-a:session-1");
+    const result = await tool.execute("call-list", {});
+
+    expect(channel.push).toHaveBeenCalledWith("list_registries", {});
+    expect(result.content[0]?.text).toBe("Your registries: global, team-a");
+  });
+
+  it("viche_list_my_registries rejects malformed ack payload", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", {});
+    const state = {
+      agentId: "self-agent",
+      channel,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_list_my_registries", "agent:tenant-a:session-1");
+    const result = await tool.execute("call-list", {});
+
+    expect(channel.push).toHaveBeenCalledWith("list_registries", {});
+    expect(result.content[0]?.text).toBe(
+      "Failed to list registries: invalid registries response",
+    );
+  });
 });

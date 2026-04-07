@@ -992,6 +992,98 @@ defmodule Viche.AgentsTest do
     end
   end
 
+  describe "join_registry/2" do
+    setup do
+      clear_all_agents()
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["coding"], registries: ["global"]})
+      %{agent_id: agent.id}
+    end
+
+    test "happy path returns {:ok, agent} with new token added", %{agent_id: agent_id} do
+      assert {:ok, agent} = Agents.join_registry(agent_id, "new-team")
+      assert "global" in agent.registries
+      assert "new-team" in agent.registries
+    end
+
+    test "ETS metadata is updated after join", %{agent_id: agent_id} do
+      assert {:ok, _} = Agents.join_registry(agent_id, "new-team")
+      [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent_id)
+      assert "new-team" in meta.registries
+    end
+
+    test "broadcasts agent_joined to new registry topic", %{agent_id: agent_id} do
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:new-team")
+
+      assert {:ok, _agent} = Agents.join_registry(agent_id, "new-team")
+
+      expected_id = agent_id
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:new-team",
+        event: "agent_joined",
+        payload: %{id: ^expected_id}
+      }
+    end
+
+    test "returns {:error, :already_in_registry} for duplicate token", %{agent_id: agent_id} do
+      assert {:error, :already_in_registry} = Agents.join_registry(agent_id, "global")
+    end
+
+    test "returns {:error, :agent_not_found} for unknown agent" do
+      assert {:error, :agent_not_found} = Agents.join_registry("nonexistent", "new-team")
+    end
+
+    test "returns {:error, :invalid_token} for short token", %{agent_id: agent_id} do
+      assert {:error, :invalid_token} = Agents.join_registry(agent_id, "ab")
+    end
+
+    test "returns {:error, :invalid_token} for token with special chars", %{agent_id: agent_id} do
+      assert {:error, :invalid_token} = Agents.join_registry(agent_id, "bad token!")
+    end
+
+    test "after join, agent appears in discovery for new registry", %{agent_id: agent_id} do
+      assert {:ok, _} = Agents.join_registry(agent_id, "new-team")
+      assert {:ok, agents} = Agents.discover(%{capability: "coding", registry: "new-team"})
+      ids = Enum.map(agents, & &1.id)
+      assert agent_id in ids
+    end
+
+    test "joining does not broadcast to previously-existing registry", %{agent_id: agent_id} do
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+      assert {:ok, _} = Agents.join_registry(agent_id, "new-team")
+      refute_receive %Phoenix.Socket.Broadcast{topic: "registry:global", event: "agent_joined"}
+    end
+  end
+
+  describe "list_agent_registries_for/1" do
+    setup do
+      clear_all_agents()
+
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-a"]})
+
+      %{agent_id: agent.id}
+    end
+
+    test "returns {:ok, registries} for a registered agent", %{agent_id: agent_id} do
+      assert {:ok, registries} = Agents.list_agent_registries_for(agent_id)
+      assert "global" in registries
+      assert "team-a" in registries
+      assert length(registries) == 2
+    end
+
+    test "returns {:error, :agent_not_found} for unknown agent" do
+      assert {:error, :agent_not_found} = Agents.list_agent_registries_for("nonexistent")
+    end
+
+    test "returns empty list for agent with no registries after full deregister", %{
+      agent_id: agent_id
+    } do
+      assert {:ok, _} = Agents.deregister_from_registries(agent_id, %{})
+      assert {:ok, []} = Agents.list_agent_registries_for(agent_id)
+    end
+  end
+
   describe "register_agent/1 with polling_timeout_ms" do
     test "accepts custom polling_timeout_ms and returns it in agent struct" do
       assert {:ok, agent} =

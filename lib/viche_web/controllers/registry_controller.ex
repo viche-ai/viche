@@ -132,6 +132,50 @@ defmodule VicheWeb.RegistryController do
     end
   end
 
+  @spec join(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def join(conn, %{"agent_id" => agent_id, "token" => token}) do
+    user_id = conn.assigns[:current_user_id]
+
+    case Agents.user_owns_agent?(user_id, agent_id) do
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "agent_not_found"})
+
+      false ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "not_owner", message: "you do not own this agent"})
+
+      true ->
+        case Agents.join_registry(agent_id, token) do
+          {:ok, agent} ->
+            json(conn, %{registries: agent.registries})
+
+          {:error, :agent_not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "agent_not_found"})
+
+          {:error, :invalid_token} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "invalid_token"})
+
+          {:error, :already_in_registry} ->
+            conn
+            |> put_status(:conflict)
+            |> json(%{error: "already_in_registry"})
+        end
+    end
+  end
+
+  def join(conn, %{"agent_id" => _}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "missing_token"})
+  end
+
   @spec discover(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def discover(conn, params) do
     token = params["registry"] || params["token"]

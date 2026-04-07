@@ -15,13 +15,16 @@ defmodule VicheWeb.AgentChannel do
 
   ## Events (client → server)
 
-  - `"discover"` — find agents by capability or name (scoped to registry when on a registry topic)
+  - `"discover"` — find agents by capability or name; optional `"registry"` payload key scopes
+    results (payload registry takes precedence over channel topic context)
   - `"send_message"` — send a message to another agent; payload must contain `"to"` (recipient
     agent ID), `"body"` (string), and optionally `"type"` (`"task"` | `"result"` | `"ping"`).
     The `"from"` field is **not accepted** — the sender is always derived from the authenticated
     socket (`socket.assigns.agent_id`). Any client-supplied `"from"` is silently dropped.
   - `"inspect_inbox"` — peek at inbox without consuming
   - `"drain_inbox"` — consume and return all inbox messages
+  - `"join_registry"` — dynamically join a registry; payload must contain `"token"`
+  - `"list_registries"` — list the registries the agent currently belongs to
 
   ## Events (server → client)
 
@@ -92,12 +95,16 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
-  def handle_in("discover", %{"capability" => cap}, socket) do
-    handle_discover(%{capability: cap}, socket)
+  def handle_in("discover", %{"capability" => cap} = params, socket) do
+    %{capability: cap}
+    |> maybe_add_registry(params, socket)
+    |> handle_discover(socket)
   end
 
-  def handle_in("discover", %{"name" => name}, socket) do
-    handle_discover(%{name: name}, socket)
+  def handle_in("discover", %{"name" => name} = params, socket) do
+    %{name: name}
+    |> maybe_add_registry(params, socket)
+    |> handle_discover(socket)
   end
 
   def handle_in("send_message", %{"to" => to, "body" => body} = params, socket) do
@@ -194,6 +201,34 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
+  def handle_in("join_registry", %{"token" => token}, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Viche.Agents.join_registry(agent_id, token) do
+      {:ok, agent} ->
+        {:reply, {:ok, %{registries: agent.registries}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason)}}, socket}
+    end
+  end
+
+  def handle_in("join_registry", _params, socket) do
+    {:reply, {:error, %{error: "missing_field", field: "token"}}, socket}
+  end
+
+  def handle_in("list_registries", _params, socket) do
+    agent_id = socket.assigns.agent_id
+
+    case Viche.Agents.list_agent_registries_for(agent_id) do
+      {:ok, registries} ->
+        {:reply, {:ok, %{registries: registries}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason)}}, socket}
+    end
+  end
+
   def handle_in(event, _params, socket) do
     Logger.warning("Unknown event received on agent channel: #{inspect(event)}")
     {:reply, {:error, %{error: "unknown_event", message: "unrecognized event: #{event}"}}, socket}
@@ -208,11 +243,15 @@ defmodule VicheWeb.AgentChannel do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  # Scopes the discover query to the registry when on a registry channel.
-  defp build_discover_query(base_query, socket) do
-    case Map.get(socket.assigns, :registry_token) do
-      nil -> base_query
-      token -> Map.put(base_query, :registry, token)
+  # Priority: payload "registry" (binary) > socket.assigns.registry_token > omit
+  # (no registry key → Agents.discover defaults to "global")
+  defp maybe_add_registry(query, params, socket) do
+    registry = Map.get(params, "registry") || Map.get(socket.assigns, :registry_token)
+
+    if is_binary(registry) and byte_size(registry) > 0 do
+      Map.put(query, :registry, registry)
+    else
+      query
     end
   end
 
@@ -228,37 +267,14 @@ defmodule VicheWeb.AgentChannel do
     end)
   end
 
-  defp handle_discover(base_query, socket) do
-    case ensure_registry_membership(socket) do
-      :ok ->
-        query = build_discover_query(base_query, socket)
-
-        case Viche.Agents.discover(query) do
-          {:ok, agents} ->
-            {:reply, {:ok, %{agents: agents}}, socket}
-
-          {:error, reason} ->
-            {:reply,
-             {:error, %{error: to_string(reason), message: "discovery failed: #{reason}"}},
-             socket}
-        end
-
-      {:error, :not_in_registry} ->
-        {:reply, {:ok, %{agents: []}}, socket}
+  defp handle_discover(query, socket) do
+    case Viche.Agents.discover(query) do
+      {:ok, agents} ->
+        {:reply, {:ok, %{agents: agents}}, socket}
 
       {:error, reason} ->
         {:reply, {:error, %{error: to_string(reason), message: "discovery failed: #{reason}"}},
          socket}
-    end
-  end
-
-  defp ensure_registry_membership(socket) do
-    case Map.get(socket.assigns, :registry_token) do
-      nil ->
-        :ok
-
-      token ->
-        Viche.Agents.authorize_registry_join(socket.assigns.agent_id, token)
     end
   end
 
