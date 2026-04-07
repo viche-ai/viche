@@ -1,0 +1,295 @@
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import {
+  channelPush,
+  DiscoverResponse,
+  type AgentInfo,
+  type PhoenixChannel,
+} from "./service.js";
+
+const NOT_CONNECTED_MESSAGE =
+  "Not connected to Viche registry yet. Please wait for registration to complete.";
+
+const TOOL_DEFINITIONS = [
+  {
+    name: "viche_discover",
+    description:
+      "Discover other AI agents on the Viche network by capability. Pass '*' to list all agents. Returns a list of agents that match.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        capability: {
+          type: "string",
+          description:
+            "Capability to search for (e.g. 'coding', 'research', 'code-review'). Use '*' to return all agents.",
+        },
+        token: {
+          type: "string",
+          description:
+            "Optional registry token to explicitly select which joined private registry channel to discover through.",
+        },
+      },
+      required: ["capability"],
+    },
+  },
+  {
+    name: "viche_send",
+    description:
+      "Send a message to another AI agent on the Viche network. Use this to delegate tasks or ask questions to other agents.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        to: {
+          type: "string",
+          pattern:
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          description: "Target agent ID (UUID format)",
+        },
+        body: {
+          type: "string",
+          description: "Message content",
+        },
+        type: {
+          type: "string",
+          description: "Message type: 'task', 'result', or 'ping'",
+          default: "task",
+        },
+      },
+      required: ["to", "body"],
+    },
+  },
+  {
+    name: "viche_reply",
+    description:
+      "Reply to an agent that sent you a task. This sends a 'result' message back.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        to: {
+          type: "string",
+          description: "Agent ID to reply to (from the message's 'from' field)",
+        },
+        body: {
+          type: "string",
+          description: "Your result or response",
+        },
+      },
+      required: ["to", "body"],
+    },
+  },
+  {
+    name: "viche_deregister",
+    description:
+      "Deregister from a registry on the Viche network. " +
+      "If registry is specified, leaves only that registry. " +
+      "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        registry: {
+          type: "string",
+          description:
+            "Optional registry token to leave. If omitted, deregisters from all registries.",
+        },
+      },
+      required: [],
+    },
+  },
+];
+
+export function formatAgentList(agents: AgentInfo[]): string {
+  if (agents.length === 0) {
+    return "No agents found matching that capability.";
+  }
+  const lines = agents.map((a) => {
+    const caps = a.capabilities?.join(", ") ?? "unknown";
+    const name = a.name ? ` (${a.name})` : "";
+    return `• ${a.id}${name} — capabilities: ${caps}`;
+  });
+  return `Found ${agents.length} agent(s):\n${lines.join("\n")}`;
+}
+
+function notConnectedResponse() {
+  return {
+    content: [{ type: "text" as const, text: NOT_CONNECTED_MESSAGE }],
+  };
+}
+
+export function registerToolHandlers(
+  server: Server,
+  getChannel: () => PhoenixChannel | null,
+  _getAgentId: () => string | null,
+  getRegistryChannels: () => Map<string, PhoenixChannel>
+): void {
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOL_DEFINITIONS,
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const toolName = request.params.name;
+
+    if (toolName === "viche_discover") {
+      const args = request.params.arguments as { capability: string; token?: string };
+      try {
+        const token = args.token?.trim();
+        let discoverChannel: PhoenixChannel | null = null;
+
+        if (token) {
+          discoverChannel = getRegistryChannels().get(token) ?? null;
+        } else if (getRegistryChannels().size > 0) {
+          discoverChannel = getRegistryChannels().values().next().value ?? null;
+        } else {
+          discoverChannel = getChannel();
+        }
+
+        if (token && !discoverChannel) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Discovery failed: not joined to requested registry token '${token}'.`,
+              },
+            ],
+          };
+        }
+
+        if (!discoverChannel) {
+          return notConnectedResponse();
+        }
+
+        const discoverPayload: { capability: string; registry?: string } = {
+          capability: args.capability,
+        };
+
+        if (token) {
+          discoverPayload.registry = token;
+        }
+
+        const resp = await channelPush<DiscoverResponse>(
+          discoverChannel,
+          "discover",
+          discoverPayload
+        );
+
+        return {
+          content: [{ type: "text", text: formatAgentList(resp.agents ?? []) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Discovery failed: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_send") {
+      const args = request.params.arguments as {
+        to: string;
+        body: string;
+        type?: string;
+      };
+      const msgType = args.type ?? "task";
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        await channelPush(channel, "send_message", {
+          to: args.to,
+          body: args.body,
+          type: msgType,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Message sent to ${args.to} (type: ${msgType}).`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Failed to send message: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_reply") {
+      const args = request.params.arguments as { to: string; body: string };
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        await channelPush(channel, "send_message", {
+          to: args.to,
+          body: args.body,
+          type: "result",
+        });
+        return {
+          content: [{ type: "text", text: `Reply sent to ${args.to}.` }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Failed to send reply: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_deregister") {
+      const args = request.params.arguments as { registry?: string };
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        const payload: Record<string, unknown> = {};
+        if (args.registry) {
+          payload.registry = args.registry;
+        }
+
+        const resp = await channelPush<{ registries: string[] }>(
+          channel,
+          "deregister",
+          payload
+        );
+
+        const registries = resp.registries ?? [];
+        if (registries.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Deregistered from all registries. You are now undiscoverable but still connected.",
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deregistered from registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Failed to deregister: ${message}` }],
+        };
+      }
+    }
+
+    throw new Error(`Unknown tool: ${toolName}`);
+  });
+}

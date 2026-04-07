@@ -19,6 +19,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
+    "test": "bun test tools-websocket.test.ts channel-error-recovery.test.ts",
+    "test:e2e": "bun test e2e.test.ts",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [

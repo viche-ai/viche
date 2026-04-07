@@ -1,0 +1,106 @@
+name: "CI: Plugin E2E Tests"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "channel/**"
+      - "scripts/run-e2e-tests.sh"
+      - ".github/workflows/ci-plugin-e2e.yml"
+  pull_request:
+    paths:
+      - "channel/**"
+      - "scripts/run-e2e-tests.sh"
+      - ".github/workflows/ci-plugin-e2e.yml"
+
+env:
+  MIX_ENV: test
+  ELIXIR_VERSION: "1.17"
+  OTP_VERSION: "27"
+
+jobs:
+  e2e:
+    name: Plugin E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: viche_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Elixir deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: deps-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
+      - name: Cache _build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: build-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ env.MIX_ENV }}-${{ hashFiles('mix.lock') }}
+          restore-keys: build-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ env.MIX_ENV }}-
+
+      - name: Install Elixir dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile
+
+      - name: Install OpenCode plugin dependencies
+        run: cd channel/opencode-plugin-viche && bun install --frozen-lockfile
+
+      - name: Install OpenClaw plugin dependencies
+        run: cd channel/openclaw-plugin-viche && npm install
+
+      - name: Install Claude Code plugin dependencies
+        run: cd channel/claude-code-plugin-viche && bun install --frozen-lockfile
+
+      - name: Setup database
+        run: mix ecto.setup
+
+      - name: Start Phoenix server
+        run: |
+          PHX_SERVER=true PORT=4000 mix phx.server &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for Phoenix server
+        run: |
+          timeout 60 bash -c 'until curl -sf http://localhost:4000/health >/dev/null 2>&1; do sleep 1; done'
+          echo "Phoenix server ready"
+
+      - name: Run OpenCode E2E tests
+        run: cd channel/opencode-plugin-viche && bun run test:e2e
+
+      - name: Run OpenClaw E2E tests
+        run: cd channel/openclaw-plugin-viche && bun run test:e2e
+
+      - name: Run Claude Code E2E tests
+        run: cd channel/claude-code-plugin-viche && bun run test:e2e
+
+      - name: Stop Phoenix server
+        if: always()
+        run: kill $SERVER_PID || true

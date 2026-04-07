@@ -2,7 +2,7 @@
   "mcpServers": {
     "viche": {
       "command": "bun",
-      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/viche-server.ts"],
+      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/main.ts"],
       "env": {
         "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules"
       }
