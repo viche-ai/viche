@@ -163,7 +163,9 @@ function connectWebSocket(
           }
 
           for (const token of config.registries ?? []) {
-            const registryChannel = socket.channel(`registry:${token}`, {});
+            const registryChannel = socket.channel(`registry:${token}`, {
+              agent_id: agentId,
+            });
             registryChannels.push(registryChannel);
             registryChannel
               .join()
@@ -348,9 +350,6 @@ export function createVicheService(
         active.registryChannels = recovered.registryChannels;
         state.sessions.set(sessionID, active);
 
-        process.stderr.write(
-          `Viche: recovered session ${sessionID} — re-registered as ${active.agentId}\n`
-        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         process.stderr.write(
@@ -363,16 +362,6 @@ export function createVicheService(
     };
 
     const lifecycleHandlers: ConnectionLifecycleHandlers = {
-      onSocketClose: () => {
-        process.stderr.write(
-          `Viche: WebSocket disconnected for session ${sessionID} — will reconnect automatically\n`
-        );
-      },
-      onSocketOpen: () => {
-        process.stderr.write(
-          `Viche: WebSocket (re)connected for session ${sessionID}\n`
-        );
-      },
       onChannelError: (reason: unknown) => {
         void recoverSession(reason);
       },

@@ -14,6 +14,8 @@ type JoinOutcome = {
 
 let _onHandlers: Record<string, (...args: unknown[]) => void> = {};
 let _channelErrorHandler: ((reason: unknown) => void) | null = null;
+let _socketOpenHandler: (() => void) | null = null;
+let _socketCloseHandler: (() => void) | null = null;
 let joinOutcomes: JoinOutcome[] = [];
 
 function makeJoinSequence() {
@@ -117,6 +119,8 @@ describe("createVicheService", () => {
 
     _onHandlers = {};
     _channelErrorHandler = null;
+    _socketOpenHandler = null;
+    _socketCloseHandler = null;
     joinOutcomes = [];
     socketConstructorArgs.length = 0;
 
@@ -135,7 +139,13 @@ describe("createVicheService", () => {
     mockSocketMethods.connect.mockReset();
     mockSocketMethods.disconnect.mockReset();
     mockSocketMethods.onOpen.mockReset();
+    mockSocketMethods.onOpen.mockImplementation((cb: () => void) => {
+      _socketOpenHandler = cb;
+    });
     mockSocketMethods.onClose.mockReset();
+    mockSocketMethods.onClose.mockImplementation((cb: () => void) => {
+      _socketCloseHandler = cb;
+    });
     mockSocketMethods.channel.mockReset();
     mockSocketMethods.channel.mockImplementation(
       (_topic: string, _params: unknown) => mockChannel
@@ -237,6 +247,52 @@ describe("createVicheService", () => {
       "second-0000-4000-a000-000000000000"
     );
     expect(mockSocketMethods.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not emit happy-path lifecycle logs to stderr", async () => {
+    joinOutcomes = [
+      {
+        event: "ok",
+        payload: { agent_id: "first-0000-4000-a000-000000000000" },
+      },
+      {
+        event: "ok",
+        payload: { agent_id: "second-0000-4000-a000-000000000000" },
+      },
+    ];
+
+    const messages: string[] = [];
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+    process.stderr.write = ((chunk: unknown) => {
+      messages.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const service = createVicheService(config, state, client, "/project", {
+        backoffMs: 0,
+      });
+      await service.ensureSessionReady("sess-no-noise");
+
+      _socketCloseHandler?.();
+      _socketOpenHandler?.();
+      _channelErrorHandler?.({ reason: "agent_not_found" });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      expect(
+        messages.some((line) => line.includes("WebSocket disconnected"))
+      ).toBe(false);
+      expect(
+        messages.some((line) => line.includes("WebSocket (re)connected"))
+      ).toBe(false);
+      expect(messages.some((line) => line.includes("recovered session"))).toBe(
+        false
+      );
+      expect(messages.some((line) => line.includes("channel error"))).toBe(true);
+    } finally {
+      process.stderr.write = originalStderrWrite as typeof process.stderr.write;
+    }
   });
 
   it("injects identity context via client.session.prompt with noReply: true", async () => {
