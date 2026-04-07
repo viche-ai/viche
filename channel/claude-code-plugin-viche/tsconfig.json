@@ -8,5 +8,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["viche-server.ts"]
+  "include": ["*.ts"]
 }

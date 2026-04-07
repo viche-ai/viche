@@ -2,9 +2,11 @@
   "name": "claude-code-plugin-viche",
   "version": "1.0.0",
   "description": "Claude Code plugin: Connect to the Viche agent network for multi-agent collaboration",
+  "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test:e2e": "bun test e2e.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
