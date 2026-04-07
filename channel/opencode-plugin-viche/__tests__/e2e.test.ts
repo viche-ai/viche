@@ -134,6 +134,7 @@ type Hooks = {
 describe("E2E: opencode-plugin-viche against live Viche server", () => {
   let hooks: Hooks;
   let ourAgentId: string;
+  let joinedRegistryToken: string;
   const primaryDirectory = "/tmp/e2e-test";
 
   // ── Setup: register agent + connect WebSocket ────────────────────────────
@@ -199,7 +200,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
   // ── Test 1: Plugin shape ─────────────────────────────────────────────────
 
   it(
-    "Test 1: plugin factory returns { event, tool } with all three tools",
+    "Test 1: plugin factory returns { event, tool } with all six tools",
     async () => {
       // Create a fresh instance (no session triggered — no side effects).
       const client2 = {
@@ -223,6 +224,9 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
       expect(testHooks.tool).toHaveProperty("viche_discover");
       expect(testHooks.tool).toHaveProperty("viche_send");
       expect(testHooks.tool).toHaveProperty("viche_reply");
+      expect(testHooks.tool).toHaveProperty("viche_leave_registry");
+      expect(testHooks.tool).toHaveProperty("viche_join_registry");
+      expect(testHooks.tool).toHaveProperty("viche_list_my_registries");
     },
     10_000
   );
@@ -368,10 +372,10 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
     10_000
   );
 
-  // ── Test 7: viche_deregister partial (single registry) ───────────────────
+  // ── Test 7: viche_leave_registry partial (single registry) ──────────────
 
   it(
-    "Test 7: viche_deregister removes only the specified registry",
+    "Test 7: viche_leave_registry removes only the specified registry",
     async () => {
       const partialRegistry = `e2e-partial-dereg-${Date.now()}`;
       const prevRegistryToken = process.env.VICHE_REGISTRY_TOKEN;
@@ -410,9 +414,9 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
         const preJson = (await preResp.json()) as { agents: Array<{ id: string }> };
         expect(preJson.agents.some((a) => a.id === isolatedAgentId)).toBe(true);
 
-        const deregisterTool = isolatedHooks.tool["viche_deregister"] as ToolDef | undefined;
+        const deregisterTool = isolatedHooks.tool["viche_leave_registry"] as ToolDef | undefined;
         if (!deregisterTool) {
-          // viche_deregister is not exported by this plugin build; intentionally skip.
+          // viche_leave_registry is not exported by this plugin build; intentionally skip.
           expect(true).toBe(true);
           return;
         }
@@ -421,7 +425,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
           { registry: partialRegistry },
           { sessionID: isolatedSessionId }
         );
-        expect(deregisterResult).toContain("Deregistered from registry");
+        expect(deregisterResult).toContain("Left registry");
 
         const postScopedResp = await fetch(
           `${BASE_URL}/registry/discover?capability=*&registry=${encodeURIComponent(partialRegistry)}`
@@ -453,10 +457,10 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
     15_000
   );
 
-  // ── Test 8: viche_deregister full (all registries) ────────────────────────
+  // ── Test 8: viche_leave_registry full (all registries) ───────────────────
 
   it(
-    "Test 8: viche_deregister with no registry removes agent from all registries",
+    "Test 8: viche_leave_registry with no registry removes agent from all registries",
     async () => {
       const fullRegistry = `e2e-full-dereg-${Date.now()}`;
       const prevRegistryToken = process.env.VICHE_REGISTRY_TOKEN;
@@ -488,15 +492,15 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
 
         const isolatedAgentId = extractAgentIdFromPromptCalls(isolatedClient);
 
-        const deregisterTool = isolatedHooks.tool["viche_deregister"] as ToolDef | undefined;
+        const deregisterTool = isolatedHooks.tool["viche_leave_registry"] as ToolDef | undefined;
         if (!deregisterTool) {
-          // viche_deregister is not exported by this plugin build; intentionally skip.
+          // viche_leave_registry is not exported by this plugin build; intentionally skip.
           expect(true).toBe(true);
           return;
         }
 
         const deregisterResult = await deregisterTool.execute({}, { sessionID: isolatedSessionId });
-        expect(deregisterResult).toContain("Deregistered from all registries");
+        expect(deregisterResult).toContain("Left all registries");
 
         const scopedResp = await fetch(
           `${BASE_URL}/registry/discover?capability=*&registry=${encodeURIComponent(fullRegistry)}`
@@ -524,6 +528,51 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
           });
         }
       }
+    },
+    15_000
+  );
+
+  // ── Test 10: viche_join_registry + viche_list_my_registries ───────────────
+
+  it(
+    "Test 10: viche_join_registry joins a new registry and appears in scoped discovery",
+    async () => {
+      const joinRegistry = `e2e-join-${Date.now()}`;
+      joinedRegistryToken = joinRegistry;
+      const joinTool = hooks.tool["viche_join_registry"] as ToolDef;
+
+      const joinResult = await joinTool.execute(
+        { token: joinRegistry },
+        { sessionID: SESSION_ID }
+      );
+
+      expect(joinResult).toContain(`Joined registry '${joinRegistry}'`);
+
+      const scopedResp = await fetch(
+        `${BASE_URL}/registry/discover?capability=*&registry=${encodeURIComponent(joinRegistry)}`
+      );
+      expect(scopedResp.ok).toBe(true);
+      const scopedJson = (await scopedResp.json()) as { agents: Array<{ id: string }> };
+      expect(scopedJson.agents.some((a) => a.id === ourAgentId)).toBe(true);
+    },
+    15_000
+  );
+
+  it(
+    "Test 11: viche_join_registry reports already_in_registry and list returns joined registries",
+    async () => {
+      const joinTool = hooks.tool["viche_join_registry"] as ToolDef;
+      const listTool = hooks.tool["viche_list_my_registries"] as ToolDef;
+
+      const duplicateJoin = await joinTool.execute(
+        { token: joinedRegistryToken },
+        { sessionID: SESSION_ID }
+      );
+      expect(duplicateJoin).toContain("Failed to join registry: already_in_registry");
+
+      const listResult = await listTool.execute({}, { sessionID: SESSION_ID });
+      expect(listResult).toContain("Your registries:");
+      expect(listResult).toContain(joinedRegistryToken);
     },
     15_000
   );

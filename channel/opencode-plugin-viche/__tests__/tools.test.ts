@@ -148,4 +148,79 @@ describe("createVicheTools (WebSocket transport)", () => {
     const result = await tools.viche_discover.execute({ capability: "coding" }, TEST_CONTEXT);
     expect(result).toBe("Failed to parse discovery response from Viche.");
   });
+
+  it("viche_join_registry pushes join_registry and formats success", async () => {
+    const push = makeChannelPush("ok", {
+      registries: ["global", "new-team"],
+    });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_join_registry.execute(
+      { token: "new-team" },
+      TEST_CONTEXT
+    );
+
+    expect(push).toHaveBeenCalledWith("join_registry", { token: "new-team" });
+    expect(result).toBe("Joined registry 'new-team'. Current registries: global, new-team");
+  });
+
+  it("viche_join_registry formats channel error", async () => {
+    const push = makeChannelPush("error", { error: "already_in_registry" });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_join_registry.execute(
+      { token: "global" },
+      TEST_CONTEXT
+    );
+
+    expect(result).toBe("Failed to join registry: already_in_registry");
+  });
+
+  it("viche_list_my_registries pushes list_registries and formats success", async () => {
+    const push = makeChannelPush("ok", {
+      registries: ["global", "team-a"],
+    });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_list_my_registries.execute({}, TEST_CONTEXT);
+
+    expect(push).toHaveBeenCalledWith("list_registries", {});
+    expect(result).toBe("Your registries: global, team-a");
+  });
+
+  it("viche_list_my_registries formats channel error", async () => {
+    const push = makeChannelPush("timeout");
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_list_my_registries.execute({}, TEST_CONTEXT);
+
+    expect(result).toContain("Failed to list registries: Channel timeout during list_registries");
+  });
+
+  it("viche_leave_registry rejects malformed ack payload", async () => {
+    const push = makeChannelPush("ok", {});
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_leave_registry.execute(
+      { registry: "team-a" },
+      TEST_CONTEXT
+    );
+
+    expect(result).toBe("Failed to leave registry: invalid registries response");
+  });
 });

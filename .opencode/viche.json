@@ -1,11 +1,5 @@
 {
-  "registryUrl": "http://localhost:4000",
-  "capabilities": [
-    "coding"
-  ],
-  "agentName": "Ihor's personal opencode",
-  "description": "Personal AI coding assistant connected via OpenCode",
   "registries": [
-    "local-development"
+    "5e1bb7df-cd22-4f2b-99a6-db7781c2e360"
   ]
 }

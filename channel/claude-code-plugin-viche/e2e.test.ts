@@ -271,14 +271,16 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
     }
   });
 
-  it("1) listTools returns all four tools", async () => {
+  it("1) listTools returns all six tools", async () => {
     const response = await session.client.listTools();
     const toolNames = response.tools.map((tool) => tool.name).sort();
 
-    expect(response.tools).toHaveLength(4);
+    expect(response.tools).toHaveLength(6);
     expect(toolNames).toEqual([
-      "viche_deregister",
       "viche_discover",
+      "viche_join_registry",
+      "viche_leave_registry",
+      "viche_list_my_registries",
       "viche_reply",
       "viche_send",
     ]);
@@ -336,7 +338,39 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
     expect(inbox[0]?.body).toBe("reply payload");
   });
 
-  it("5) viche_deregister(registry) leaves only that registry", async () => {
+  it("10) viche_join_registry joins new registry and appears in scoped discovery", async () => {
+    const token = `e2e-claude-join-${Date.now()}`;
+
+    const result = await session.client.callTool({
+      name: "viche_join_registry",
+      arguments: { token },
+    });
+
+    expect(getToolText(result)).toContain(`Joined registry '${token}'`);
+
+    const scopedAgents = await discover("*", token);
+    expect(scopedAgents.some((agent) => agent.id === agentId)).toBeTrue();
+  });
+
+  it("11) viche_list_my_registries returns registries and duplicate join errors", async () => {
+    const duplicateJoin = await session.client.callTool({
+      name: "viche_join_registry",
+      arguments: { token: "global" },
+    });
+    expect(getToolText(duplicateJoin)).toContain(
+      "Failed to join registry: already_in_registry"
+    );
+
+    const listResult = await session.client.callTool({
+      name: "viche_list_my_registries",
+      arguments: {},
+    });
+    const text = getToolText(listResult);
+    expect(text).toContain("Your registries:");
+    expect(text).toContain("global");
+  });
+
+  it("5) viche_leave_registry(registry) leaves only that registry", async () => {
     const registry = `e2e-claude-partial-${Date.now()}`;
 
     await withTempEnv(
@@ -353,10 +387,10 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
           expect(isolatedAgentId).toBeTruthy();
 
           const result = await isolated.client.callTool({
-            name: "viche_deregister",
+            name: "viche_leave_registry",
             arguments: { registry },
           });
-          expect(getToolText(result)).toContain(`Deregistered from registry '${registry}'`);
+          expect(getToolText(result)).toContain(`Left registry '${registry}'`);
 
           const globalAgents = await discover("*", "global");
           const privateAgents = await discover("*", registry);
@@ -370,7 +404,7 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
     );
   }, 90_000);
 
-  it("6) viche_deregister() removes agent from all registries", async () => {
+  it("6) viche_leave_registry() removes agent from all registries", async () => {
     const registry = `e2e-claude-full-${Date.now()}`;
 
     await withTempEnv(
@@ -387,10 +421,10 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
           expect(isolatedAgentId).toBeTruthy();
 
           const result = await isolated.client.callTool({
-            name: "viche_deregister",
+            name: "viche_leave_registry",
             arguments: {},
           });
-          expect(getToolText(result)).toContain("Deregistered from all registries");
+          expect(getToolText(result)).toContain("Left all registries");
 
           const globalAgents = await discover("*", "global");
           const privateAgents = await discover("*", registry);

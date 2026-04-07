@@ -1,10 +1,13 @@
 /**
  * Tool definitions for opencode-plugin-viche.
  *
- * Three tools are exposed to the LLM:
+ * Six tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability (Phoenix Channel push)
  *   - viche_send      — send a message to another agent (requires session)
  *   - viche_reply     — reply to an agent that sent a task (requires session)
+ *   - viche_leave_registry      — leave one/all registries
+ *   - viche_join_registry       — join a registry dynamically
+ *   - viche_list_my_registries  — list registries this agent has joined
  *
  * Tools use Phoenix Channel pushes via the per-session WebSocket channel.
  * Registration remains HTTP in the service layer (before WebSocket connect).
@@ -69,6 +72,10 @@ const DiscoverResponseSchema = z.object({
   agents: z.array(AgentInfoSchema),
 });
 
+const RegistriesResponseSchema = z.object({
+  registries: z.array(z.string()),
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -93,9 +100,9 @@ function formatAgents(agents: AgentInfo[]): string {
  */
 function formatScopedAgents(agents: AgentInfo[]): string {
   if (agents.length === 0) return "No agents found matching that capability.";
-  const lines = agents.map((a, index) => {
+  const lines = agents.map((a) => {
     const caps = a.capabilities?.join(", ") ?? "none";
-    return `• agent #${index + 1} — capabilities: ${caps}`;
+    return `• ${a.id} — capabilities: ${caps}`;
   });
   return `Found ${agents.length} agent(s):\n${lines.join("\n")}`;
 }
@@ -193,7 +200,7 @@ async function pushWithAck<T>(
 // ---------------------------------------------------------------------------
 
 /**
- * Creates the three Viche tool definitions for an OpenCode plugin context.
+ * Creates the Viche tool definitions for an OpenCode plugin context.
  *
  * @param config              - Resolved plugin config.
  * @param _state              - Shared mutable state (unused here; reserved for future use).
@@ -359,11 +366,11 @@ export function createVicheTools(
     },
   };
 
-  // ── viche_deregister ───────────────────────────────────────────────────────
+  // ── viche_leave_registry ────────────────────────────────────────────────────
 
-  const viche_deregister: ToolDefinition = {
+  const viche_leave_registry: ToolDefinition = {
     description:
-      "Deregister from a registry on the Viche network. " +
+      "Leave a registry on the Viche network. " +
       "If registry is specified, leaves only that registry. " +
       "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
     args: {
@@ -401,17 +408,111 @@ export function createVicheTools(
       );
 
       if (!result.ok) {
-        return `Failed to deregister: ${result.error ?? "unknown channel error"}`;
+        return `Failed to leave registry: ${result.error ?? "unknown channel error"}`;
       }
 
-      const registries = result.payload?.registries ?? [];
+      const parsed = RegistriesResponseSchema.safeParse(result.payload);
+      if (!parsed.success) {
+        return "Failed to leave registry: invalid registries response";
+      }
+
+      const registries = parsed.data.registries;
       if (registries.length === 0) {
-        return "Deregistered from all registries. You are now undiscoverable but still connected.";
+        return "Left all registries. You are now undiscoverable but still connected.";
       }
 
-      return `Deregistered from registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`;
+      return `Left registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`;
     },
   };
 
-  return { viche_discover, viche_send, viche_reply, viche_deregister };
+  // ── viche_join_registry ────────────────────────────────────────────────────
+
+  const viche_join_registry: ToolDefinition = {
+    description:
+      "Join a registry on the Viche network. " +
+      "Adds your agent to the specified registry for scoped discovery.",
+    args: {
+      token: z
+        .string()
+        .min(4)
+        .max(256)
+        .regex(/^[a-zA-Z0-9._-]+$/)
+        .describe("Registry token to join (4-256 chars, alphanumeric + . _ -)"),
+    },
+    async execute(
+      args: { token: string },
+      context: { sessionID: string }
+    ): Promise<string> {
+      let sessionState: SessionState;
+      try {
+        sessionState = await ensureSessionReady(context.sessionID);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `Failed to initialise session: ${msg}`;
+      }
+
+      const result = await pushWithAck<{ registries: string[] }>(
+        sessionState.channel,
+        "join_registry",
+        { token: args.token }
+      );
+
+      if (!result.ok) {
+        return `Failed to join registry: ${result.error ?? "unknown channel error"}`;
+      }
+
+      const parsed = RegistriesResponseSchema.safeParse(result.payload);
+      if (!parsed.success) {
+        return "Failed to join registry: invalid registries response";
+      }
+
+      return `Joined registry '${args.token}'. Current registries: ${parsed.data.registries.join(", ")}`;
+    },
+  };
+
+  // ── viche_list_my_registries ───────────────────────────────────────────────
+
+  const viche_list_my_registries: ToolDefinition = {
+    description:
+      "List the registries your agent is currently a member of on the Viche network.",
+    args: {},
+    async execute(
+      _args: Record<string, unknown>,
+      context: { sessionID: string }
+    ): Promise<string> {
+      let sessionState: SessionState;
+      try {
+        sessionState = await ensureSessionReady(context.sessionID);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `Failed to initialise session: ${msg}`;
+      }
+
+      const result = await pushWithAck<{ registries: string[] }>(
+        sessionState.channel,
+        "list_registries",
+        {}
+      );
+
+      if (!result.ok) {
+        return `Failed to list registries: ${result.error ?? "unknown channel error"}`;
+      }
+
+      const parsed = RegistriesResponseSchema.safeParse(result.payload);
+      if (!parsed.success) {
+        return "Failed to list registries: invalid registries response";
+      }
+
+      return `Your registries: ${parsed.data.registries.join(", ")}`;
+    },
+  };
+
+  return {
+    viche_discover,
+    viche_send,
+    viche_reply,
+    viche_leave_registry,
+    viche_join_registry,
+    viche_list_my_registries,
+  };
 }

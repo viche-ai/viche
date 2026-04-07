@@ -258,6 +258,33 @@ describe("E2E: openclaw-plugin-viche with live Phoenix server", () => {
     expect(entry.sessionKey).toBe(sessionA);
   });
 
+  it("11) viche_join_registry joins a new registry and appears in scoped discovery", async () => {
+    const token = `e2e-openclaw-join-${Date.now()}`;
+    const joinTool = getTool(api, "viche_join_registry", "agent:tenant-c:session-c");
+
+    const result = await joinTool.execute("call-11", { token });
+    const text = result.content[0]?.text ?? "";
+    expect(text).toContain(`Joined registry '${token}'`);
+
+    const scopedAgents = await discover("*", token);
+    expect(scopedAgents.some((agent) => agent.id === state.agentId)).toBeTrue();
+  });
+
+  it("12) viche_list_my_registries returns joined registries and join duplicate errors", async () => {
+    const joinTool = getTool(api, "viche_join_registry", "agent:tenant-d:session-d");
+    const listTool = getTool(api, "viche_list_my_registries", "agent:tenant-d:session-d");
+
+    const duplicate = await joinTool.execute("call-12-join", { token: "global" });
+    expect(duplicate.content[0]?.text ?? "").toContain(
+      "Failed to join registry: already_in_registry",
+    );
+
+    const listed = await listTool.execute("call-12-list", {});
+    const listedText = listed.content[0]?.text ?? "";
+    expect(listedText).toContain("Your registries:");
+    expect(listedText).toContain("global");
+  });
+
   it("8) service.stop cleanup removes agent from discovery after grace period", async () => {
     const previousAgentId = state.agentId;
     expect(previousAgentId).toBeTruthy();
@@ -331,10 +358,10 @@ describe("E2E: openclaw-plugin-viche deregister flows", () => {
     }
   });
 
-  it("5) viche_deregister(registry) leaves only that registry", async () => {
-    const tool = getTool(api, "viche_deregister");
+  it("5) viche_leave_registry(registry) leaves only that registry", async () => {
+    const tool = getTool(api, "viche_leave_registry");
     const result = await tool.execute("call-5", { registry: uniqueRegistry });
-    expect(result.content[0]?.text ?? "").toContain(`Deregistered from registry '${uniqueRegistry}'`);
+    expect(result.content[0]?.text ?? "").toContain(`Left registry '${uniqueRegistry}'`);
 
     const globalAgents = await discover("*", "global");
     const privateAgents = await discover("*", uniqueRegistry);
@@ -346,10 +373,10 @@ describe("E2E: openclaw-plugin-viche deregister flows", () => {
     expect(inPrivate).toBeFalse();
   });
 
-  it("6) viche_deregister() with no params removes agent from all discovery", async () => {
-    const tool = getTool(api, "viche_deregister");
+  it("6) viche_leave_registry() with no params removes agent from all discovery", async () => {
+    const tool = getTool(api, "viche_leave_registry");
     const result = await tool.execute("call-6", {});
-    expect(result.content[0]?.text ?? "").toContain("Deregistered from all registries");
+    expect(result.content[0]?.text ?? "").toContain("Left all registries");
 
     const globalAgents = await discover("*", "global");
     const privateAgents = await discover("*", uniqueRegistry);

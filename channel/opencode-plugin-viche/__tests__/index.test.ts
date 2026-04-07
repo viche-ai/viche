@@ -182,14 +182,17 @@ describe("vichePlugin", () => {
     expect(mockSocketDisconnect).toHaveBeenCalledTimes(1);
   });
 
-  // ── 5. Returned tool object has the three Viche tools ─────────────────────
+  // ── 5. Returned tool object has all Viche tools ───────────────────────────
 
-  it("tool record contains viche_discover, viche_send, and viche_reply", async () => {
+  it("tool record contains discover/send/reply/registry tools", async () => {
     const { hooks } = await buildHooks();
 
     expect(hooks.tool).toHaveProperty("viche_discover");
     expect(hooks.tool).toHaveProperty("viche_send");
     expect(hooks.tool).toHaveProperty("viche_reply");
+    expect(hooks.tool).toHaveProperty("viche_leave_registry");
+    expect(hooks.tool).toHaveProperty("viche_join_registry");
+    expect(hooks.tool).toHaveProperty("viche_list_my_registries");
   });
 
   // ── 6. Unknown event types are ignored ────────────────────────────────────

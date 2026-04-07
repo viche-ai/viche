@@ -11,6 +11,8 @@ defmodule Viche.Agents do
       Viche.Agents.drain_inbox("abc12345")
       Viche.Agents.discover(%{capability: "coding"})
       Viche.Agents.deregister("abc12345")
+      Viche.Agents.join_registry("abc12345", "team-alpha")
+      Viche.Agents.list_agent_registries_for("abc12345")
   """
 
   require Logger
@@ -370,6 +372,64 @@ defmodule Viche.Agents do
 
       [] ->
         {:error, :agent_not_found}
+    end
+  end
+
+  @doc """
+  Dynamically adds an agent to a new registry namespace.
+
+  Both the GenServer state and the Registry ETS metadata are updated atomically
+  inside the owning process via `handle_call({:join_registry, token})`.
+
+  ## Returns
+    - `{:ok, %Agent{}}` — agent now belongs to the registry; broadcasts `agent_joined`
+    - `{:error, :invalid_token}` — token fails format validation
+    - `{:error, :agent_not_found}` — no agent with the given id
+    - `{:error, :already_in_registry}` — agent is already a member of this registry
+  """
+  @spec join_registry(String.t(), String.t()) ::
+          {:ok, Agent.t()}
+          | {:error, :invalid_token | :agent_not_found | :already_in_registry}
+  def join_registry(agent_id, token) do
+    with true <- valid_token?(token) || {:error, :invalid_token},
+         [{_pid, _meta}] <- Registry.lookup(Viche.AgentRegistry, agent_id) do
+      via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+
+      case AgentServer.join_registry(via, token) do
+        {:ok, agent} ->
+          broadcast_registry_joined(agent, token)
+          {:ok, agent}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      [] -> {:error, :agent_not_found}
+      {:error, _} = err -> err
+    end
+  end
+
+  @doc """
+  Returns the list of registry tokens the given agent currently belongs to.
+
+  Reads from GenServer state (the source of truth) to ensure consistency with
+  any dynamic joins or leaves.
+
+  ## Returns
+    - `{:ok, [String.t()]}` — list may be empty for a fully-deregistered agent
+    - `{:error, :agent_not_found}` — no agent with the given id
+  """
+  @spec list_agent_registries_for(String.t()) ::
+          {:ok, [String.t()]} | {:error, :agent_not_found}
+  def list_agent_registries_for(agent_id) do
+    case lookup_agent(agent_id) do
+      :not_found ->
+        {:error, :agent_not_found}
+
+      :found ->
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        agent = AgentServer.get_state(via)
+        {:ok, agent.registries}
     end
   end
 
@@ -807,5 +867,17 @@ defmodule Viche.Agents do
     Enum.each(registries, fn registry ->
       VicheWeb.Endpoint.broadcast("registry:#{registry}", "agent_left", %{id: agent_id})
     end)
+  end
+
+  @spec broadcast_registry_joined(Agent.t(), String.t()) :: :ok
+  defp broadcast_registry_joined(agent, token) do
+    payload = %{
+      id: agent.id,
+      name: agent.name,
+      capabilities: agent.capabilities,
+      description: agent.description
+    }
+
+    VicheWeb.Endpoint.broadcast("registry:#{token}", "agent_joined", payload)
   end
 end

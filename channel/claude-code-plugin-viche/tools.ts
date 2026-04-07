@@ -81,9 +81,9 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "viche_deregister",
+    name: "viche_leave_registry",
     description:
-      "Deregister from a registry on the Viche network. " +
+      "Leave a registry on the Viche network. " +
       "If registry is specified, leaves only that registry. " +
       "If omitted, leaves ALL registries (becomes undiscoverable but stays connected).",
     inputSchema: {
@@ -92,9 +92,37 @@ const TOOL_DEFINITIONS = [
         registry: {
           type: "string",
           description:
-            "Optional registry token to leave. If omitted, deregisters from all registries.",
+            "Optional registry token to leave. If omitted, leaves all registries.",
         },
       },
+      required: [],
+    },
+  },
+  {
+    name: "viche_join_registry",
+    description:
+      "Join a registry on the Viche network. Adds your agent to the specified registry for scoped discovery.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        token: {
+          type: "string",
+          description: "Registry token to join (4-256 chars, alphanumeric + . _ -)",
+          minLength: 4,
+          maxLength: 256,
+          pattern: "^[a-zA-Z0-9._-]+$",
+        },
+      },
+      required: ["token"],
+    },
+  },
+  {
+    name: "viche_list_my_registries",
+    description:
+      "List the registries your agent is currently a member of on the Viche network.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
       required: [],
     },
   },
@@ -116,6 +144,24 @@ function notConnectedResponse() {
   return {
     content: [{ type: "text" as const, text: NOT_CONNECTED_MESSAGE }],
   };
+}
+
+function formatToolError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+
+  try {
+    const parsed = JSON.parse(raw) as { message?: unknown; error?: unknown };
+    if (typeof parsed.message === "string" && parsed.message.length > 0) {
+      return parsed.message;
+    }
+    if (typeof parsed.error === "string" && parsed.error.length > 0) {
+      return parsed.error;
+    }
+  } catch {
+    // Non-JSON string, keep raw message.
+  }
+
+  return raw;
 }
 
 export function registerToolHandlers(
@@ -212,7 +258,7 @@ export function registerToolHandlers(
           ],
         };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = formatToolError(err);
         return {
           content: [{ type: "text", text: `Failed to send message: ${message}` }],
         };
@@ -236,14 +282,14 @@ export function registerToolHandlers(
           content: [{ type: "text", text: `Reply sent to ${args.to}.` }],
         };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = formatToolError(err);
         return {
           content: [{ type: "text", text: `Failed to send reply: ${message}` }],
         };
       }
     }
 
-    if (toolName === "viche_deregister") {
+    if (toolName === "viche_leave_registry") {
       const args = request.params.arguments as { registry?: string };
       try {
         const channel = getChannel();
@@ -268,7 +314,7 @@ export function registerToolHandlers(
             content: [
               {
                 type: "text",
-                text: "Deregistered from all registries. You are now undiscoverable but still connected.",
+                text: "Left all registries. You are now undiscoverable but still connected.",
               },
             ],
           };
@@ -278,14 +324,84 @@ export function registerToolHandlers(
           content: [
             {
               type: "text",
-              text: `Deregistered from registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`,
+              text: `Left registry '${args.registry}'. Remaining registries: ${registries.join(", ")}`,
             },
           ],
         };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = formatToolError(err);
         return {
-          content: [{ type: "text", text: `Failed to deregister: ${message}` }],
+          content: [{ type: "text", text: `Failed to leave registry: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_join_registry") {
+      const args = request.params.arguments as { token: string };
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        const resp = await channelPush<{ registries: string[] }>(
+          channel,
+          "join_registry",
+          { token: args.token }
+        );
+
+        if (!Array.isArray(resp.registries)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Failed to join registry: invalid registries response",
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Joined registry '${args.token}'. Current registries: ${resp.registries.join(", ")}`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = formatToolError(err);
+        return {
+          content: [{ type: "text", text: `Failed to join registry: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_list_my_registries") {
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        const resp = await channelPush<{ registries: string[] }>(
+          channel,
+          "list_registries",
+          {}
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Your registries: ${(resp.registries ?? []).join(", ")}`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = formatToolError(err);
+        return {
+          content: [{ type: "text", text: `Failed to list registries: ${message}` }],
         };
       }
     }
