@@ -614,6 +614,50 @@ defmodule VicheWeb.AgentChannelTest do
   # ---------------------------------------------------------------------------
 
   describe "registry channel - join/3" do
+    test "register-on-join flow can join registry channel with agent_id param fallback" do
+      clear_all_agents()
+
+      {:ok, base_socket} = connect(AgentSocket, %{})
+
+      register_params = %{
+        "capabilities" => ["testing", "ws"],
+        "name" => "registry-fallback-agent",
+        "registries" => ["team-fallback"]
+      }
+
+      assert {:ok, %{agent_id: agent_id}, _register_socket} =
+               subscribe_and_join(
+                 base_socket,
+                 VicheWeb.AgentChannel,
+                 "agent:register",
+                 register_params
+               )
+
+      assert {:ok, _, registry_socket} =
+               subscribe_and_join(
+                 base_socket,
+                 VicheWeb.AgentChannel,
+                 "registry:team-fallback",
+                 %{"agent_id" => agent_id}
+               )
+
+      assert registry_socket.assigns.registry_token == "team-fallback"
+      assert registry_socket.assigns.agent_id == agent_id
+    end
+
+    test "registry join returns agent_id_required when neither assigns nor params contain agent_id" do
+      clear_all_agents()
+      {:ok, base_socket} = connect(AgentSocket, %{})
+
+      assert {:error, %{reason: "agent_id_required"}} =
+               subscribe_and_join(
+                 base_socket,
+                 VicheWeb.AgentChannel,
+                 "registry:team-fallback",
+                 %{}
+               )
+    end
+
     test "agent in team-x can join registry:team-x" do
       clear_all_agents()
       {:ok, agent} = Agents.register_agent(%{capabilities: ["testing"], registries: ["team-x"]})

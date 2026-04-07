@@ -163,7 +163,9 @@ function connectWebSocket(
           }
 
           for (const token of config.registries ?? []) {
-            const registryChannel = socket.channel(`registry:${token}`, {});
+            const registryChannel = socket.channel(`registry:${token}`, {
+              agent_id: agentId,
+            });
             registryChannels.push(registryChannel);
             registryChannel
               .join()

@@ -67,16 +67,19 @@ defmodule VicheWeb.AgentChannel do
     end
   end
 
-  def join("registry:" <> token, _params, socket) do
-    case Map.get(socket.assigns, :agent_id) do
+  def join("registry:" <> token, params, socket) do
+    agent_id =
+      Map.get(socket.assigns, :agent_id) || Map.get(params, "agent_id")
+
+    case agent_id do
       nil ->
         {:error, %{reason: "agent_id_required"}}
 
-      agent_id ->
-        case Viche.Agents.authorize_registry_join(agent_id, token) do
+      id ->
+        case Viche.Agents.authorize_registry_join(id, token) do
           :ok ->
-            Logger.info("Agent #{agent_id} joined registry channel: #{token}")
-            {:ok, assign(socket, :registry_token, token)}
+            Logger.info("Agent #{id} joined registry channel: #{token}")
+            {:ok, socket |> assign(:agent_id, id) |> assign(:registry_token, token)}
 
           {:error, reason} ->
             {:error, %{reason: to_string(reason)}}
