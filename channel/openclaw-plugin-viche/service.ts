@@ -2,10 +2,9 @@
  * Background service for openclaw-plugin-viche.
  *
  * Responsibilities:
- *   1. Register this OpenClaw instance with the Viche agent registry on startup
- *      (HTTP POST /registry/register, 3 attempts with 2 s backoff).
- *   2. Connect a Phoenix Channel WebSocket (`ws://.../agent/websocket`) and
- *      join `agent:{agentId}` to receive real-time messages.
+ *   1. Connect a Phoenix Channel WebSocket (`ws://.../agent/websocket`) and
+ *      join `agent:register` with registration params (3 attempts with 2 s backoff).
+ *   2. Store returned `agent_id` and keep the registered channel for tool events.
  *   3. On `new_message` events, inject the message into the main agent session
  *      via `runtime.subagent.run()` so the user sees it with full context.
  *   4. On stop, leave the channel, disconnect the socket, and clear state.
@@ -20,7 +19,7 @@ import type {
   OpenClawPluginServiceContext,
   PluginLogger,
   PluginRuntime,
-  RegisterResponse,
+  VicheChannel,
   VicheConfig,
   VicheState,
 } from "./types.js";
@@ -33,58 +32,22 @@ type PhoenixChannel = any;
 const MAX_ATTEMPTS = 3;
 const BACKOFF_MS = 2_000;
 
-// ---------------------------------------------------------------------------
-// Registration helpers
-// ---------------------------------------------------------------------------
+type ConnectionBundle = {
+  socket: PhoenixSocket;
+  channel: PhoenixChannel;
+  agentId: string;
+};
 
-async function registerOnce(config: VicheConfig): Promise<string> {
-  const body: Record<string, unknown> = {
+function buildRegistrationPayload(config: VicheConfig): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
     capabilities: config.capabilities,
   };
-  if (config.agentName) body.name = config.agentName;
-  if (config.description) body.description = config.description;
-  if (config.registries?.length) body.registries = config.registries;
 
-  const resp = await fetch(`${config.registryUrl}/registry/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  if (config.agentName) payload.name = config.agentName;
+  if (config.description) payload.description = config.description;
+  if (config.registries?.length) payload.registries = config.registries;
 
-  if (!resp.ok) {
-    throw new Error(`Registration failed: ${resp.status} ${resp.statusText}`);
-  }
-
-  const data = (await resp.json()) as RegisterResponse;
-  if (!data.id || typeof data.id !== "string") {
-    throw new Error(`Registration response missing agent id: ${JSON.stringify(data)}`);
-  }
-  return data.id;
-}
-
-async function registerWithRetry(
-  config: VicheConfig,
-  logger: PluginLogger,
-): Promise<string> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      return await registerOnce(config);
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      logger.error(
-        `Viche: registration attempt ${attempt}/${MAX_ATTEMPTS} failed: ${lastError.message}`,
-      );
-      if (attempt < MAX_ATTEMPTS) {
-        await sleep(BACKOFF_MS);
-      }
-    }
-  }
-
-  throw new Error(
-    `Viche: registration failed after ${MAX_ATTEMPTS} attempts: ${lastError?.message ?? "unknown error"}`,
-  );
+  return payload;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,15 +197,10 @@ export function createVicheService(
       stopped = false;
       recovering = false;
 
-      // 1. Register with Viche (with retry)
-      state.agentId = await registerWithRetry(config, logger);
-
-      // Helper: create socket+channel and attempt a single join.
-      // Returns the reason string on error, or null on timeout.
-      const connectAndJoin = (agentId: string): Promise<void> => {
+      // Helper: create socket+channel and attempt a single registration join.
+      const connectAndRegisterOnce = (): Promise<void> => {
         const wsBase = config.registryUrl.replace(/^http/, "ws");
         socket = new Socket(`${wsBase}/agent/websocket`, {
-          params: { agent_id: agentId },
           reconnectAfterMs: (tries: number) =>
             ([1000, 2000, 5000, 10000] as const)[tries - 1] ?? 10000,
         });
@@ -257,11 +215,12 @@ export function createVicheService(
 
         socket.connect();
 
-        channel = socket.channel(`agent:${agentId}`, {});
+        channel = socket.channel("agent:register", buildRegistrationPayload(config));
+        state.channel = channel as VicheChannel;
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         channel.onClose?.(() => {
-          logger.warn(`Viche: agent:${agentId} channel closed`);
+          logger.warn("Viche: agent:register channel closed");
         });
 
         // Fired when the channel rejoin is rejected by the server (e.g. agent_not_found
@@ -276,7 +235,7 @@ export function createVicheService(
           const reasonStr =
             typeof reason === "string" ? reason : JSON.stringify(reason);
           logger.warn(
-            `Viche: channel error (${reasonStr}) — re-registering to recover`,
+            `Viche: channel error (${reasonStr}) — reconnecting and re-registering to recover`,
           );
 
           // Capture stale refs before nulling so stop() sees a clean state
@@ -285,6 +244,7 @@ export function createVicheService(
           const staleSocket = socket;
           channel = null;
           socket = null;
+          state.channel = null;
 
           // Stop Phoenix's internal rejoin-retry loop on the old channel.
           try {
@@ -306,14 +266,14 @@ export function createVicheService(
           }
 
           try {
-            // Capture new ID before updating state so that a concurrent stop()
-            // leaves state.agentId as null (set by stop()) rather than the new ID.
-            const newAgentId = await registerWithRetry(config, logger);
+            const recovered = await connectAndRegisterWithRetry();
 
             if (stopped) return;
 
-            state.agentId = newAgentId;
-            await connectAndJoin(state.agentId);
+            socket = recovered.socket;
+            channel = recovered.channel;
+            state.channel = recovered.channel as VicheChannel;
+            state.agentId = recovered.agentId;
             logger.info(`Viche: recovered — re-registered as ${state.agentId}`);
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -323,16 +283,32 @@ export function createVicheService(
           }
         });
 
-        channel.on("new_message", async (payload: InboundMessagePayload) => {
-          await handleInboundMessage(payload, runtime, config, state, logger);
+        channel.on("new_message", (payload: InboundMessagePayload) => {
+          void handleInboundMessage(payload, runtime, config, state, logger).catch(
+            (err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.warn(`Viche: failed to process inbound message event: ${msg}`);
+            },
+          );
         });
 
         return new Promise<void>((resolve, reject) => {
           channel!
             .join()
-            .receive("ok", () => {
+            .receive("ok", (resp: unknown) => {
+              const data = resp as { agent_id?: unknown };
+              if (typeof data.agent_id !== "string" || data.agent_id === "") {
+                reject(
+                  new Error(
+                    `Viche: register-on-join response missing agent_id: ${JSON.stringify(resp)}`,
+                  ),
+                );
+                return;
+              }
+
+              state.agentId = data.agent_id;
               logger.info(
-                `Viche: registered as ${agentId}, connected via WebSocket`,
+                `Viche: registered as ${state.agentId}, connected via WebSocket`,
               );
 
               for (const token of config.registries ?? []) {
@@ -362,25 +338,57 @@ export function createVicheService(
         });
       };
 
-      // 2. Connect and join; on agent_not_found re-register once and retry.
-      try {
-        await connectAndJoin(state.agentId);
-      } catch (err) {
-        const cause = err instanceof Error ? (err.cause as Record<string, unknown> | undefined) : undefined;
-        if (cause && cause.reason === "agent_not_found") {
-          logger.warn("Viche: agent_not_found on channel join — re-registering");
+      const connectAndRegisterWithRetry = async (): Promise<ConnectionBundle> => {
+        let lastError: Error | null = null;
 
-          // Disconnect stale socket before creating a new one.
-          try { socket?.disconnect(); } catch { /* ignore */ }
-          socket = null;
-          channel = null;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+          try {
+            await connectAndRegisterOnce();
+            if (!socket || !channel || !state.agentId) {
+              throw new Error("Viche: registration completed but socket/channel/agentId state is incomplete");
+            }
 
-          state.agentId = await registerWithRetry(config, logger);
-          await connectAndJoin(state.agentId);
-        } else {
-          throw err;
+            return {
+              socket,
+              channel,
+              agentId: state.agentId,
+            };
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            logger.error(
+              `Viche: register-on-join attempt ${attempt}/${MAX_ATTEMPTS} failed: ${lastError.message}`,
+            );
+
+            try {
+              channel?.leave();
+            } catch {
+              /* ignore */
+            }
+
+            try {
+              socket?.disconnect();
+            } catch {
+              /* ignore */
+            }
+
+            channel = null;
+            socket = null;
+            state.channel = null;
+            state.agentId = null;
+
+            if (attempt < MAX_ATTEMPTS) {
+              await sleep(BACKOFF_MS);
+            }
+          }
         }
-      }
+
+        throw new Error(
+          `Viche: register-on-join failed after ${MAX_ATTEMPTS} attempts: ${lastError?.message ?? "unknown error"}`,
+        );
+      };
+
+      // 1. Register via WebSocket join (with retry)
+      await connectAndRegisterWithRetry();
     },
 
     async stop(ctx: OpenClawPluginServiceContext): Promise<void> {
@@ -397,6 +405,8 @@ export function createVicheService(
         }
         channel = null;
       }
+
+      state.channel = null;
 
       if (socket) {
         try {

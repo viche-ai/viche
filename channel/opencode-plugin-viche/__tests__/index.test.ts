@@ -5,7 +5,7 @@
  * would leak across test files). Instead:
  *   - `phoenix` is mocked (external dep, already mocked by service.test.ts in
  *     its own context — safe to mock here too since external packages are OK).
- *   - `global.fetch` is mocked per-test for registration HTTP calls.
+ *   - Registration is mocked via Phoenix join("ok", { agent_id }).
  *   - The OpenCode `client` is a plain object with mock methods.
  *
  * Observable proxies:
@@ -15,7 +15,7 @@
  *   - Tool shape ↔ presence of viche_discover / viche_send / viche_reply keys
  */
 
-import { mock, describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { mock, describe, it, expect, beforeEach } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Phoenix mock — must be registered BEFORE the dynamic import of index.js
@@ -34,7 +34,10 @@ function makeJoinOk() {
       receive(event: string, cb: (...args: unknown[]) => void) {
         cbs[event] = cb;
         if (event === "ok") {
-          setTimeout(() => cb({}), 5);
+          setTimeout(
+            () => cb({ agent_id: "deadbeef-0000-4000-a000-000000000000" }),
+            5
+          );
         }
         return push;
       },
@@ -78,22 +81,9 @@ function makeClient() {
   };
 }
 
-/** Fetch mock that resolves to a successful agent registration. */
-function fetchRegistrationOk(agentId = "deadbeef-0000-4000-a000-000000000000") {
-  return mock(() =>
-    Promise.resolve({
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      json: () => Promise.resolve({ id: agentId }),
-    } as Response)
-  );
-}
-
 /** Build a plugin hooks object and the client it was created with. */
-async function buildHooks(agentId = "deadbeef-0000-4000-a000-000000000000") {
+async function buildHooks() {
   const client = makeClient();
-  global.fetch = fetchRegistrationOk(agentId);
   const hooks = await vichePlugin({ client, directory: "/test/project" });
   return { hooks, client };
 }
@@ -103,11 +93,7 @@ async function buildHooks(agentId = "deadbeef-0000-4000-a000-000000000000") {
 // ---------------------------------------------------------------------------
 
 describe("vichePlugin", () => {
-  let savedFetch: typeof global.fetch;
-
   beforeEach(() => {
-    savedFetch = global.fetch;
-
     // Reset Phoenix mock call counts.
     mockChannelJoin.mockReset();
     mockChannelJoin.mockImplementation(makeJoinOk());
@@ -117,10 +103,6 @@ describe("vichePlugin", () => {
     mockSocketDisconnect.mockReset();
     mockSocketChannel.mockReset();
     mockSocketChannel.mockImplementation((_topic: string, _params: unknown) => mockChannel);
-  });
-
-  afterEach(() => {
-    global.fetch = savedFetch;
   });
 
   // ── 1. Plugin returns correct hooks shape ──────────────────────────────────
@@ -189,14 +171,14 @@ describe("vichePlugin", () => {
     mockChannelLeave.mockClear();
     mockSocketDisconnect.mockClear();
 
-    hooks.event({
+    await hooks.event({
       event: {
         type: "session.deleted",
         properties: { info: { id: "sess-del-001" } },
       },
     });
 
-    expect(mockChannelLeave).toHaveBeenCalledTimes(1);
+    expect(mockChannelLeave.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(mockSocketDisconnect).toHaveBeenCalledTimes(1);
   });
 
@@ -255,13 +237,11 @@ describe("vichePlugin", () => {
     // Two separate plugin instances.
     const client1 = makeClient();
     const client2 = makeClient();
-    global.fetch = fetchRegistrationOk("aaa11111-0000-4000-a000-000000000000");
 
     const hooks1 = await vichePlugin({ client: client1, directory: "/proj1" });
     const hooks2 = await vichePlugin({ client: client2, directory: "/proj2" });
 
     // Create a session in instance 1.
-    global.fetch = fetchRegistrationOk("aaa11111-0000-4000-a000-000000000000");
     await hooks1.event({
       event: {
         type: "session.created",

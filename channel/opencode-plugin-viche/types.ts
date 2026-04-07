@@ -34,9 +34,12 @@ export interface SessionState {
   /** Phoenix Socket instance (typed as any to avoid import coupling). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   socket: any;
-  /** Phoenix Channel instance joined on "agent:{agentId}". */
+  /** Phoenix Channel instance joined on "agent:register". */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   channel: any;
+  /** Registry channels joined for discovery broadcasts. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registryChannels?: any[];
 }
 
 // ---------------------------------------------------------------------------
@@ -60,11 +63,6 @@ export interface VicheState {
 // ---------------------------------------------------------------------------
 // Viche API response shapes
 // ---------------------------------------------------------------------------
-
-/** Response body from POST /api/agents (agent registration). */
-export interface RegisterResponse {
-  id: string;
-}
 
 /** Single agent entry returned by discovery. */
 export interface AgentInfo {

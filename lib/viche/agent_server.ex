@@ -93,6 +93,12 @@ defmodule Viche.AgentServer do
     GenServer.call(server, :heartbeat)
   end
 
+  @spec deregister_from_registries(GenServer.server(), [String.t()]) ::
+          {:ok, Agent.t(), [String.t()]}
+  def deregister_from_registries(server, registries_to_leave) do
+    GenServer.call(server, {:deregister_from_registries, registries_to_leave})
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer callbacks
   # ---------------------------------------------------------------------------
@@ -162,6 +168,25 @@ defmodule Viche.AgentServer do
     reschedule_polling_timeout(updated)
     Logger.debug("Agent #{agent.id} heartbeat received, last_activity updated")
     {:reply, :ok, {updated, meta}}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:deregister_from_registries, registries_to_leave},
+        _from,
+        {%Agent{} = agent, meta}
+      ) do
+    prior_registries = agent.registries
+    new_registries = prior_registries -- registries_to_leave
+    actually_left = prior_registries -- new_registries
+
+    updated_agent = %Agent{agent | registries: new_registries}
+
+    Registry.update_value(Viche.AgentRegistry, agent.id, fn current_meta ->
+      %{current_meta | registries: new_registries}
+    end)
+
+    {:reply, {:ok, updated_agent, actually_left}, {updated_agent, meta}}
   end
 
   @impl GenServer

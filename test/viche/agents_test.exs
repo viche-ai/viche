@@ -471,6 +471,144 @@ defmodule Viche.AgentsTest do
     end
   end
 
+  describe "deregister_from_registries/2" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "partial deregister removes specific registry and keeps process alive" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      assert updated.registries == ["global"]
+
+      assert [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent.id)
+      assert meta.registries == ["global"]
+    end
+
+    test "partial deregister broadcasts only to the affected registry" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:team-alpha")
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+
+      assert {:ok, _updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      expected_id = agent.id
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:team-alpha",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{topic: "registry:global", event: "agent_left"}
+    end
+
+    test "partial deregister returns not_in_registry when token is absent" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:error, :not_in_registry} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-beta"})
+    end
+
+    test "partial deregister validates registry token" do
+      {:ok, agent} = Agents.register_agent(%{capabilities: ["coding"]})
+
+      assert {:error, :invalid_token} =
+               Agents.deregister_from_registries(agent.id, %{registry: "ab"})
+    end
+
+    test "partial deregister returns agent_not_found for unknown id" do
+      assert {:error, :agent_not_found} =
+               Agents.deregister_from_registries("nonexistent", %{registry: "global"})
+    end
+
+    test "partial deregister updates discover visibility per registry" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, _updated} =
+               Agents.deregister_from_registries(agent.id, %{registry: "team-alpha"})
+
+      assert {:ok, team_alpha_agents} =
+               Agents.discover(%{capability: "coding", registry: "team-alpha"})
+
+      assert {:ok, global_agents} = Agents.discover(%{capability: "coding", registry: "global"})
+
+      team_alpha_ids = Enum.map(team_alpha_agents, & &1.id)
+      global_ids = Enum.map(global_agents, & &1.id)
+
+      refute agent.id in team_alpha_ids
+      assert agent.id in global_ids
+    end
+
+    test "full deregister removes all registries and keeps process alive" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, updated} = Agents.deregister_from_registries(agent.id, %{})
+      assert updated.registries == []
+
+      assert [{_pid, meta}] = Registry.lookup(Viche.AgentRegistry, agent.id)
+      assert meta.registries == []
+    end
+
+    test "full deregister broadcasts to all prior registries" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:team-alpha")
+      :ok = Phoenix.PubSub.subscribe(Viche.PubSub, "registry:global")
+
+      assert {:ok, _updated} = Agents.deregister_from_registries(agent.id, %{})
+
+      expected_id = agent.id
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:team-alpha",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: "registry:global",
+        event: "agent_left",
+        payload: %{id: ^expected_id}
+      }
+    end
+
+    test "full deregister is idempotent when already empty" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:ok, first} = Agents.deregister_from_registries(agent.id, %{})
+      assert first.registries == []
+
+      assert {:ok, second} = Agents.deregister_from_registries(agent.id, %{})
+      assert second.registries == []
+    end
+
+    test "fully deregistered agent is undiscoverable" do
+      {:ok, agent} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["global", "team-alpha"]})
+
+      assert {:ok, _updated} = Agents.deregister_from_registries(agent.id, %{})
+
+      assert {:ok, global_agents} = Agents.discover(%{capability: "coding", registry: "global"})
+      global_ids = Enum.map(global_agents, & &1.id)
+
+      refute agent.id in global_ids
+    end
+  end
+
   describe "discover/1 scoped by registry" do
     setup do
       clear_all_agents()
@@ -868,6 +1006,57 @@ defmodule Viche.AgentsTest do
     test "defaults polling_timeout_ms to 60_000 when not provided" do
       assert {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})
       assert agent.polling_timeout_ms == 60_000
+    end
+  end
+
+  describe "register_agent_for_websocket/2" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "cleans up newly registered agent when pubsub subscribe fails" do
+      assert {:error, :subscribe_failed} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent"},
+                 subscribe_fun: fn _topic -> {:error, :subscribe_failed} end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when websocket_connected step fails" do
+      assert {:error, :websocket_connect_failed} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-2"},
+                 websocket_connected_fun: fn _agent_id -> {:error, :websocket_connect_failed} end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-2"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when subscribe callback returns unexpected value" do
+      assert {:error, {:websocket_registration_failed, %{subscribe: :unexpected}}} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-3"},
+                 subscribe_fun: fn _topic -> :unexpected end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-3"})
+      assert Agents.list_agents() == []
+    end
+
+    test "cleans up newly registered agent when websocket callback returns unexpected value" do
+      assert {:error, {:websocket_registration_failed, %{websocket_connected: :unexpected}}} =
+               Agents.register_agent_for_websocket(
+                 %{capabilities: ["testing"], name: "ws-agent-4"},
+                 websocket_connected_fun: fn _agent_id -> :unexpected end
+               )
+
+      assert {:ok, []} = Agents.discover(%{name: "ws-agent-4"})
+      assert Agents.list_agents() == []
     end
   end
 end
