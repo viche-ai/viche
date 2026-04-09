@@ -40,6 +40,14 @@ defmodule Viche.Accounts do
   end
 
   @doc """
+  Checks whether a username is already taken.
+  """
+  @spec username_taken?(String.t()) :: boolean()
+  def username_taken?(username) when is_binary(username) do
+    Repo.get_by(User, username: username) != nil
+  end
+
+  @doc """
   Fetches a user associated with a valid (non-expired, non-revoked) token hash.
 
   This is useful for resolving the current user from an API token during

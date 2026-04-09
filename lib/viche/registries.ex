@@ -9,6 +9,8 @@ defmodule Viche.Registries do
   import Ecto.Query
 
   alias Viche.Registries.Registry
+  alias Viche.Registries.RegistryInvitation
+  alias Viche.Registries.RegistryMember
   alias Viche.Repo
 
   @doc """
@@ -109,6 +111,93 @@ defmodule Viche.Registries do
   def well_known_url(%Registry{id: id}) do
     base_url = Application.get_env(:viche, :base_url, "https://viche.ai")
     "#{base_url}/.well-known/agent-registry?token=#{id}"
+  end
+
+  # ---------------------------------------------------------------------------
+  # Invitations
+  # ---------------------------------------------------------------------------
+
+  @token_byte_size 32
+
+  @doc """
+  Creates an invitation for the given email to join a registry.
+  """
+  @spec create_invitation(String.t(), String.t(), String.t()) ::
+          {:ok, RegistryInvitation.t()} | {:error, Ecto.Changeset.t()}
+  def create_invitation(registry_id, invited_by_id, email) do
+    token =
+      @token_byte_size
+      |> :crypto.strong_rand_bytes()
+      |> Base.url_encode64(padding: false)
+
+    %RegistryInvitation{}
+    |> RegistryInvitation.changeset(%{
+      registry_id: registry_id,
+      invited_by_id: invited_by_id,
+      email: String.downcase(email),
+      token: token
+    })
+    |> Repo.insert()
+  end
+
+  @doc """
+  Looks up a pending invitation by its token.
+  """
+  @spec get_invitation_by_token(String.t()) :: RegistryInvitation.t() | nil
+  def get_invitation_by_token(token) do
+    from(i in RegistryInvitation,
+      where: i.token == ^token and is_nil(i.accepted_at),
+      preload: [:registry]
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Accepts an invitation: marks it as accepted and adds the user as a registry member.
+  """
+  @spec accept_invitation(RegistryInvitation.t(), String.t()) ::
+          {:ok, RegistryMember.t()} | {:error, Ecto.Changeset.t()}
+  def accept_invitation(%RegistryInvitation{} = invitation, user_id) do
+    Repo.transaction(fn ->
+      {:ok, _} =
+        invitation
+        |> Ecto.Changeset.change(
+          accepted_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        )
+        |> Repo.update()
+
+      case add_member(invitation.registry_id, user_id) do
+        {:ok, member} -> member
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Members
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Adds a user as a member of a registry. No-op if already a member.
+  """
+  @spec add_member(String.t(), String.t()) ::
+          {:ok, RegistryMember.t()} | {:error, Ecto.Changeset.t()}
+  def add_member(registry_id, user_id) do
+    %RegistryMember{}
+    |> RegistryMember.changeset(%{registry_id: registry_id, user_id: user_id})
+    |> Repo.insert(on_conflict: :nothing, conflict_target: [:registry_id, :user_id])
+  end
+
+  @doc """
+  Returns registry IDs where the given user is a member (not owner).
+  """
+  @spec list_user_memberships(String.t()) :: [String.t()]
+  def list_user_memberships(user_id) do
+    from(m in RegistryMember,
+      where: m.user_id == ^user_id,
+      select: m.registry_id
+    )
+    |> Repo.all()
   end
 
   # Private helpers

@@ -21,12 +21,18 @@ defmodule VicheWeb.RegistriesLive do
         registry_tokens = Enum.map(registries, & &1.id)
         agent_counts = Agents.registry_agent_counts()
 
+        agent_count = length(Agents.list_agents_with_status(:all))
+
+        registry_names = Map.new(registries, fn r -> {r.id, r.name} end)
+
         socket
         |> assign(:current_user_id, user_id)
         |> assign(:registries, registries)
         |> assign(:registry_tokens, registry_tokens)
+        |> assign(:registry_names, registry_names)
         |> assign(:selected_registry, "global")
         |> assign(:agent_counts, agent_counts)
+        |> assign(:agent_count, agent_count)
         |> assign(:show_create_modal, false)
         |> assign(:show_delete_modal, false)
         |> assign(:registry_to_delete, nil)
@@ -34,12 +40,16 @@ defmodule VicheWeb.RegistriesLive do
         |> assign(:copied_id, nil)
         |> assign(:mobile_menu_open, false)
       else
+        agent_count = length(Agents.list_agents_with_status(:all))
+
         socket
         |> assign(:current_user_id, nil)
         |> assign(:registries, [])
         |> assign(:registry_tokens, [])
+        |> assign(:registry_names, %{})
         |> assign(:selected_registry, "global")
         |> assign(:agent_counts, %{})
+        |> assign(:agent_count, agent_count)
         |> assign(:mobile_menu_open, false)
       end
 

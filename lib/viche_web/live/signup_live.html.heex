@@ -14,7 +14,7 @@
   /* ── Nav ── */
   .su-nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
   .su-nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
-  .su-logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .su-logo-mark{width:27px;height:27px;border-radius:7px;overflow:hidden}
   .su-logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
   .su-nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px}
   .su-nav-link{color:var(--fg-dim);text-decoration:none;transition:color 0.15s}
@@ -29,7 +29,7 @@
 
   .su-card-header{text-align:center;margin-bottom:28px}
   .su-card-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg);margin-bottom:18px}
-  .su-card-logo-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1a2420;animation:su-logo-glow 3s ease-in-out infinite}
+  .su-card-logo-mark{width:40px;height:40px;border-radius:11px;overflow:hidden;animation:su-logo-glow 3s ease-in-out infinite}
   @keyframes su-logo-glow{0%,100%{box-shadow:0 0 0 0 rgba(167,192,128,0)}50%{box-shadow:0 0 0 8px rgba(167,192,128,0.15)}}
   .su-card-logo-text{font-size:26px;font-weight:700;letter-spacing:-0.5px}
   .su-card-title{font-size:20px;font-weight:600;letter-spacing:-0.3px;margin-bottom:6px}
@@ -138,7 +138,9 @@
 
 <nav class="su-nav">
   <a href="/" class="su-nav-logo">
-    <div class="su-logo-mark">V</div>
+    <div class="su-logo-mark">
+      <img src={~p"/images/logo.png"} alt="Viche" style="width:100%;height:100%;object-fit:cover" />
+    </div>
     <div class="su-logo-text">Viche</div>
   </a>
   <div class="su-nav-right">
@@ -151,7 +153,13 @@
     <%= if @state == :form do %>
       <div class="su-card-header">
         <a href="/" class="su-card-logo">
-          <div class="su-card-logo-mark">V</div>
+          <div class="su-card-logo-mark">
+            <img
+              src={~p"/images/logo.png"}
+              alt="Viche"
+              style="width:100%;height:100%;object-fit:cover"
+            />
+          </div>
           <div class="su-card-logo-text">Viche</div>
         </a>
         <div class="su-card-title">Create your account</div>

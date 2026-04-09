@@ -3,6 +3,7 @@
     active_page={:agents}
     selected_registry={@selected_registry}
     registries={@registries}
+    registry_names={@registry_names}
     public_mode={@public_mode}
     mobile_menu_open={@mobile_menu_open}
     agent_count={@agent_count}
@@ -194,16 +195,14 @@
       class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
       style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
     >
-      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
-      </span>
+      <%!-- Full status bar: desktop --%>
       <span class="status-bar-full items-center gap-2">
-        ws://viche.ai/socket <span class="opacity-30">|</span>
-        registry: public <span class="opacity-30">|</span>
-        {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
-        {@messages_today} messages today
+        registry: {@selected_registry} <span class="opacity-30">|</span>
+        {@agent_count} agents
       </span>
+      <%!-- Compact status bar: mobile --%>
       <span class="status-bar-compact items-center gap-2">
-        {@agent_count} agents &middot; {@online_count} online
+        {@agent_count} agents
       </span>
     </div>
   </main>

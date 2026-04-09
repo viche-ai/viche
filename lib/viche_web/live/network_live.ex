@@ -7,7 +7,6 @@ defmodule VicheWeb.NetworkLive do
   def mount(_params, session, socket) do
     if connected?(socket) do
       RegistryScope.subscribe("global")
-      Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
       subscribe_to_all_agents(Viche.Agents.list_agents_with_status())
       Process.send_after(self(), :tick, 3_000)
     end
@@ -21,12 +20,11 @@ defmodule VicheWeb.NetworkLive do
       |> assign(:public_mode, public_mode)
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> assign(:feed_by_registry, %{})
       |> assign(:feed, [])
       |> assign(:paused, false)
-      |> assign(:session_count, 3)
-      |> assign(:messages_today, Viche.MessageCounter.get())
       |> assign(:mobile_menu_open, false)
       |> load_graph()
 
@@ -199,7 +197,6 @@ defmodule VicheWeb.NetworkLive do
 
       socket =
         socket
-        |> update(:messages_today, &(&1 + 1))
         |> assign(:feed_by_registry, feed_by_registry)
         |> recompute_feed()
 
@@ -213,9 +210,6 @@ defmodule VicheWeb.NetworkLive do
       {:noreply, socket}
     end
   end
-
-  def handle_info({:messages_today, n}, socket),
-    do: {:noreply, assign(socket, :messages_today, n)}
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
@@ -259,13 +253,10 @@ defmodule VicheWeb.NetworkLive do
         Viche.Agents.list_agents_with_status(:all)
       end
 
-    online = Enum.count(metrics_agents, &(&1.status == :online))
-
     socket
     |> assign(:agents, agents)
     |> assign(:links, links)
     |> assign(:agent_count, length(metrics_agents))
-    |> assign(:online_count, online)
   end
 
   # Reloads graph data and pushes a graph_update event to the client JS hook.

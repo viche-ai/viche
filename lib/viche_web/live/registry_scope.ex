@@ -102,19 +102,23 @@ defmodule VicheWeb.Live.RegistryScope do
   def visible_registries(true, _user_id), do: []
 
   def visible_registries(false, user_id) do
-    user_registry_ids =
+    {user_registry_ids, membership_ids} =
       case user_id do
         id when is_binary(id) ->
-          Viche.Registries.list_user_registries(id)
-          |> Enum.map(& &1.id)
+          owned =
+            Viche.Registries.list_user_registries(id)
+            |> Enum.map(& &1.id)
+
+          memberships = Viche.Registries.list_user_memberships(id)
+          {owned, memberships}
 
         _ ->
-          []
+          {[], []}
       end
 
     agent_registries = Viche.Agents.list_registries()
 
-    (user_registry_ids ++ agent_registries)
+    (user_registry_ids ++ membership_ids ++ agent_registries)
     |> Enum.uniq()
   end
 
@@ -128,6 +132,30 @@ defmodule VicheWeb.Live.RegistryScope do
   @spec metrics_agents(boolean(), [map()]) :: [map()]
   def metrics_agents(true, scoped_agents), do: scoped_agents
   def metrics_agents(false, _scoped_agents), do: Viche.Agents.list_agents_with_status(:all)
+
+  @doc """
+  Returns a map of registry ID to human-readable name for the given user.
+
+  Owned and member registries are looked up from the database; agent-only
+  registries (present only via agent presence) are not included and will
+  fall back to showing their ID in the UI.
+  """
+  @spec registry_names(String.t() | nil) :: %{String.t() => String.t()}
+  def registry_names(nil), do: %{}
+
+  def registry_names(user_id) when is_binary(user_id) do
+    owned = Viche.Registries.list_user_registries(user_id)
+
+    member_ids = Viche.Registries.list_user_memberships(user_id)
+
+    member_registries =
+      Enum.map(member_ids, &Viche.Registries.get_registry/1)
+      |> Enum.reject(&is_nil/1)
+
+    (owned ++ member_registries)
+    |> Enum.uniq_by(& &1.id)
+    |> Map.new(fn r -> {r.id, r.name} end)
+  end
 
   @doc "Look up registries for an agent from the preloaded map."
   @spec registries_for_agent(%{String.t() => [String.t()]}, String.t()) :: [String.t()]
