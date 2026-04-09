@@ -30,6 +30,12 @@ defmodule Viche.Accounts do
   end
 
   @doc """
+  Fetches a user by ID. Returns `nil` if not found.
+  """
+  @spec get_user(String.t()) :: User.t() | nil
+  def get_user(id) when is_binary(id), do: Repo.get(User, id)
+
+  @doc """
   Fetches a user by email (case-insensitive).
 
   Returns `nil` if no user is found.

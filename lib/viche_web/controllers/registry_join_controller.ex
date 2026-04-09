@@ -1,6 +1,7 @@
 defmodule VicheWeb.RegistryJoinController do
   use VicheWeb, :controller
 
+  alias Viche.Accounts
   alias Viche.Registries
 
   @doc """
@@ -38,7 +39,15 @@ defmodule VicheWeb.RegistryJoinController do
         |> redirect(to: ~p"/login")
 
       user_id ->
-        accept_invitation(conn, invitation, user_id)
+        user = Accounts.get_user(user_id)
+
+        if user && String.downcase(user.email) == String.downcase(invitation.email) do
+          accept_invitation(conn, invitation, user_id)
+        else
+          conn
+          |> put_flash(:error, "This invitation was sent to a different email address.")
+          |> redirect(to: ~p"/dashboard")
+        end
     end
   end
 

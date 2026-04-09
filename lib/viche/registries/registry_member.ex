@@ -18,8 +18,9 @@ defmodule Viche.Registries.RegistryMember do
 
   def changeset(member, attrs) do
     member
-    |> cast(attrs, [:registry_id, :user_id, :role])
+    |> cast(attrs, [:role])
     |> validate_required([:registry_id, :user_id])
+    |> validate_inclusion(:role, ["owner", "admin", "member"])
     |> unique_constraint([:registry_id, :user_id])
   end
 end

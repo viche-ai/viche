@@ -137,9 +137,9 @@ defmodule VicheWeb.RegistriesLive do
   end
 
   def handle_event("delete_registry", %{"id" => id}, socket) do
-    registry = Registries.get_registry(id)
+    registry = Registries.get_user_registry(id, socket.assigns.current_user_id)
 
-    case Registries.delete_registry(registry) do
+    case registry && Registries.delete_registry(registry) do
       {:ok, _} ->
         registries = Registries.list_user_registries(socket.assigns.current_user_id)
         registry_tokens = Enum.map(registries, & &1.id)
@@ -154,7 +154,7 @@ defmodule VicheWeb.RegistriesLive do
          |> assign(:registry_to_delete, nil)
          |> put_flash(:info, "Registry deleted")}
 
-      {:error, _} ->
+      _ ->
         {:noreply,
          socket
          |> assign(:show_delete_modal, false)

@@ -20,9 +20,9 @@ defmodule Viche.Registries.RegistryInvitation do
 
   def changeset(invitation, attrs) do
     invitation
-    |> cast(attrs, [:email, :token, :registry_id, :invited_by_id])
+    |> cast(attrs, [:email, :token])
     |> validate_required([:email, :token, :registry_id, :invited_by_id])
-    |> validate_format(:email, ~r/@/)
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+\.[^\s]+$/)
     |> unique_constraint(:token)
   end
 end

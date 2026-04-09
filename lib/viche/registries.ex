@@ -130,10 +130,8 @@ defmodule Viche.Registries do
       |> :crypto.strong_rand_bytes()
       |> Base.url_encode64(padding: false)
 
-    %RegistryInvitation{}
+    %RegistryInvitation{registry_id: registry_id, invited_by_id: invited_by_id}
     |> RegistryInvitation.changeset(%{
-      registry_id: registry_id,
-      invited_by_id: invited_by_id,
       email: String.downcase(email),
       token: token
     })
@@ -183,8 +181,8 @@ defmodule Viche.Registries do
   @spec add_member(String.t(), String.t()) ::
           {:ok, RegistryMember.t()} | {:error, Ecto.Changeset.t()}
   def add_member(registry_id, user_id) do
-    %RegistryMember{}
-    |> RegistryMember.changeset(%{registry_id: registry_id, user_id: user_id})
+    %RegistryMember{registry_id: registry_id, user_id: user_id}
+    |> RegistryMember.changeset(%{})
     |> Repo.insert(on_conflict: :nothing, conflict_target: [:registry_id, :user_id])
   end
 
