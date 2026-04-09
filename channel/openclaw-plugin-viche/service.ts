@@ -312,7 +312,9 @@ export function createVicheService(
               );
 
               for (const token of config.registries ?? []) {
-                const registryChannel = socket!.channel(`registry:${token}`, {});
+                const registryChannel = socket!.channel(`registry:${token}`, {
+                  agent_id: state.agentId,
+                });
                 registryChannel
                   .join()
                   .receive("error", (resp: unknown) => {
