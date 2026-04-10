@@ -18,6 +18,7 @@ defmodule VicheWeb.AgentDetailLive do
       |> assign(:public_mode, public_mode)
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:mobile_menu_open, false)
       |> load_sidebar_counts()
 

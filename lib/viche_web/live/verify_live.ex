@@ -12,6 +12,15 @@ defmodule VicheWeb.VerifyLive do
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
+      :timer.send_interval(10_000, :refresh_agents)
+    end
+
+    agents_online =
+      Viche.Agents.list_agents_with_status()
+      |> Enum.count(fn agent -> agent.status == :online end)
+
     socket =
       assign(socket,
         token: token,
@@ -19,7 +28,9 @@ defmodule VicheWeb.VerifyLive do
         current_step: 0,
         completed_steps: MapSet.new(),
         status_text: "",
-        step_labels: @step_labels
+        step_labels: @step_labels,
+        agents_online: agents_online,
+        messages_today: Viche.MessageCounter.get()
       )
 
     if connected?(socket) do
@@ -36,6 +47,10 @@ defmodule VicheWeb.VerifyLive do
   end
 
   def mount(_params, _session, socket) do
+    agents_online =
+      Viche.Agents.list_agents_with_status()
+      |> Enum.count(fn agent -> agent.status == :online end)
+
     {:ok,
      assign(socket,
        token: nil,
@@ -43,11 +58,25 @@ defmodule VicheWeb.VerifyLive do
        current_step: 0,
        completed_steps: MapSet.new(),
        status_text: "",
-       step_labels: @step_labels
+       step_labels: @step_labels,
+       agents_online: agents_online,
+       messages_today: Viche.MessageCounter.get()
      ), layout: false}
   end
 
   @impl true
+  def handle_info({:messages_today, count}, socket) do
+    {:noreply, assign(socket, messages_today: count)}
+  end
+
+  def handle_info(:refresh_agents, socket) do
+    agents_online =
+      Viche.Agents.list_agents_with_status()
+      |> Enum.count(fn agent -> agent.status == :online end)
+
+    {:noreply, assign(socket, agents_online: agents_online)}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end

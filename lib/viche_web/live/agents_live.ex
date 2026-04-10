@@ -7,7 +7,6 @@ defmodule VicheWeb.AgentsLive do
   def mount(_params, session, socket) do
     if connected?(socket) do
       RegistryScope.subscribe("global")
-      Phoenix.PubSub.subscribe(Viche.PubSub, "metrics:messages")
     end
 
     public_mode = Application.get_env(:viche, :public_mode, false)
@@ -22,7 +21,7 @@ defmodule VicheWeb.AgentsLive do
       |> assign(:public_mode, public_mode)
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
-      |> assign(:messages_today, Viche.MessageCounter.get())
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:mobile_menu_open, false)
       |> load_agents()
 
@@ -99,9 +98,6 @@ defmodule VicheWeb.AgentsLive do
     {:noreply, socket}
   end
 
-  def handle_info({:messages_today, n}, socket),
-    do: {:noreply, assign(socket, :messages_today, n)}
-
   # -- Helpers --
 
   defp load_agents(socket) do
@@ -110,13 +106,11 @@ defmodule VicheWeb.AgentsLive do
     filtered = apply_filters(display, socket.assigns.filter, socket.assigns.query)
 
     metrics_agents = RegistryScope.metrics_agents(socket.assigns.public_mode, display)
-    online = Enum.count(metrics_agents, &(&1.status == :online))
 
     socket
     |> assign(:all_agents, display)
     |> assign(:agents, filtered)
     |> assign(:agent_count, length(metrics_agents))
-    |> assign(:online_count, online)
   end
 
   defp to_filter_atom("all"), do: :all

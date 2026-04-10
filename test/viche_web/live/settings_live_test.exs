@@ -1,6 +1,10 @@
 defmodule VicheWeb.SettingsLiveTest do
+  # Settings page is hidden (route commented out) per design feedback.
+  # Tests are skipped until the page is re-enabled.
   use VicheWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
+
+  @moduletag :skip
 
   describe "mount/3 — registry assigns" do
     test "mount succeeds and page renders", %{conn: conn} do

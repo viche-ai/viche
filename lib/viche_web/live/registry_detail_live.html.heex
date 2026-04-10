@@ -3,9 +3,10 @@
     active_page={:registries}
     selected_registry={@selected_registry}
     registries={@registry_tokens}
+    registry_names={@registry_names}
     public_mode={false}
     mobile_menu_open={@mobile_menu_open}
-    agent_count={0}
+    agent_count={@agent_count}
   />
 
   <%!-- MAIN --%>
@@ -35,6 +36,7 @@
         {if @registry, do: @registry.name, else: "Not Found"}
       </span>
       <div class="flex-1"></div>
+      <Layouts.theme_toggle />
     </div>
 
     <%!-- CONTENT --%>
@@ -217,39 +219,37 @@
           </div>
         </div>
 
-        <%!-- Technical Details Card --%>
+        <%!-- Invite Users Card --%>
         <div
-          class="rounded-xl p-5"
+          class="rounded-xl overflow-hidden"
           style="background:var(--bg-1);border:1px solid var(--border)"
         >
-          <h3
-            class="text-[14px] font-semibold mb-4 flex items-center gap-2"
-            style="color:var(--fg)"
-          >
-            <.icon name="hero-code-bracket-micro" class="size-4" /> Registration Example
-          </h3>
-
           <div
-            class="rounded-lg p-4 font-mono text-[11px] md:text-[12px] overflow-x-auto"
-            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+            class="px-4 py-3 flex items-center gap-2"
+            style="border-bottom:1px solid var(--border)"
           >
-            <pre class="whitespace-pre-wrap">{~s|
-curl -X POST https://viche.ai/registry/register \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "capabilities": ["coding", "reasoning"],
-    "name": "my-agent",
-    "description": "Coding assistant",
-    "registries": ["#{@registry.id}"]
-  }'|}
-            </pre>
+            <span style="color:var(--color-ef-green)">
+              <.icon name="hero-envelope-micro" class="size-4" />
+            </span>
+            <span class="text-[13px] font-semibold" style="color:var(--fg)">
+              Invite Users
+            </span>
           </div>
 
-          <p class="text-[11px] mt-3" style="color:var(--fg-dim)">
-            Include this registry's ID in the
-            <code class="px-1 py-0.5 rounded" style="background:var(--bg-2)">registries</code>
-            array when registering your agent to make it discoverable within this private network.
-          </p>
+          <div class="p-4 md:p-5 flex flex-col gap-4">
+            <p class="text-[12px]" style="color:var(--fg-dim)">
+              Invite other users to join this registry. They'll be able to see and interact with
+              agents registered in this private network.
+            </p>
+
+            <button
+              phx-click="open_invite_modal"
+              class="text-[13px] px-5 py-2.5 rounded-lg font-semibold transition-colors self-start flex items-center gap-2"
+              style="background:var(--color-ef-green);color:#1a2420"
+            >
+              <.icon name="hero-user-plus-micro" class="size-4" /> Invite Users
+            </button>
+          </div>
         </div>
       <% else %>
         <%!-- Not Found State --%>
@@ -281,5 +281,91 @@ curl -X POST https://viche.ai/registry/register \\
         </div>
       <% end %>
     </div>
+
+    <%!-- STATUS BAR --%>
+    <div
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
+    >
+      <%!-- Full status bar: desktop --%>
+      <span class="status-bar-full items-center gap-2">
+        registry: {@selected_registry} <span class="opacity-30">|</span>
+        {@registry_agent_count} agents
+      </span>
+      <%!-- Compact status bar: mobile --%>
+      <span class="status-bar-compact items-center gap-2">
+        {@registry_agent_count} agents
+      </span>
+    </div>
   </main>
 </div>
+
+<%!-- Invite Modal --%>
+<%= if @show_invite_modal do %>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.5)"
+    phx-click-away={:close_invite_modal}
+    id="invite-modal-backdrop"
+  >
+    <div
+      class="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+      style="background:var(--bg-1);border:1px solid var(--border)"
+      id="invite-modal"
+    >
+      <%!-- Modal Header --%>
+      <div class="flex items-center justify-between">
+        <h2 class="text-[17px] font-semibold" style="color:var(--fg)">Invite Users</h2>
+        <button
+          phx-click="close_invite_modal"
+          class="w-8 h-8 rounded-lg flex items-center justify-center"
+          style="color:var(--fg-dim)"
+        >
+          <.icon name="hero-x-mark-micro" class="size-5" />
+        </button>
+      </div>
+
+      <%!-- Form --%>
+      <form phx-submit="send_invitations" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="emails"
+            class="text-[11px] font-semibold uppercase tracking-wide"
+            style="color:var(--fg-dim)"
+          >
+            Email Addresses
+          </label>
+          <textarea
+            id="emails"
+            name="emails"
+            placeholder="user@example.com\nanother@example.com"
+            rows="4"
+            class="w-full px-3 py-2.5 rounded-lg text-[13px] resize-none"
+            style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
+          ></textarea>
+          <p class="text-[10px]" style="color:var(--fg-dim)">
+            Enter one email address per line, or separate with commas.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            phx-click="close_invite_modal"
+            class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium"
+            style="background:var(--bg-2);color:var(--fg-dim)"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5"
+            style="background:var(--color-ef-green);color:#1a2420"
+          >
+            <.icon name="hero-paper-airplane-micro" class="size-4" /> Send Invitations
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+<% end %>

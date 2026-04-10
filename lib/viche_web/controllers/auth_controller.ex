@@ -32,11 +32,18 @@ defmodule VicheWeb.AuthController do
     case Auth.verify_magic_link_token(raw_token) do
       {:ok, auth_token} ->
         user = Accounts.get_user_by_token_record(auth_token)
+        pending_invite = get_session(conn, :pending_invite_token)
+
+        redirect_to =
+          if pending_invite,
+            do: ~p"/registries/join?token=#{pending_invite}",
+            else: ~p"/dashboard"
 
         conn
         |> put_session(:user_id, user.id)
+        |> delete_session(:pending_invite_token)
         |> configure_session(renew: true)
-        |> redirect(to: ~p"/dashboard")
+        |> redirect(to: redirect_to)
 
       {:error, :invalid_token} ->
         conn
