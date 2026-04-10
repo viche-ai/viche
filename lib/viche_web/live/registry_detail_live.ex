@@ -62,6 +62,7 @@ defmodule VicheWeb.RegistryDetailLive do
         |> assign(:selected_registry, selected_registry)
         |> assign(:agent_count, agent_count)
         |> assign(:registry_agent_count, registry_agent_count)
+        |> assign(:app_url, Viche.Config.app_url())
         |> assign(:mobile_menu_open, false)
         |> assign(:show_invite_modal, false)
 

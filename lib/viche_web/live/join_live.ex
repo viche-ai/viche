@@ -1,11 +1,9 @@
 defmodule VicheWeb.JoinLive do
   use VicheWeb, :live_view
 
-  @registry_url "https://viche.ai/.well-known/agent-registry"
-
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, copied: false, registry_url: @registry_url)}
+    {:ok, assign(socket, copied: false, registry_url: Viche.Config.well_known_url())}
   end
 
   @impl true

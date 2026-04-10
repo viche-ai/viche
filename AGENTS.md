@@ -79,12 +79,12 @@ Viche.Supervisor (one_for_one)
 ### Tech Stack
 
 - **Elixir + Phoenix 1.8** — web framework
-- **PostgreSQL** — configured via Ecto but **unused** (all state is in-memory via GenServer)
+- **PostgreSQL** — stores users, auth tokens, private registries, and agent ownership records via Ecto
 - **OTP** — GenServer + DynamicSupervisor + Registry + PubSub
 - **REST JSON + WebSocket** — Phoenix Channels for real-time push
 - **TypeScript/Bun** — plugin runtime for Claude Code, OpenClaw, OpenCode
 
-**Important:** There are **no Ecto schemas or migrations**. `Agent` and `Message` are plain structs. All state lives in GenServer processes.
+**Important:** Viche uses a hybrid persistence model. PostgreSQL stores user accounts, auth tokens, private registries, and agent ownership records (Ecto schemas + migrations). Agent inboxes, messages, and WebSocket connections are **in-memory only** via GenServer processes and are lost on restart.
 
 ---
 

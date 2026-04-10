@@ -5,18 +5,16 @@ defmodule Viche.Auth.Email do
 
   import Swoosh.Email
 
-  @from {"Viche", "noreply@viche.ai"}
-
   @doc """
   Builds a magic link email for the given recipient and URL.
   """
   @spec magic_link(String.t(), String.t()) :: Swoosh.Email.t()
   def magic_link(to_email, url) do
-    app_url = Application.get_env(:viche, :app_url, "https://viche.ai")
+    app_url = Viche.Config.app_url()
 
     new()
     |> to(to_email)
-    |> from(@from)
+    |> from(Viche.Config.email_from())
     |> subject("Your Viche login link")
     |> text_body("""
     Hi,
@@ -29,7 +27,7 @@ defmodule Viche.Auth.Email do
 
     If you did not request this, you can safely ignore this email.
     """)
-    |> html_body(magic_link_html(url, app_url))
+    |> html_body(magic_link_html(url, app_url, Viche.Config.host()))
   end
 
   @doc """
@@ -48,7 +46,7 @@ defmodule Viche.Auth.Email do
 
     new()
     |> to(to_email)
-    |> from(@from)
+    |> from(Viche.Config.email_from())
     |> subject("You've been invited to join #{registry.name} on Viche")
     |> text_body("""
     Hi,
@@ -142,7 +140,7 @@ defmodule Viche.Auth.Email do
     """
   end
 
-  defp magic_link_html(url, app_url) do
+  defp magic_link_html(url, app_url, host) do
     ~s"""
     <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
     <html xmlns="http://www.w3.org/1999/xhtml">
@@ -206,7 +204,7 @@ defmodule Viche.Auth.Email do
             <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">
               <tr>
                 <td align="center" style="padding:24px 0;">
-                  <p style="margin:0;font-size:12px;color:#7a8478;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">&copy; Viche &middot; viche.ai</p>
+                  <p style="margin:0;font-size:12px;color:#7a8478;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">&copy; Viche &middot; #{host}</p>
                 </td>
               </tr>
             </table>

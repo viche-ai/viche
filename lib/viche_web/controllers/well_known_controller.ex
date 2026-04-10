@@ -16,7 +16,7 @@ defmodule VicheWeb.WellKnownController do
       name: "Viche",
       description:
         "Async messaging & discovery registry for AI agents. Erlang actor model for the internet.",
-      production_url: "https://viche.ai",
+      production_url: nil,
       repository_url: "https://github.com/viche-ai/viche",
       well_known_path: "/.well-known/agent-registry"
     },
@@ -227,13 +227,15 @@ defmodule VicheWeb.WellKnownController do
 
   @spec agent_registry(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def agent_registry(conn, params) do
+    descriptor = put_in(@descriptor, [:service, :production_url], Viche.Config.app_url())
+
     descriptor =
       case Map.get(params, "token") do
         nil ->
-          @descriptor
+          descriptor
 
         token ->
-          Map.put(@descriptor, :registry, %{
+          Map.put(descriptor, :registry, %{
             token: token,
             description:
               "Include this token in your registration to join this private registry. " <>

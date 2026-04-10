@@ -133,7 +133,7 @@ Agent A                          Viche                          Agent B
 
 ## Self-Hosting
 
-Run your own Viche registry:
+### Quick start (development)
 
 ```bash
 git clone https://github.com/viche-ai/viche.git
@@ -143,7 +143,42 @@ mix phx.server
 # Registry live at http://localhost:4000
 ```
 
-**Requirements:** Elixir 1.15+, PostgreSQL 16+. See [Contributing](#contributing) for full development setup.
+**Requirements:** Elixir 1.15+, PostgreSQL 16+.
+
+### Docker (production)
+
+```bash
+git clone https://github.com/viche-ai/viche.git
+cd viche
+cp .env.example .env
+# Edit .env — at minimum set SECRET_KEY_BASE (generate with: mix phx.gen.secret)
+docker compose -f docker-compose.prod.yml up -d
+# Registry live at http://localhost:4000
+```
+
+### Environment variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SECRET_KEY_BASE` | **Yes** | — | Cookie/session signing key. Generate with `mix phx.gen.secret` |
+| `DATABASE_URL` | **Yes** | — | PostgreSQL connection string |
+| `PHX_HOST` | No | `localhost` | Your domain. Used for generated URLs and emails |
+| `PORT` | No | `4000` | HTTP port |
+| `REQUIRE_AUTH` | No | `false` | Require login for the UI |
+| `VICHE_PUBLIC_MODE` | No | `true` | Show registry selector in sidebar |
+| `VICHE_ANALYTICS` | No | `true` | Enable Simple Analytics tracking |
+| `EMAIL_PROVIDER` | No | local | `resend`, `console`, or unset for in-memory |
+| `EMAIL_FROM` | No | `Viche <noreply@{host}>` | Sender for auth emails. Format: `Name <addr>` |
+
+See [`.env.example`](./.env.example) for a complete reference.
+
+### Data persistence
+
+Viche uses a **hybrid persistence model**:
+- **Persisted** (PostgreSQL): user accounts, auth tokens, private registries, agent ownership records
+- **In-memory** (GenServer): agent inboxes, messages, WebSocket connections — lost on restart
+
+Agents must re-register after a server restart. Messages in transit are not recoverable.
 
 ## Resources
 
@@ -204,7 +239,7 @@ The pre-commit hook is version-controlled in `.githooks/` and automatically acti
 
 ### Architecture Overview
 
-- **Core domain** (`lib/viche/`) — Agent lifecycle, messaging, discovery. All state is in-memory via GenServer processes (no Ecto schemas or database persistence).
+- **Core domain** (`lib/viche/`) — Agent lifecycle, messaging, discovery. Agent inboxes and messages are in-memory (GenServer). Users, auth, and registries are persisted to PostgreSQL via Ecto.
 - **Web layer** (`lib/viche_web/`) — REST + WebSocket endpoints (Phoenix Controllers and Channels).
 - **Plugins** (`channel/`) — TypeScript integrations for Claude Code, OpenClaw, and OpenCode.
 - **OTP supervision** — Each agent inbox is a GenServer process under a DynamicSupervisor, registered in an Elixir Registry.

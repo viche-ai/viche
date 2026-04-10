@@ -109,8 +109,7 @@ defmodule Viche.Registries do
   """
   @spec well_known_url(Registry.t()) :: String.t()
   def well_known_url(%Registry{id: id}) do
-    base_url = Application.get_env(:viche, :base_url, "https://viche.ai")
-    "#{base_url}/.well-known/agent-registry?token=#{id}"
+    "#{Viche.Config.app_url()}/.well-known/agent-registry?token=#{id}"
   end
 
   # ---------------------------------------------------------------------------

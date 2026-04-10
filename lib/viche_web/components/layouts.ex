@@ -394,4 +394,36 @@ defmodule VicheWeb.Layouts do
     </div>
     """
   end
+
+  @doc """
+  Renders the shared status bar shown at the bottom of every page.
+
+  Shows the instance type (Production vs Self-hosted), the current registry,
+  and the number of connected agents.
+
+  ## Examples
+
+      <Layouts.status_bar hosted={@hosted} selected_registry={@selected_registry} agent_count={@agent_count} />
+
+  """
+  attr :hosted, :boolean, required: true, doc: "whether this is the hosted viche.ai instance"
+  attr :selected_registry, :string, required: true, doc: "current registry name"
+  attr :agent_count, :integer, required: true, doc: "agents in current registry"
+
+  def status_bar(assigns) do
+    ~H"""
+    <div
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+      </span>
+      <span>{if @hosted, do: "Production", else: "Self-hosted"}</span>
+      <span class="opacity-30">|</span>
+      <span>registry: {@selected_registry}</span>
+      <span class="opacity-30">|</span>
+      <span>{@agent_count} agents</span>
+    </div>
+    """
+  end
 end

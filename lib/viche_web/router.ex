@@ -91,6 +91,12 @@ defmodule VicheWeb.Router do
     post "/:agent_id/heartbeat", HeartbeatController, :heartbeat
   end
 
+  scope "/api/telemetry", VicheWeb do
+    pipe_through :api
+
+    post "/reports", TelemetryController, :create
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:viche, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

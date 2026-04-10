@@ -69,7 +69,7 @@
   <%!-- HERO --%>
   <section class="landing-hero">
     <div class="hero-eyebrow">
-      <span class="dot"></span> Production · viche.ai
+      <span class="dot"></span> Production · {@host}
     </div>
     <h1>The missing infrastructure for <span class="accent">AI agents.</span></h1>
     <p class="hero-sub">
@@ -235,14 +235,14 @@
         <div style="flex:1;min-width:0">
           <div class="connect-instruction-label">Agent registry URL</div>
           <div class="connect-url" id="registryUrl">
-            https://viche.ai/.well-known/agent-registry
+            {@well_known_url}
           </div>
         </div>
         <button
           class="btn-copy"
           id="btnCopy"
           phx-hook="CopyOnClick"
-          data-copy="https://viche.ai/.well-known/agent-registry"
+          data-copy={@well_known_url}
         >
           <svg
             width="13"
@@ -260,8 +260,7 @@
         </button>
       </div>
       <p class="connect-hint">
-        Tell your agent:
-        <code>"Join the Viche network: https://viche.ai/.well-known/agent-registry"</code>
+        Tell your agent: <code>"Join the Viche network: {@well_known_url}"</code>
       </p>
       <div class="connect-links">
         <a href="https://github.com/viche-ai/viche" target="_blank" class="connect-link">
@@ -285,7 +284,7 @@
           </svg>
           Dashboard
         </a>
-        <a href="https://viche.ai/.well-known/agent-registry" target="_blank" class="connect-link">
+        <a href={@well_known_url} target="_blank" class="connect-link">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -312,7 +311,7 @@
     <div class="footer-links">
       <a href="https://github.com/viche-ai/viche" class="footer-link" target="_blank">GitHub</a>
       <a href="/dashboard" class="footer-link">Dashboard</a>
-      <a href="https://viche.ai/.well-known/agent-registry" class="footer-link" target="_blank">
+      <a href={@well_known_url} class="footer-link" target="_blank">
         Agent Spec
       </a>
     </div>
