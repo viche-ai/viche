@@ -15,6 +15,7 @@ defmodule VicheWeb.DashboardLive do
       |> assign(:hosted, Viche.Config.hosted?())
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> load_and_assign_agents()
 
@@ -29,9 +30,6 @@ defmodule VicheWeb.DashboardLive do
       socket
       |> assign(:feed_by_registry, %{})
       |> assign(:feed, [])
-      |> assign(:messages_today, 0)
-      |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
-      |> assign(:paused, false)
       |> assign(:mobile_menu_open, false)
 
     {:ok, socket}
@@ -59,10 +57,7 @@ defmodule VicheWeb.DashboardLive do
   def handle_info(:tick, socket) do
     Process.send_after(self(), :tick, 10_000)
 
-    socket =
-      socket
-      |> load_and_assign_agents()
-      |> assign(:queued_messages, total_queued_messages(socket.assigns.agents))
+    socket = load_and_assign_agents(socket)
 
     {:noreply, socket}
   end
@@ -190,7 +185,6 @@ defmodule VicheWeb.DashboardLive do
 
       socket =
         socket
-        |> update(:messages_today, &(&1 + 1))
         |> assign(:feed_by_registry, feed_by_registry)
         |> recompute_feed()
 
@@ -199,37 +193,29 @@ defmodule VicheWeb.DashboardLive do
   end
 
   def handle_info({:feed_event, event}, socket) do
-    if socket.assigns.paused do
-      {:noreply, socket}
-    else
-      event_with_meta =
-        event
-        |> Map.put_new(:id, Ecto.UUID.generate())
-        |> Map.put_new(:inserted_at, DateTime.utc_now())
+    event_with_meta =
+      event
+      |> Map.put_new(:id, Ecto.UUID.generate())
+      |> Map.put_new(:inserted_at, DateTime.utc_now())
 
-      all_registries = socket.assigns.registries
+    all_registries = socket.assigns.registries
 
-      feed_by_registry =
-        RegistryScope.push_event_by_registry(
-          socket.assigns.feed_by_registry,
-          all_registries,
-          event_with_meta
-        )
+    feed_by_registry =
+      RegistryScope.push_event_by_registry(
+        socket.assigns.feed_by_registry,
+        all_registries,
+        event_with_meta
+      )
 
-      socket =
-        socket
-        |> assign(:feed_by_registry, feed_by_registry)
-        |> recompute_feed()
+    socket =
+      socket
+      |> assign(:feed_by_registry, feed_by_registry)
+      |> recompute_feed()
 
-      {:noreply, socket}
-    end
+    {:noreply, socket}
   end
 
   @impl true
-  def handle_event("toggle_pause", _params, socket) do
-    {:noreply, assign(socket, :paused, !socket.assigns.paused)}
-  end
-
   def handle_event("toggle_mobile_menu", _params, socket) do
     {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
   end
@@ -279,21 +265,14 @@ defmodule VicheWeb.DashboardLive do
         Enum.filter(all_unfiltered, &MapSet.member?(allowed_ids, &1.id))
       end
 
-    online = Enum.count(metrics_agents, &(&1.status == :online))
-
     socket
     |> assign(:agents, agents)
     |> assign(:agent_count, length(metrics_agents))
-    |> assign(:online_count, online)
   end
 
   defp subscribe_to_all_agents(agents) do
     Enum.each(agents, fn agent ->
       Phoenix.PubSub.subscribe(Viche.PubSub, "agent:#{agent.id}")
     end)
-  end
-
-  defp total_queued_messages(agents) do
-    Enum.sum(Enum.map(agents, & &1.queue_depth))
   end
 end

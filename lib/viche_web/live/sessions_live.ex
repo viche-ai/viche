@@ -18,12 +18,12 @@ defmodule VicheWeb.SessionsLive do
       socket
       |> assign(:selected_agent_id, nil)
       |> assign(:selected_messages, [])
-      |> assign(:messages_today, 0)
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
       |> assign(:hosted, Viche.Config.hosted?())
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())
       |> assign(:mobile_menu_open, false)
       |> load_inboxes()
@@ -136,10 +136,7 @@ defmodule VicheWeb.SessionsLive do
     in_scope? = selected == "all" or selected in registries
 
     if in_scope? do
-      {:noreply,
-       socket
-       |> update(:messages_today, &(&1 + 1))
-       |> load_inboxes()}
+      {:noreply, load_inboxes(socket)}
     else
       {:noreply, socket}
     end
@@ -181,8 +178,6 @@ defmodule VicheWeb.SessionsLive do
         :desc
       )
 
-    online = Enum.count(all_agents, &(&1.status == :online))
-
     selected_messages =
       case socket.assigns[:selected_agent_id] do
         nil ->
@@ -199,7 +194,6 @@ defmodule VicheWeb.SessionsLive do
     |> assign(:inbox_agents, inbox_agents)
     |> assign(:all_agents, agents_for_display)
     |> assign(:agent_count, length(all_agents))
-    |> assign(:online_count, online)
     |> assign(:session_count, length(inbox_agents))
     |> assign(:selected_messages, selected_messages)
   end

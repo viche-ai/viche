@@ -18,7 +18,7 @@
   /* Nav */
   .vfy-nav{position:relative;z-index:10;display:flex;align-items:center;padding:0 clamp(16px,5vw,80px);height:52px;border-bottom:1px solid var(--border)}
   .vfy-nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg)}
-  .vfy-logo-mark{width:27px;height:27px;background:linear-gradient(135deg,var(--color-ef-green),var(--color-ef-aqua));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a2420}
+  .vfy-logo-mark{width:27px;height:27px;border-radius:7px;overflow:hidden}
   .vfy-logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px}
 
   /* Page */
@@ -93,6 +93,7 @@
   .vfy-status-dot{width:6px;height:6px;border-radius:50%;background:var(--color-ef-green);display:inline-block;margin-right:5px;animation:vfy-dot-pulse 2s ease infinite;vertical-align:middle}
   @keyframes vfy-dot-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
   .vfy-status-sep{opacity:0.3}
+  .vfy-status-num{color:var(--fg);font-weight:500}
 </style>
 
 <div class="vfy-rings">
@@ -105,7 +106,9 @@
 
 <nav class="vfy-nav">
   <a href="/" class="vfy-nav-logo">
-    <div class="vfy-logo-mark">V</div>
+    <div class="vfy-logo-mark">
+      <img src="/images/logo.png" alt="Viche" style="width:100%;height:100%;object-fit:cover" />
+    </div>
     <div class="vfy-logo-text">Viche</div>
   </a>
 </nav>
@@ -183,6 +186,8 @@
 <!-- Status bar -->
 <div class="vfy-status-bar">
   <span><span class="vfy-status-dot"></span>network live</span>
-  <span class="vfy-status-sep">·</span>
-  <span>viche agent mesh</span>
+  <span class="vfy-status-sep">&middot;</span>
+  <span><span class="vfy-status-num">{@agents_online}</span> agents online</span>
+  <span class="vfy-status-sep">&middot;</span>
+  <span><span class="vfy-status-num">{@messages_today}</span> messages sent</span>
 </div>

@@ -3,6 +3,7 @@
     active_page={:dashboard}
     selected_registry={@selected_registry}
     registries={@registries}
+    registry_names={@registry_names}
     public_mode={@public_mode}
     mobile_menu_open={@mobile_menu_open}
     agent_count={@agent_count}
@@ -40,101 +41,9 @@
       class="flex-1 overflow-y-auto p-3 md:p-5 space-y-3 md:space-y-4"
       style="background:var(--bg)"
     >
-      <%!-- STAT CARDS --%>
-      <% total = max(@agent_count, 1)
-      online_count = Enum.count(@agents, &(&1.status == :online))
-      offline_count = @agent_count - online_count
-      online_pct = trunc(online_count / total * 100)
-      offline_pct = 100 - online_pct %>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-        <%!-- Total Agents --%>
-        <div
-          class="rounded-xl p-3 md:p-4 cursor-pointer"
-          style="background:var(--bg-1);border:1px solid var(--border)"
-          phx-click="navigate"
-          phx-value-to="/agents"
-        >
-          <div
-            class="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-wide mb-1.5 md:mb-2"
-            style="color:var(--fg-dim)"
-          >
-            Total Agents
-          </div>
-          <div class="text-[26px] md:text-[32px] font-bold tracking-tight" style="color:var(--fg)">
-            {@agent_count}
-          </div>
-          <div class="flex gap-0.5 mt-2 h-[3px] rounded overflow-hidden">
-            <div style={"width:#{online_pct}%;background:var(--color-ef-green)"}></div>
-            <div style={"width:#{offline_pct}%;background:var(--color-ef-bg3)"}></div>
-          </div>
-          <div class="flex gap-1 md:gap-1.5 mt-1.5 md:mt-2 flex-wrap">
-            <span class="status-pill idle">{online_count} on</span>
-            <span class="status-pill offline">{offline_count} off</span>
-          </div>
-        </div>
-
-        <%!-- Online Agents --%>
-        <div
-          class="rounded-xl p-3 md:p-4 cursor-pointer"
-          style="background:var(--bg-1);border:1px solid var(--border)"
-          phx-click="navigate"
-          phx-value-to="/agents?status=online"
-        >
-          <div
-            class="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-wide mb-1.5 md:mb-2"
-            style="color:var(--fg-dim)"
-          >
-            Online
-          </div>
-          <div
-            class="text-[26px] md:text-[32px] font-bold tracking-tight"
-            style="color:var(--color-ef-green)"
-          >
-            {@online_count}
-          </div>
-          <div class="text-[11px] mt-2 md:mt-3" style="color:var(--fg-dim)">
-            of {@agent_count} registered
-          </div>
-        </div>
-
-        <%!-- Queued Messages --%>
-        <div
-          class="rounded-xl p-3 md:p-4"
-          style="background:var(--bg-1);border:1px solid var(--border)"
-        >
-          <div
-            class="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-wide mb-1.5 md:mb-2"
-            style="color:var(--fg-dim)"
-          >
-            Queued
-          </div>
-          <div class="text-[26px] md:text-[32px] font-bold tracking-tight" style="color:var(--fg)">
-            {@queued_messages}
-          </div>
-          <div class="text-[11px] mt-2 md:mt-3" style="color:var(--fg-dim)">all inboxes</div>
-        </div>
-
-        <%!-- Messages Today --%>
-        <div
-          class="rounded-xl p-3 md:p-4"
-          style="background:var(--bg-1);border:1px solid var(--border)"
-        >
-          <div
-            class="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-wide mb-1.5 md:mb-2"
-            style="color:var(--fg-dim)"
-          >
-            Msgs Today
-          </div>
-          <div class="text-[26px] md:text-[32px] font-bold tracking-tight" style="color:var(--fg)">
-            {@messages_today}
-          </div>
-          <div class="text-[11px] mt-2 md:mt-3" style="color:var(--fg-dim)">since start</div>
-        </div>
-      </div>
-
-      <%!-- LOWER GRID: Agents Table | Activity Feed --%>
-      <div class="flex flex-col md:grid md:grid-cols-[1fr_380px] gap-3">
-        <%!-- Agents Table --%>
+      <%!-- TWO-COLUMN LAYOUT --%>
+      <div class="flex flex-col md:grid md:grid-cols-[3fr_1fr] gap-3 md:gap-4 h-full">
+        <%!-- LEFT: Connected Agents --%>
         <div
           class="rounded-xl overflow-hidden"
           style="background:var(--bg-1);border:1px solid var(--border)"
@@ -152,25 +61,6 @@
             >
               {@agent_count}
             </span>
-            <div class="flex-1"></div>
-            <button
-              class="text-[11px] px-2 py-1 rounded hidden sm:block"
-              style="background:var(--bg-2);color:var(--fg-dim)"
-            >
-              Filter
-            </button>
-            <button
-              class="text-[11px] px-2 py-1 rounded hidden sm:block"
-              style="background:var(--bg-2);color:var(--fg-dim)"
-            >
-              Sort
-            </button>
-            <button
-              class="text-[11px] px-2 py-1 rounded"
-              style="background:color-mix(in srgb, var(--color-ef-green) 15%, transparent);color:var(--color-ef-green)"
-            >
-              + Register
-            </button>
           </div>
 
           <%!-- Table header: desktop --%>
@@ -268,50 +158,79 @@
           <% end %>
         </div>
 
-        <%!-- Activity Feed --%>
-        <div
-          class="rounded-xl overflow-hidden flex flex-col"
-          style="background:var(--bg-1);border:1px solid var(--border);min-height:200px;max-height:400px"
-        >
+        <%!-- RIGHT: Total Agents + Activity Feed --%>
+        <div class="flex flex-col gap-3">
+          <%!-- Total Agents Card --%>
+          <% total = max(@agent_count, 1)
+          online_count = Enum.count(@agents, &(&1.status == :online))
+          offline_count = @agent_count - online_count
+          online_pct = trunc(online_count / total * 100)
+          offline_pct = 100 - online_pct %>
           <div
-            class="flex items-center px-4 py-3 gap-2 flex-shrink-0"
-            style="border-bottom:1px solid var(--border)"
+            class="rounded-xl p-3 md:p-4 cursor-pointer"
+            style="background:var(--bg-1);border:1px solid var(--border)"
+            phx-click="navigate"
+            phx-value-to="/agents"
           >
-            <span class="text-[13px] font-semibold" style="color:var(--fg)">Live Activity</span>
-            <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
-            </span>
-            <div class="flex-1"></div>
-            <button
-              phx-click="toggle_pause"
-              class="text-[11px] px-2 py-1 rounded"
-              style={"background:var(--bg-2);color:#{if @paused, do: "var(--color-ef-yellow)", else: "var(--fg-dim)"}"}
+            <div
+              class="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-wide mb-1.5 md:mb-2"
+              style="color:var(--fg-dim)"
             >
-              {if @paused, do: "Paused", else: "Pause"}
-            </button>
+              Total Agents
+            </div>
+            <div
+              class="text-[26px] md:text-[32px] font-bold tracking-tight"
+              style="color:var(--fg)"
+            >
+              {@agent_count}
+            </div>
+            <div class="flex gap-0.5 mt-2 h-[3px] rounded overflow-hidden">
+              <div style={"width:#{online_pct}%;background:var(--color-ef-green)"}></div>
+              <div style={"width:#{offline_pct}%;background:var(--color-ef-bg3)"}></div>
+            </div>
+            <div class="flex gap-1 md:gap-1.5 mt-1.5 md:mt-2 flex-wrap">
+              <span class="status-pill idle">{online_count} on</span>
+              <span class="status-pill offline">{offline_count} off</span>
+            </div>
           </div>
 
-          <div class="flex-1 overflow-y-auto">
-            <%= for item <- @feed do %>
-              <div
-                class="px-4 py-2.5 flex gap-2.5 items-start"
-                style="border-top:1px solid var(--border)"
-              >
-                <span class={"feed-type #{item.type} mt-0.5"}>{item.type}</span>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1 text-[11px]">
-                    <span class="font-medium" style="color:var(--fg)">{item.from}</span>
-                    <span style="color:var(--fg-dim)">&rarr;</span>
-                    <span style="color:var(--fg-dim)">{item.to}</span>
-                    <span class="ml-auto flex-shrink-0" style="color:var(--fg-dim)">
-                      {item.at}
-                    </span>
-                  </div>
-                  <div class="text-[12px] mt-0.5 truncate" style="color:var(--fg-dim)">
-                    {item.body}
+          <%!-- Activity Feed --%>
+          <div
+            class="rounded-xl overflow-hidden flex flex-col flex-1"
+            style="background:var(--bg-1);border:1px solid var(--border);min-height:200px"
+          >
+            <div
+              class="flex items-center px-4 py-3 gap-2 flex-shrink-0"
+              style="border-bottom:1px solid var(--border)"
+            >
+              <span class="text-[13px] font-semibold" style="color:var(--fg)">Live Activity</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
+              </span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto">
+              <%= for item <- @feed do %>
+                <div
+                  class="px-4 py-2.5 flex gap-2.5 items-start"
+                  style="border-top:1px solid var(--border)"
+                >
+                  <span class={"feed-type #{item.type} mt-0.5"}>{item.type}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1 text-[11px]">
+                      <span class="font-medium" style="color:var(--fg)">{item.from}</span>
+                      <span style="color:var(--fg-dim)">&rarr;</span>
+                      <span style="color:var(--fg-dim)">{item.to}</span>
+                      <span class="ml-auto flex-shrink-0" style="color:var(--fg-dim)">
+                        {item.at}
+                      </span>
+                    </div>
+                    <div class="text-[12px] mt-0.5 truncate" style="color:var(--fg-dim)">
+                      {item.body}
+                    </div>
                   </div>
                 </div>
-              </div>
-            <% end %>
+              <% end %>
+            </div>
           </div>
         </div>
       </div>

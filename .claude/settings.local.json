@@ -1,14 +1,16 @@
 {
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "viche"
+  ],
   "permissions": {
     "allow": [
       "Bash(grep -r \"DATABASE_URL\\\\|RESEND\\\\|EMAIL\" /Users/nenojoel/dev/viche-ai/viche/config/*.exs)",
       "Bash(grep:*)",
       "Bash(xargs ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ]
-  },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "viche"
-  ]
+  }
 }

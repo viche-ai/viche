@@ -3,9 +3,10 @@
     active_page={:registries}
     selected_registry={@selected_registry}
     registries={@registry_tokens}
+    registry_names={@registry_names}
     public_mode={false}
     mobile_menu_open={@mobile_menu_open}
-    agent_count={0}
+    agent_count={@agent_count}
   />
 
   <%!-- MAIN --%>
@@ -33,6 +34,7 @@
         <.icon name="hero-plus-micro" class="size-4" />
         <span class="hidden sm:inline">New Registry</span>
       </button>
+      <Layouts.theme_toggle />
     </div>
 
     <%!-- CONTENT --%>
@@ -191,6 +193,22 @@
           <% end %>
         </div>
       <% end %>
+    </div>
+
+    <%!-- STATUS BAR --%>
+    <div
+      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
+      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
+    >
+      <%!-- Full status bar: desktop --%>
+      <span class="status-bar-full items-center gap-2">
+        registry: {@selected_registry} <span class="opacity-30">|</span>
+        {@agent_count} agents
+      </span>
+      <%!-- Compact status bar: mobile --%>
+      <span class="status-bar-compact items-center gap-2">
+        {@agent_count} agents
+      </span>
     </div>
   </main>
 </div>

@@ -39,6 +39,7 @@ defmodule VicheWeb.SettingsLive do
       |> assign(:ws_url, Viche.Config.ws_url() <> "/websocket")
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
+      |> assign(:registry_names, RegistryScope.registry_names(user_id))
       |> assign(:mobile_menu_open, false)
 
     {:ok, socket}
@@ -111,7 +112,7 @@ defmodule VicheWeb.SettingsLive do
   end
 
   def handle_event("select_registry", %{"registry" => registry}, socket) do
-    {:noreply, push_patch(socket, to: ~p"/settings?registry=#{registry}")}
+    {:noreply, push_patch(socket, to: "/settings?registry=#{registry}")}
   end
 
   def handle_event("toggle_mobile_menu", _params, socket) do

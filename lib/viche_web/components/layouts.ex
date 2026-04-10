@@ -88,6 +88,7 @@ defmodule VicheWeb.Layouts do
   """
   attr :selected_registry, :string, required: true
   attr :registries, :list, default: []
+  attr :registry_names, :map, default: %{}
   attr :public_mode, :boolean, default: false
 
   def registry_selector(assigns) do
@@ -114,7 +115,7 @@ defmodule VicheWeb.Layouts do
               value={reg}
               selected={@selected_registry == reg}
             >
-              {reg}
+              {Map.get(@registry_names, reg, reg)}
             </option>
             <option value="all" selected={@selected_registry == "all"}>All registries</option>
           </select>
@@ -191,11 +192,12 @@ defmodule VicheWeb.Layouts do
   """
   attr :active_page, :atom,
     required: true,
-    values: [:dashboard, :network, :agents, :agent_detail, :sessions, :settings, :registries],
+    values: [:dashboard, :network, :agents, :agent_detail, :sessions, :registries],
     doc: "which nav item is highlighted as active"
 
   attr :selected_registry, :string, required: true, doc: "registry token appended to nav links"
   attr :registries, :list, default: [], doc: "list of registry tokens for the registry selector"
+  attr :registry_names, :map, default: %{}, doc: "map of registry ID to human-readable name"
   attr :public_mode, :boolean, default: false, doc: "hides the registry selector when true"
   attr :mobile_menu_open, :boolean, default: false, doc: "whether the mobile slide-out is open"
   attr :agent_count, :integer, default: 0, doc: "badge shown next to All Agents"
@@ -232,6 +234,7 @@ defmodule VicheWeb.Layouts do
         <Layouts.registry_selector
           selected_registry={@selected_registry}
           registries={@registries}
+          registry_names={@registry_names}
           public_mode={@public_mode}
         />
 
@@ -339,41 +342,7 @@ defmodule VicheWeb.Layouts do
           </.link>
         <% end %>
 
-        <div class="my-1 mx-2" style="border-top:1px solid var(--border)"></div>
-
-        <div
-          class="px-2 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider"
-          style="color:var(--fg-dim)"
-        >
-          Demo
-        </div>
-
-        <.link navigate={~p"/network?registry=#{@selected_registry}"} class="nav-item">
-          <.icon name="hero-presentation-chart-bar-micro" class="size-4" />
-          <span>Network Demo</span>
-        </.link>
-
-        <.link navigate="/demo" class="nav-item">
-          <.icon name="hero-link-micro" class="size-4" />
-          <span>Join</span>
-        </.link>
-
         <div class="flex-1"></div>
-
-        <%= if @active_page == :settings do %>
-          <div
-            class="nav-item active"
-            style="border-left:2px solid var(--color-ef-green);padding-left:6px"
-          >
-            <.icon name="hero-cog-6-tooth-micro" class="size-4" />
-            <span>Settings</span>
-          </div>
-        <% else %>
-          <.link navigate={~p"/settings?registry=#{@selected_registry}"} class="nav-item">
-            <.icon name="hero-cog-6-tooth-micro" class="size-4" />
-            <span>Settings</span>
-          </.link>
-        <% end %>
 
         <a
           href="https://github.com/viche-ai/viche"

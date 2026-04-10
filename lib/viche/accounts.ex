@@ -30,6 +30,12 @@ defmodule Viche.Accounts do
   end
 
   @doc """
+  Fetches a user by ID. Returns `nil` if not found.
+  """
+  @spec get_user(String.t()) :: User.t() | nil
+  def get_user(id) when is_binary(id), do: Repo.get(User, id)
+
+  @doc """
   Fetches a user by email (case-insensitive).
 
   Returns `nil` if no user is found.
@@ -37,6 +43,14 @@ defmodule Viche.Accounts do
   @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email) when is_binary(email) do
     Repo.get_by(User, email: String.downcase(email))
+  end
+
+  @doc """
+  Checks whether a username is already taken.
+  """
+  @spec username_taken?(String.t()) :: boolean()
+  def username_taken?(username) when is_binary(username) do
+    Repo.get_by(User, username: username) != nil
   end
 
   @doc """

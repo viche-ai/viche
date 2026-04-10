@@ -41,6 +41,7 @@ defmodule VicheWeb.Router do
     live "/signup", SignupLive
     live "/verify", VerifyLive
     live "/demo", DemoLive
+    get "/registries/join", RegistryJoinController, :join
   end
 
   scope "/", VicheWeb do
@@ -52,7 +53,7 @@ defmodule VicheWeb.Router do
     live "/sessions", SessionsLive
     live "/network", NetworkLive
     live "/join", JoinLive
-    live "/settings", SettingsLive
+    # live "/settings", SettingsLive  # Hidden until functional settings are needed
     live "/registries", RegistriesLive
     live "/registries/:id", RegistryDetailLive
   end

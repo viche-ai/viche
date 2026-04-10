@@ -3,6 +3,7 @@
     active_page={:sessions}
     selected_registry={@selected_registry}
     registries={@registries}
+    registry_names={@registry_names}
     public_mode={@public_mode}
     mobile_menu_open={@mobile_menu_open}
     agent_count={@agent_count}
@@ -47,7 +48,7 @@
       <%!-- LEFT PANEL: Agent inbox list --%>
       <div
         class="w-full md:w-[360px] md:min-w-[360px] flex flex-col overflow-hidden flex-shrink-0"
-        style="border-bottom:1px solid var(--border)"
+        style="border-bottom:1px solid var(--border);border-right:1px solid var(--border)"
       >
         <%!-- List header --%>
         <div
@@ -64,7 +65,7 @@
         </div>
 
         <%!-- Agent inbox rows --%>
-        <div class="overflow-y-auto" style="max-height:40vh">
+        <div class="flex-1 overflow-y-auto">
           <%= if @inbox_agents == [] do %>
             <div class="flex flex-col items-center justify-center py-8 gap-2 px-4">
               <span style="color:var(--fg-dim);opacity:0.4">
