@@ -19,6 +19,7 @@ defmodule VicheWeb.NetworkLive do
       socket
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
+      |> assign(:hosted, Viche.Config.hosted?())
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:agent_registry_map, Viche.Agents.list_agent_registries())

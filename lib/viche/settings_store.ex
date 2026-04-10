@@ -5,8 +5,7 @@ defmodule Viche.SettingsStore do
   """
   @table :mission_control_settings
 
-  @defaults %{
-    registry_url: "https://viche.ai",
+  @static_defaults %{
     namespace: "global",
     agent_prefix: "my-agent",
     require_auth: false,
@@ -16,14 +15,14 @@ defmodule Viche.SettingsStore do
 
   def init do
     :ets.new(@table, [:named_table, :public, :set])
-    :ets.insert(@table, {:settings, @defaults})
+    :ets.insert(@table, {:settings, defaults()})
   end
 
   @spec get() :: map()
   def get do
     case :ets.lookup(@table, :settings) do
       [{:settings, settings}] -> settings
-      [] -> @defaults
+      [] -> defaults()
     end
   end
 
@@ -34,5 +33,5 @@ defmodule Viche.SettingsStore do
   end
 
   @spec defaults() :: map()
-  def defaults, do: @defaults
+  def defaults, do: Map.put(@static_defaults, :registry_url, Viche.Config.app_url())
 end

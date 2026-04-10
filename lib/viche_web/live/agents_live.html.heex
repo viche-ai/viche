@@ -189,22 +189,10 @@
       </div>
     </div>
 
-    <%!-- STATUS BAR --%>
-    <div
-      class="h-6 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-[10px] font-mono border-t flex-shrink-0"
-      style="background:var(--bg-1);border-color:var(--border);color:var(--fg-dim)"
-    >
-      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ef-green)] animate-pulse inline-block">
-      </span>
-      <span class="status-bar-full items-center gap-2">
-        ws://viche.ai/socket <span class="opacity-30">|</span>
-        registry: public <span class="opacity-30">|</span>
-        {@agent_count} agents &middot; {@online_count} online <span class="opacity-30">|</span>
-        {@messages_today} messages today
-      </span>
-      <span class="status-bar-compact items-center gap-2">
-        {@agent_count} agents &middot; {@online_count} online
-      </span>
-    </div>
+    <Layouts.status_bar
+      hosted={@hosted}
+      selected_registry={@selected_registry}
+      agent_count={@agent_count}
+    />
   </main>
 </div>

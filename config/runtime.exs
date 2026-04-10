@@ -79,11 +79,30 @@ if config_env() == :prod do
   config :viche, :app_url, "https://#{host}"
   config :viche, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :viche, simple_analytics_enabled: true
+  # Simple Analytics: enabled by default in prod. Set VICHE_ANALYTICS=false to disable.
+  config :viche,
+    simple_analytics_enabled: System.get_env("VICHE_ANALYTICS") not in ~w(false 0)
+
+  # Telemetry: enabled by default. Set VICHE_TELEMETRY=false to opt out of sending
+  # anonymized usage stats to viche.ai.
+  config :viche,
+    telemetry_enabled: System.get_env("VICHE_TELEMETRY") not in ~w(false 0)
 
   # In prod, show public mode by default. Set VICHE_PUBLIC_MODE=false to disable.
   public_mode = System.get_env("VICHE_PUBLIC_MODE") not in ~w(false 0)
   config :viche, :public_mode, public_mode
+
+  # Email sender: parse EMAIL_FROM env var as "Name <addr>" or plain address.
+  case System.get_env("EMAIL_FROM") do
+    nil ->
+      config :viche, :email_from, {"Viche", "noreply@#{host}"}
+
+    from_str ->
+      case Regex.run(~r/^(.+?)\s*<(.+?)>$/, from_str) do
+        [_, name, addr] -> config :viche, :email_from, {String.trim(name), String.trim(addr)}
+        _ -> config :viche, :email_from, {"Viche", String.trim(from_str)}
+      end
+  end
 
   config :viche, VicheWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

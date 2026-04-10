@@ -5,12 +5,13 @@ defmodule Viche.Auth.EmailTest do
 
   describe "magic_link/2" do
     test "builds an email with the correct fields" do
-      email = Email.magic_link("alice@example.com", "https://viche.ai/auth/verify?token=abc")
+      url = "https://viche.ai/auth/verify?token=abc"
+      email = Email.magic_link("alice@example.com", url)
 
       assert email.to == [{"", "alice@example.com"}]
-      assert email.from == {"Viche", "noreply@viche.ai"}
+      assert email.from == Viche.Config.email_from()
       assert email.subject == "Your Viche login link"
-      assert email.text_body =~ "https://viche.ai/auth/verify?token=abc"
+      assert email.text_body =~ url
       assert email.text_body =~ "expires in 15 minutes"
     end
   end

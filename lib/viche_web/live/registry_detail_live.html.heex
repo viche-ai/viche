@@ -234,7 +234,7 @@
             style="background:var(--bg-2);border:1px solid var(--border);color:var(--fg)"
           >
             <pre class="whitespace-pre-wrap">{~s|
-curl -X POST https://viche.ai/registry/register \\
+curl -X POST #{@app_url}/registry/register \\
   -H "Content-Type: application/json" \\
   -d '{
     "capabilities": ["coding", "reasoning"],

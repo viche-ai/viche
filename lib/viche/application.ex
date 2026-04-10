@@ -15,6 +15,7 @@ defmodule Viche.Application do
       {Registry, keys: :unique, name: Viche.AgentRegistry},
       {DynamicSupervisor, name: Viche.AgentSupervisor, strategy: :one_for_one},
       Viche.MessageCounter,
+      Viche.Telemetry.Reporter,
       # Start to serve requests, typically the last entry
       VicheWeb.Endpoint
     ]

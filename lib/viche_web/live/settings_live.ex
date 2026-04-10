@@ -35,6 +35,8 @@ defmodule VicheWeb.SettingsLive do
       |> assign(:messages_today, Viche.MessageCounter.get())
       |> assign(:selected_registry, "global")
       |> assign(:public_mode, public_mode)
+      |> assign(:hosted, Viche.Config.hosted?())
+      |> assign(:ws_url, Viche.Config.ws_url() <> "/websocket")
       |> assign(:current_user_id, user_id)
       |> assign(:registries, RegistryScope.visible_registries(public_mode, user_id))
       |> assign(:mobile_menu_open, false)
