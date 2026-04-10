@@ -64,7 +64,7 @@ fi
 if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
   echo "------------------------------------------------------------"
   echo "  Pre-commit: openclaw-plugin-viche files changed"
-  echo "  (npm install, tsc, build)"
+  echo "  (npm install, tsc, build, test)"
   echo "------------------------------------------------------------"
 
   cd channel/openclaw-plugin-viche
@@ -92,6 +92,15 @@ if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
     echo ""
     echo "------------------------------------------------------------"
     echo "  BLOCKED: build failed in openclaw-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+
+  echo "  → npm test"
+  if ! npm test; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: tests failed in openclaw-plugin-viche."
     echo "------------------------------------------------------------"
     exit 1
   fi
