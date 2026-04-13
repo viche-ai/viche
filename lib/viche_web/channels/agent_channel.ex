@@ -74,7 +74,8 @@ defmodule VicheWeb.AgentChannel do
     case agent_id do
       nil ->
         Logger.warning(
-          "Registry join refused for registry:#{token} — reason: agent_id_required (no agent_id in socket or params)"
+          "Registry join refused for registry:#{token} — reason: agent_id_required" <>
+            " (socket_id: #{inspect(socket.id)}, assigns: #{inspect(socket.assigns)}, params: #{inspect(params)})"
         )
 
         {:error, %{reason: "agent_id_required"}}
