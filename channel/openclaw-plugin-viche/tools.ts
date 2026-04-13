@@ -1,10 +1,11 @@
 /**
  * Tool definitions for openclaw-plugin-viche.
  *
- * Seven tools are exposed to the LLM:
+ * Eight tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability
  *   - viche_send      — send a message to another agent
  *   - viche_reply     — reply to an agent that sent a task
+ *   - viche_broadcast  — broadcast a message to a registry
  *   - viche_leave_registry      — leave one/all registries
  *   - viche_join_registry       — join a registry dynamically
  *   - viche_list_my_registries  — list registries this agent has joined
@@ -101,6 +102,8 @@ function validateAgentEntry(entry: unknown): entry is AgentInfo {
 const UUID_V4_LIKE_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const PROTOCOL_MESSAGE_TYPES = ["task", "result", "ping"] as const;
+
 const MESSAGE_ID_REGEX =
   /^msg-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -115,6 +118,10 @@ function getMessageId(response: unknown): string | null {
   return typeof messageId === "string" && MESSAGE_ID_REGEX.test(messageId)
     ? messageId
     : null;
+}
+
+function validProtocolMessageType(type: string): boolean {
+  return PROTOCOL_MESSAGE_TYPES.includes(type as (typeof PROTOCOL_MESSAGE_TYPES)[number]);
 }
 
 function pushChannel(
@@ -358,6 +365,71 @@ export function registerVicheTools(
           }
 
           return textResult(`Reply sent to ${params.to}.`);
+        },
+      };
+    }) as unknown as AnyAgentTool,
+  );
+
+  // ── viche_broadcast ───────────────────────────────────────────────────────
+  // Captures `ctx.sessionKey` to update "most-recent" session activity.
+
+  api.registerTool(
+    ((ctx: OpenClawPluginToolContext) => {
+      const sessionKey = ctx.sessionKey ?? MAIN_SESSION;
+
+      return {
+        name: "viche_broadcast",
+        description:
+          "Broadcast a message to ALL agents in a given registry on the Viche network. " +
+          "Every agent in the registry receives the message in their inbox.",
+        parameters: Type.Object({
+          registry: Type.String({
+            description: "Registry token to broadcast to (e.g. 'global', 'team-alpha')",
+          }),
+          body: Type.String({
+            description: "Message content to broadcast",
+          }),
+          type: Type.Optional(
+            Type.Union([
+              Type.Literal("task"),
+              Type.Literal("result"),
+              Type.Literal("ping"),
+            ], {
+              description: "Message type: 'task' (default), 'result', or 'ping'",
+            }),
+          ),
+        }),
+        async execute(
+          _toolCallId: string,
+          params: { registry: string; body: string; type?: string },
+          _signal?: AbortSignal,
+        ): Promise<AgentToolResult> {
+          const guard = requireConnected(state);
+          if (guard) return guard;
+
+          state.mostRecentSessionKey = sessionKey;
+
+          const msgType = params.type ?? "task";
+          if (!validProtocolMessageType(msgType)) {
+            return textResult(
+              "Failed to broadcast: invalid message type (must be 'task', 'result', or 'ping')",
+            );
+          }
+
+          try {
+            const response = (await pushChannel(state.channel!, "broadcast_message", {
+              registry: params.registry,
+              body: params.body,
+              type: msgType,
+            })) as { recipients?: number };
+
+            return textResult(
+              `Broadcast sent to ${response.recipients ?? 0} agent(s) in registry '${params.registry}'.`,
+            );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return textResult(`Failed to broadcast: ${msg}`);
+          }
         },
       };
     }) as unknown as AnyAgentTool,

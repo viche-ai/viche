@@ -269,7 +269,7 @@ function connectAndRegister(server: Server): Promise<void> {
         );
 
         for (const token of REGISTRY_TOKENS) {
-          const registryChannel = socket.channel(`registry:${token}`, {});
+          const registryChannel = socket.channel(`registry:${token}`, { agent_id: resp.agent_id });
           registryChannel
             .join()
             .receive("ok", () => {

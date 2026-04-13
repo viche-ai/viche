@@ -120,6 +120,44 @@ describe("createVicheTools (WebSocket transport)", () => {
     expect(result).toContain("Reply sent to cafebabe-0000-4000-a000-000000000000");
   });
 
+  it("viche_broadcast uses broadcast_message channel event and formats success", async () => {
+    const push = makeChannelPush("ok", { recipients: 4 });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_broadcast.execute(
+      {
+        registry: "team-alpha",
+        body: "Deploy now",
+        type: "task",
+      },
+      TEST_CONTEXT
+    );
+
+    expect(push).toHaveBeenCalledWith("broadcast_message", {
+      registry: "team-alpha",
+      body: "Deploy now",
+      type: "task",
+    });
+    expect(result).toBe("Broadcast sent to 4 agent(s) in registry 'team-alpha'.");
+  });
+
+  it("viche_broadcast returns session initialisation failure", async () => {
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.reject(new Error("registration failed"))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_broadcast.execute(
+      { registry: "team-alpha", body: "Deploy now" },
+      TEST_CONTEXT
+    );
+
+    expect(result).toBe("Failed to initialise session: registration failed");
+  });
+
   it("returns channel timeout as a friendly error", async () => {
     const push = makeChannelPush("timeout");
     const ensureSessionReady = mock((_sessionID: string) =>

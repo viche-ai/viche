@@ -1,10 +1,11 @@
 /**
  * Tool definitions for opencode-plugin-viche.
  *
- * Seven tools are exposed to the LLM:
+ * Eight tools are exposed to the LLM:
  *   - viche_discover  — find agents by capability (Phoenix Channel push)
  *   - viche_send      — send a message to another agent (requires session)
  *   - viche_reply     — reply to an agent that sent a task (requires session)
+ *   - viche_broadcast  — broadcast a message to a registry (requires session)
  *   - viche_leave_registry      — leave one/all registries
  *   - viche_join_registry       — join a registry dynamically
  *   - viche_list_my_registries  — list registries this agent has joined
@@ -76,6 +77,8 @@ const DiscoverResponseSchema = z.object({
 const RegistriesResponseSchema = z.object({
   registries: z.array(z.string()),
 });
+
+const ProtocolMessageTypeSchema = z.enum(["task", "result", "ping"]);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -289,7 +292,7 @@ export function createVicheTools(
         .describe("Target agent ID (UUID, e.g. '550e8400-e29b-41d4-a716-446655440000')"),
       body: z.string().describe("Message content to send to the target agent"),
       type: z
-        .string()
+        .enum(["task", "result", "ping"])
         .optional()
         .default("task")
         .describe("Message type: 'task' (default), 'result', or 'ping'"),
@@ -364,6 +367,62 @@ export function createVicheTools(
       }
 
       return `Reply sent to ${to}.`;
+    },
+  };
+
+  // ── viche_broadcast ─────────────────────────────────────────────────────────
+
+  const viche_broadcast: ToolDefinition = {
+    description:
+      "Broadcast a message to ALL agents in a given registry on the Viche network. " +
+      "Every agent in the registry receives the message in their inbox.",
+    args: {
+      registry: z
+        .string()
+        .min(4)
+        .max(256)
+        .regex(/^[a-zA-Z0-9._-]+$/)
+        .describe("Registry token to broadcast to (e.g. 'global', 'team-alpha')"),
+      body: z.string().describe("Message content to broadcast"),
+      type: z
+        .enum(["task", "result", "ping"])
+        .optional()
+        .default("task")
+        .describe("Message type: 'task' (default), 'result', or 'ping'"),
+    },
+    async execute(
+      args: { registry: string; body: string; type?: string },
+      context: { sessionID: string }
+    ): Promise<string> {
+      let sessionState: SessionState;
+      try {
+        sessionState = await ensureSessionReady(context.sessionID);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return `Failed to initialise session: ${msg}`;
+      }
+
+      const parsedType = ProtocolMessageTypeSchema.safeParse(args.type ?? "task");
+      if (!parsedType.success) {
+        return "Failed to broadcast: invalid message type (must be 'task', 'result', or 'ping')";
+      }
+
+      const result = await pushWithAck<{ recipients?: number }>(
+        sessionState.channel,
+        "broadcast_message",
+        {
+          registry: args.registry,
+          body: args.body,
+          type: parsedType.data,
+        }
+      );
+
+      if (!result.ok) {
+        return `Failed to broadcast: ${result.error ?? "unknown channel error"}`;
+      }
+
+      const recipients = result.payload?.recipients ?? 0;
+      return `Broadcast sent to ${recipients} agent(s) in registry '${args.registry}'.`;
     },
   };
 
@@ -535,6 +594,7 @@ export function createVicheTools(
     viche_discover,
     viche_send,
     viche_reply,
+    viche_broadcast,
     viche_leave_registry,
     viche_join_registry,
     viche_list_my_registries,

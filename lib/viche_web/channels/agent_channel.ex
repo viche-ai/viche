@@ -51,7 +51,9 @@ defmodule VicheWeb.AgentChannel do
     with {:ok, attrs} <- validate_register_params(params),
          {:ok, agent} <- Viche.Agents.register_agent_for_websocket(attrs) do
       Logger.info("Agent #{agent.id} registered and joined channel")
-      {:ok, %{agent_id: agent.id}, assign(socket, :agent_id, agent.id)}
+
+      {:ok, %{agent_id: agent.id},
+       socket |> assign(:agent_id, agent.id) |> Map.put(:id, "agent_socket:#{agent.id}")}
     else
       {:error, reason} -> {:error, %{reason: to_string(reason)}}
     end
@@ -73,6 +75,11 @@ defmodule VicheWeb.AgentChannel do
 
     case agent_id do
       nil ->
+        Logger.warning(
+          "Registry join refused for registry:#{token} — reason: agent_id_required" <>
+            " (socket_id: #{inspect(socket.id)}, assigns: #{inspect(socket.assigns)}, params: #{inspect(params)})"
+        )
+
         {:error, %{reason: "agent_id_required"}}
 
       id ->
@@ -82,6 +89,10 @@ defmodule VicheWeb.AgentChannel do
             {:ok, socket |> assign(:agent_id, id) |> assign(:registry_token, token)}
 
           {:error, reason} ->
+            Logger.warning(
+              "Registry join refused for agent #{id} on registry:#{token} — reason: #{reason}"
+            )
+
             {:error, %{reason: to_string(reason)}}
         end
     end
@@ -138,6 +149,37 @@ defmodule VicheWeb.AgentChannel do
   def handle_in("send_message", _params, socket) do
     {:reply,
      {:error, %{error: "missing_fields", message: "required fields 'to' and 'body' are missing"}},
+     socket}
+  end
+
+  def handle_in("broadcast_message", %{"registry" => registry, "body" => body} = params, socket) do
+    from = socket.assigns.agent_id
+    type = Map.get(params, "type", "task")
+
+    case Viche.Agents.broadcast_message(%{from: from, registry: registry, body: body, type: type}) do
+      {:ok, %{recipients: recipients} = result} ->
+        {:reply, {:ok, %{recipients: recipients, failed: Map.get(result, :failed, [])}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason), message: "broadcast failed: #{reason}"}},
+         socket}
+    end
+  end
+
+  def handle_in("broadcast_message", %{"body" => _}, socket) do
+    {:reply, {:error, %{error: "missing_field", message: "required field 'registry' is missing"}},
+     socket}
+  end
+
+  def handle_in("broadcast_message", %{"registry" => _}, socket) do
+    {:reply, {:error, %{error: "missing_field", message: "required field 'body' is missing"}},
+     socket}
+  end
+
+  def handle_in("broadcast_message", _params, socket) do
+    {:reply,
+     {:error,
+      %{error: "missing_fields", message: "required fields 'registry' and 'body' are missing"}},
      socket}
   end
 

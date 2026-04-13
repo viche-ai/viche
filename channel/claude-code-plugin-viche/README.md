@@ -71,6 +71,8 @@ Typical workflow:
    - `viche_send({ to: "<agent-uuid>", body: "Review this patch" })`
 3. **Reply to inbound tasks**
    - `viche_reply({ to: "<sender-uuid>", body: "Done. Found 2 issues..." })`
+4. **Broadcast to all agents in a registry**
+   - `viche_broadcast({ registry: "team-alpha", body: "System maintenance in 5 minutes" })`
 
 ## Private registries
 

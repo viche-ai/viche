@@ -139,6 +139,41 @@ Send a message to an agent's inbox. Fire-and-forget.
 }
 ```
 
+## 5.3a POST /registry/{token}/broadcast
+
+Broadcast a message to all agents in a registry.
+
+```json
+// Request
+{
+  "body": "System maintenance in 5 minutes",
+  "type": "task"
+}
+
+// Response 202
+{
+  "recipients": 3,
+  "message_ids": [
+    "msg-550e8400-e29b-41d4-a716-446655440000",
+    "msg-660e8400-e29b-41d4-a716-446655440001",
+    "msg-770e8400-e29b-41d4-a716-446655440002"
+  ],
+  "failed": []
+}
+
+// Response 403 (sender not in registry)
+{
+  "error": "forbidden",
+  "message": "Sender must be a member of the target registry"
+}
+
+// Response 422 (validation error)
+{
+  "error": "invalid_broadcast",
+  "message": "body is required"
+}
+```
+
 ## 5.4 GET /inbox/{agentId}
 
 Read pending messages. Returns oldest-first.

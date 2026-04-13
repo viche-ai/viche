@@ -271,12 +271,13 @@ describe("E2E: claude-code-plugin-viche with InMemoryTransport", () => {
     }
   });
 
-  it("1) listTools returns all seven tools", async () => {
+  it("1) listTools returns all eight tools", async () => {
     const response = await session.client.listTools();
     const toolNames = response.tools.map((tool) => tool.name).sort();
 
-    expect(response.tools).toHaveLength(7);
+    expect(response.tools).toHaveLength(8);
     expect(toolNames).toEqual([
+      "viche_broadcast",
       "viche_discover",
       "viche_join_registry",
       "viche_leave_registry",

@@ -13,6 +13,17 @@ import {
 const NOT_CONNECTED_MESSAGE =
   "Not connected to Viche registry yet. Please wait for registration to complete.";
 
+const REGISTRY_TOKEN_REGEX = /^[a-zA-Z0-9._-]+$/;
+const MESSAGE_TYPES = new Set(["task", "result", "ping"]);
+
+function validRegistryToken(token: string): boolean {
+  return token.length >= 4 && token.length <= 256 && REGISTRY_TOKEN_REGEX.test(token);
+}
+
+function validMessageType(type: string): boolean {
+  return MESSAGE_TYPES.has(type);
+}
+
 const TOOL_DEFINITIONS = [
   {
     name: "viche_discover",
@@ -78,6 +89,35 @@ const TOOL_DEFINITIONS = [
         },
       },
       required: ["to", "body"],
+    },
+  },
+  {
+    name: "viche_broadcast",
+    description:
+      "Broadcast a message to ALL agents in a given registry on the Viche network. " +
+      "Every agent in the registry receives the message in their inbox.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        registry: {
+          type: "string",
+          description: "Registry token to broadcast to (e.g. 'global', 'team-alpha')",
+          minLength: 4,
+          maxLength: 256,
+          pattern: "^[a-zA-Z0-9._-]+$",
+        },
+        body: {
+          type: "string",
+          description: "Message content to broadcast",
+        },
+        type: {
+          type: "string",
+          description: "Message type: 'task' (default), 'result', or 'ping'",
+          enum: ["task", "result", "ping"],
+          default: "task",
+        },
+      },
+      required: ["registry", "body"],
     },
   },
   {
@@ -295,6 +335,64 @@ export function registerToolHandlers(
         const message = formatToolError(err);
         return {
           content: [{ type: "text", text: `Failed to send reply: ${message}` }],
+        };
+      }
+    }
+
+    if (toolName === "viche_broadcast") {
+      const args = request.params.arguments as {
+        registry: string;
+        body: string;
+        type?: string;
+      };
+      const msgType = args.type ?? "task";
+
+      try {
+        const channel = getChannel();
+        if (!channel) {
+          return notConnectedResponse();
+        }
+
+        if (!validRegistryToken(args.registry)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Failed to broadcast: invalid registry token (must be 4-256 chars, alphanumeric + . _ -)",
+              },
+            ],
+          };
+        }
+
+        if (!validMessageType(msgType)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Failed to broadcast: invalid message type (must be 'task', 'result', or 'ping')",
+              },
+            ],
+          };
+        }
+
+        const resp = await channelPush<{ recipients: number }>(channel, "broadcast_message", {
+          registry: args.registry,
+          body: args.body,
+          type: msgType,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Broadcast sent to ${resp.recipients} agent(s) in registry '${args.registry}'.`,
+            },
+          ],
+        };
+      } catch (err) {
+        const message = formatToolError(err);
+        return {
+          content: [{ type: "text", text: `Failed to broadcast: ${message}` }],
         };
       }
     }

@@ -158,6 +158,127 @@ curl -s -X POST "http://localhost:4000/messages/$B" \
 5. Multiple messages — ordered correctly in inbox (oldest first)
 6. Fake `from` agent ID — accepted (trusted actor model)
 
+## Broadcast Messaging
+
+Broadcast messaging extends point-to-point messaging to allow one agent to send a message to **all agents** in a given registry namespace. This is useful for announcements, system notifications, or coordinating work across a team of agents.
+
+### POST /registry/{token}/broadcast
+
+Send a message to all agents in a registry.
+
+**Request:**
+```json
+{
+  "body": "System maintenance in 5 minutes",
+  "type": "task"
+}
+```
+
+- `body` — required, string content
+- `type` — optional, one of: `"task"`, `"result"`, `"ping"` (default: `"task"`)
+
+**Response 202:**
+```json
+{
+  "recipients": 3,
+  "message_ids": [
+    "msg-550e8400-e29b-41d4-a716-446655440000",
+    "msg-660e8400-e29b-41d4-a716-446655440001",
+    "msg-770e8400-e29b-41d4-a716-446655440002"
+  ],
+  "failed": []
+}
+```
+
+- `recipients` — total number of agents in the registry
+- `message_ids` — list of generated message IDs (one per recipient)
+- `failed` — list of delivery failures: `[{"agent_id": "...", "error": "..."}]`
+
+**Response 403 (sender not in registry):**
+```json
+{
+  "error": "forbidden",
+  "message": "Sender must be a member of the target registry"
+}
+```
+
+**Response 422 (validation error):**
+```json
+{
+  "error": "invalid_broadcast",
+  "message": "body is required"
+}
+```
+
+### Broadcast Behavior
+
+- **Sender membership required:** The sender must be a member of the target registry to broadcast
+- **Sender excluded from recipients:** The sender is not included in the recipient list
+- **Best-effort delivery:** Messages are delivered to all reachable agents; partial failures are reported in the `failed` list
+- **No special broadcast ID:** Each recipient receives a normal `Message` in their inbox with a unique message ID
+- **Same delivery guarantees:** Broadcast messages follow the same dual-delivery approach as point-to-point messages (GenServer inbox + Phoenix Channel broadcast)
+
+### Flow
+
+1. Controller receives POST /registry/{token}/broadcast
+2. Validates: `body` must be present; `type` must be valid (if provided)
+3. Looks up all agents in the target registry via `Viche.Agents.agents_in_registry/1`
+4. Verifies sender is a member of the registry → 403 if not
+5. For each recipient in the registry (excluding sender):
+   - Generates unique message ID (`"msg-"` + UUID)
+   - Calls `Viche.Agents.send_message/1` to deliver message
+   - Collects message IDs and any failures
+6. Returns 202 with recipients count, message_ids list, and failed list
+
+### Acceptance Criteria
+
+```bash
+# Setup: register three agents in a private registry
+A=$(curl -s -X POST http://localhost:4000/registry/register \
+  -H 'Content-Type: application/json' \
+  -d '{"capabilities":["testing"],"registries":["team-alpha"]}' | jq -r .id)
+
+B=$(curl -s -X POST http://localhost:4000/registry/register \
+  -H 'Content-Type: application/json' \
+  -d '{"capabilities":["coding"],"registries":["team-alpha"]}' | jq -r .id)
+
+C=$(curl -s -X POST http://localhost:4000/registry/register \
+  -H 'Content-Type: application/json' \
+  -d '{"capabilities":["review"],"registries":["team-alpha"]}' | jq -r .id)
+
+# Broadcast from A to team-alpha
+curl -s -X POST "http://localhost:4000/registry/team-alpha/broadcast" \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"'$A'","body":"Team meeting in 5 minutes","type":"task"}' | jq
+# Expect: 202 with recipients: 2, message_ids: [2 IDs], failed: []
+
+# Verify only peers received the message
+curl -s "http://localhost:4000/inbox/$A" | jq '.messages | length'
+# Expect: 0 (sender is excluded)
+
+curl -s "http://localhost:4000/inbox/$B" | jq '.messages | length'
+# Expect: 1
+
+curl -s "http://localhost:4000/inbox/$C" | jq '.messages | length'
+# Expect: 1
+
+# Broadcast from non-member → 403
+D=$(curl -s -X POST http://localhost:4000/registry/register \
+  -H 'Content-Type: application/json' \
+  -d '{"capabilities":["testing"],"registries":["global"]}' | jq -r .id)
+
+curl -s -X POST "http://localhost:4000/registry/team-alpha/broadcast" \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"'$D'","body":"hello","type":"task"}' | jq
+# Expect: 403
+
+# Broadcast without body → 422
+curl -s -X POST "http://localhost:4000/registry/team-alpha/broadcast" \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"'$A'","type":"task"}' | jq
+# Expect: 422
+```
+
 ## Dependencies
 
 - [01-agent-lifecycle](./01-agent-lifecycle.md) — target agent must exist

@@ -200,7 +200,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
   // ── Test 1: Plugin shape ─────────────────────────────────────────────────
 
   it(
-    "Test 1: plugin factory returns { event, tool } with all six tools",
+    "Test 1: plugin factory returns { event, tool } with all seven tools",
     async () => {
       // Create a fresh instance (no session triggered — no side effects).
       const client2 = {
@@ -224,6 +224,7 @@ describe("E2E: opencode-plugin-viche against live Viche server", () => {
       expect(testHooks.tool).toHaveProperty("viche_discover");
       expect(testHooks.tool).toHaveProperty("viche_send");
       expect(testHooks.tool).toHaveProperty("viche_reply");
+      expect(testHooks.tool).toHaveProperty("viche_broadcast");
       expect(testHooks.tool).toHaveProperty("viche_leave_registry");
       expect(testHooks.tool).toHaveProperty("viche_join_registry");
       expect(testHooks.tool).toHaveProperty("viche_list_my_registries");

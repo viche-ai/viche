@@ -99,6 +99,55 @@ describe("registerVicheTools over channel pushes", () => {
     expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0);
   });
 
+  it("viche_broadcast uses broadcast_message event and formats success", async () => {
+    const api = createApi();
+    const channel = createChannel("ok", { recipients: 2 });
+    const state = {
+      agentId: "self-agent",
+      channel,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_broadcast", "agent:tenant-a:session-1");
+    const result = await tool.execute("call-broadcast", {
+      registry: "team-alpha",
+      body: "Deploy now",
+      type: "task",
+    });
+
+    expect(channel.push).toHaveBeenCalledWith("broadcast_message", {
+      registry: "team-alpha",
+      body: "Deploy now",
+      type: "task",
+    });
+    expect(result.content[0]?.text).toBe(
+      "Broadcast sent to 2 agent(s) in registry 'team-alpha'.",
+    );
+  });
+
+  it("viche_broadcast returns not-connected message when service is disconnected", async () => {
+    const api = createApi();
+    const state = {
+      agentId: null as string | null,
+      channel: null,
+      correlations: new Map<string, { sessionKey: string; timestamp: number }>(),
+      mostRecentSessionKey: null as string | null,
+    };
+
+    registerVicheTools(api as any, { registryUrl: "http://unused", capabilities: ["coding"] } as any, state as any);
+
+    const tool = getTool(api, "viche_broadcast", "agent:tenant-a:session-1");
+    const result = await tool.execute("call-broadcast", {
+      registry: "team-alpha",
+      body: "Deploy now",
+    });
+
+    expect(result.content[0]?.text).toContain("not yet connected");
+  });
+
   it("viche_join_registry uses join_registry event and formats success", async () => {
     const api = createApi();
     const channel = createChannel("ok", { registries: ["global", "new-team"] });

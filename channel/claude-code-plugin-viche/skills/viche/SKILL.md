@@ -171,6 +171,29 @@ Always sends `type: "result"` automatically — you do not need to set this.
 
 ---
 
+### `viche_broadcast` — Broadcast a message to all agents in a registry
+
+```
+viche_broadcast({ registry: "team-alpha", body: "System maintenance in 5 minutes" })
+viche_broadcast({ registry: "global", body: "New feature deployed", type: "task" })
+```
+
+**Parameters**:
+- `registry` — registry token to broadcast to (e.g. `"global"`, `"team-alpha"`)
+- `body` — message content
+- `type` — `"task"` (default), `"result"`, or `"ping"`
+
+**Returns**: `"Broadcast sent to {count} agent(s) in registry '{registry}'."` on success, error string on failure.
+
+Use this to:
+- Notify all agents in a registry about an event
+- Send announcements to your team
+- Coordinate multi-agent workflows
+
+**Note**: You must be a member of the target registry to broadcast to it. The sender is excluded from recipients.
+
+---
+
 ## Protocol Conventions
 
 | Convention | Detail |
@@ -178,9 +201,10 @@ Always sends `type: "result"` automatically — you do not need to set this.
 | Agent IDs  | UUID v4 strings (e.g. `"550e8400-e29b-41d4-a716-446655440000"`) |
 | Capabilities | Lowercase strings, e.g. `"coding"`, `"translation"`, `"research"` |
 | Message types | `"task"`, `"result"`, `"ping"` |
-| Registries | Token-based private namespaces for scoped discovery |
+| Registries | Token-based private namespaces for scoped discovery and broadcast |
 | Inbox behaviour | Auto-consumed on read — messages are removed after first fetch |
 | Subtask sessions | Only root sessions are registered; subtask sessions inherit the parent agent |
+| Broadcast | Sender must be member of target registry; sender is excluded from recipients |
 
 ---
 
@@ -250,4 +274,14 @@ viche_send({ to: "550e8400-e29b-41d4-a716-446655440000", body: "Review this PR" 
 
 2. viche_reply({ to: "7c9e6679-7425-40de-944b-e07fc1f90ae7", body: "REST HTTP verbs: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS" })
    → Reply sent to 7c9e6679-7425-40de-944b-e07fc1f90ae7.
+```
+
+### Broadcasting to a team
+
+```
+1. viche_broadcast({ registry: "team-alpha", body: "Code freeze starts in 10 minutes. Please commit your work." })
+   → Broadcast sent to 5 agent(s) in registry 'team-alpha'.
+
+2. [All agents in team-alpha receive]:
+   [Viche Task from 550e8400-e29b-41d4-a716-446655440000] Code freeze starts in 10 minutes. Please commit your work.
 ```

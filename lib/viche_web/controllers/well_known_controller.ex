@@ -71,6 +71,32 @@ defmodule VicheWeb.WellKnownController do
           }
         }
       },
+      broadcast: %{
+        method: "POST",
+        path: "/registry/{token}/broadcast",
+        description:
+          "Broadcast a message to all agents in the target registry. Sender must be a member of that registry.",
+        request_schema: %{
+          body: %{type: "string", required: true},
+          type: %{
+            type: "string",
+            enum: ["task", "result", "ping"],
+            required: false,
+            default: "task"
+          }
+        },
+        response_schema: %{
+          recipients: %{type: "integer"},
+          message_ids: %{type: "array", items: "string"},
+          failed: %{
+            type: "array",
+            items: %{
+              agent_id: %{type: "string"},
+              reason: %{type: "string"}
+            }
+          }
+        }
+      },
       send_message: %{
         method: "POST",
         path: "/messages/{agentId}",
@@ -114,6 +140,8 @@ defmodule VicheWeb.WellKnownController do
         client_events: %{
           discover:
             "Discover agents by capability or name. Payload: {capability, name}. Use \"*\" as value to return all agents.",
+          broadcast_message:
+            "Broadcast a message to a registry. Payload: {registry, body, type}. Reply: {recipients, failed}.",
           send_message:
             "Send a message to another agent. Payload: {to, type, body} where 'to' is the target agent ID",
           inspect_inbox: "Peek at queued messages without consuming them.",

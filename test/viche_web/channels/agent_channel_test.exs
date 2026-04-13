@@ -242,6 +242,110 @@ defmodule VicheWeb.AgentChannelTest do
     end
   end
 
+  describe "handle_in/3 - broadcast_message" do
+    setup do
+      clear_all_agents()
+
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["sender"], registries: ["team-alpha"]})
+
+      {:ok, recipient} =
+        Agents.register_agent(%{capabilities: ["receiver"], registries: ["team-alpha"]})
+
+      {:ok, _, sender_socket} =
+        AgentSocket
+        |> socket("agent_socket:#{sender.id}", %{agent_id: sender.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{sender.id}")
+
+      {:ok, _, _recipient_socket} =
+        AgentSocket
+        |> socket("agent_socket:#{recipient.id}", %{agent_id: recipient.id})
+        |> subscribe_and_join(VicheWeb.AgentChannel, "agent:#{recipient.id}")
+
+      %{sender_socket: sender_socket, sender_id: sender.id, recipient_id: recipient.id}
+    end
+
+    test "broadcast_message with registry and body returns recipient count", %{
+      sender_socket: sender_socket
+    } do
+      ref =
+        push(sender_socket, "broadcast_message", %{
+          "registry" => "team-alpha",
+          "body" => "broadcast via websocket",
+          "type" => "task"
+        })
+
+      assert_reply ref, :ok, %{recipients: 1, failed: []}
+    end
+
+    test "broadcast_message derives from socket.assigns.agent_id and pushes new_message events",
+         %{
+           sender_socket: sender_socket,
+           sender_id: sender_id,
+           recipient_id: recipient_id
+         } do
+      ref =
+        push(sender_socket, "broadcast_message", %{
+          "registry" => "team-alpha",
+          "body" => "fanout payload",
+          "type" => "task",
+          "from" => "evil-client-id"
+        })
+
+      assert_reply ref, :ok, %{recipients: 1, failed: []}
+
+      assert_push "new_message", payload
+      assert payload.body == "fanout payload"
+      assert payload.type == "task"
+      assert payload.from == sender_id
+
+      assert {:ok, recipient_messages} = Agents.inspect_inbox(recipient_id)
+      assert length(recipient_messages) == 1
+      assert hd(recipient_messages).from == sender_id
+      refute hd(recipient_messages).from == "evil-client-id"
+
+      assert {:ok, []} = Agents.inspect_inbox(sender_id)
+    end
+
+    test "broadcast_message returns not_in_registry when sender is not in target registry", %{
+      sender_socket: sender_socket
+    } do
+      ref =
+        push(sender_socket, "broadcast_message", %{
+          "registry" => "team-bravo",
+          "body" => "should fail"
+        })
+
+      assert_reply ref, :error, %{error: "not_in_registry", message: _}
+    end
+
+    test "broadcast_message missing registry returns validation error", %{
+      sender_socket: sender_socket
+    } do
+      ref = push(sender_socket, "broadcast_message", %{"body" => "hello"})
+
+      assert_reply ref, :error, %{error: "missing_field", message: message}
+      assert message =~ "'registry'"
+    end
+
+    test "broadcast_message missing body returns validation error", %{
+      sender_socket: sender_socket
+    } do
+      ref = push(sender_socket, "broadcast_message", %{"registry" => "team-alpha"})
+
+      assert_reply ref, :error, %{error: "missing_field", message: message}
+      assert message =~ "'body'"
+    end
+
+    test "broadcast_message missing both fields returns validation error", %{
+      sender_socket: sender_socket
+    } do
+      ref = push(sender_socket, "broadcast_message", %{})
+
+      assert_reply ref, :error, %{error: "missing_fields", message: _}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Impersonation prevention tests (issue #21)
   # ---------------------------------------------------------------------------
