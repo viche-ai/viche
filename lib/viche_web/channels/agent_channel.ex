@@ -73,6 +73,10 @@ defmodule VicheWeb.AgentChannel do
 
     case agent_id do
       nil ->
+        Logger.warning(
+          "Registry join refused for registry:#{token} — reason: agent_id_required (no agent_id in socket or params)"
+        )
+
         {:error, %{reason: "agent_id_required"}}
 
       id ->
@@ -82,6 +86,10 @@ defmodule VicheWeb.AgentChannel do
             {:ok, socket |> assign(:agent_id, id) |> assign(:registry_token, token)}
 
           {:error, reason} ->
+            Logger.warning(
+              "Registry join refused for agent #{id} on registry:#{token} — reason: #{reason}"
+            )
+
             {:error, %{reason: to_string(reason)}}
         end
     end
