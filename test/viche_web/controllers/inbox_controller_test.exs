@@ -20,6 +20,8 @@ defmodule VicheWeb.InboxControllerTest do
   defp send_message(agent_id, opts) do
     type = Keyword.get(opts, :type, "task")
     body = Keyword.get(opts, :body, "hello")
+    in_reply_to = Keyword.get(opts, :in_reply_to)
+    conversation_id = Keyword.get(opts, :conversation_id)
 
     # Use the caller-supplied `from` agent_id when given; fall back to registering
     # a fresh throwaway agent so there is always a valid `current_agent_id`.
@@ -36,7 +38,12 @@ defmodule VicheWeb.InboxControllerTest do
 
     build_conn()
     |> Plug.Conn.assign(:current_agent_id, sender_id)
-    |> post(~p"/messages/#{agent_id}", %{"type" => type, "body" => body})
+    |> post(~p"/messages/#{agent_id}", %{
+      "type" => type,
+      "body" => body,
+      "in_reply_to" => in_reply_to,
+      "conversation_id" => conversation_id
+    })
   end
 
   describe "GET /inbox/:agent_id" do
@@ -77,13 +84,34 @@ defmodule VicheWeb.InboxControllerTest do
       assert Map.has_key?(msg, "from")
       assert Map.has_key?(msg, "body")
       assert Map.has_key?(msg, "sent_at")
+      assert Map.has_key?(msg, "in_reply_to")
+      assert Map.has_key?(msg, "conversation_id")
 
       assert String.starts_with?(msg["id"], "msg-")
       assert msg["type"] == "task"
       assert msg["from"] == "sender-abc"
       assert msg["body"] == "do the thing"
+      assert msg["in_reply_to"] == nil
+      assert msg["conversation_id"] == nil
       # Verify ISO 8601 format
       assert {:ok, _, _} = DateTime.from_iso8601(msg["sent_at"])
+    end
+
+    test "messages include in_reply_to and conversation_id when provided", %{conn: conn} do
+      agent_id = register_agent(conn)
+
+      send_message(agent_id,
+        type: "result",
+        body: "threaded",
+        in_reply_to: "msg-parent",
+        conversation_id: "conv-thread"
+      )
+
+      conn = get(build_conn(), ~p"/inbox/#{agent_id}")
+      %{"messages" => [msg]} = json_response(conn, 200)
+
+      assert msg["in_reply_to"] == "msg-parent"
+      assert msg["conversation_id"] == "conv-thread"
     end
 
     test "second read after consume returns empty list (Erlang receive semantics)", %{conn: conn} do

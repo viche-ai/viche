@@ -30,7 +30,14 @@ defmodule VicheWeb.MessageController do
     if is_nil(from) do
       invalid_message_response(conn)
     else
-      attrs = %{to: agent_id, from: from, body: body, type: type}
+      attrs = %{
+        to: agent_id,
+        from: from,
+        body: body,
+        type: type,
+        in_reply_to: Map.get(conn.params, "in_reply_to"),
+        conversation_id: Map.get(conn.params, "conversation_id")
+      }
 
       case Agents.send_message(attrs) do
         {:ok, message_id} ->

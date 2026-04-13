@@ -58,7 +58,9 @@ defmodule VicheWeb.InboxController do
       type: msg.type,
       from: msg.from,
       body: msg.body,
-      sent_at: DateTime.to_iso8601(msg.sent_at)
+      sent_at: DateTime.to_iso8601(msg.sent_at),
+      in_reply_to: msg.in_reply_to,
+      conversation_id: msg.conversation_id
     }
   end
 end

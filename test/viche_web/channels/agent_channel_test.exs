@@ -221,6 +221,26 @@ defmodule VicheWeb.AgentChannelTest do
       assert_reply ref, :error, %{error: "agent_not_found", message: _}
     end
 
+    test "send_message accepts in_reply_to and conversation_id", %{
+      socket: socket,
+      receiver_id: receiver_id
+    } do
+      ref =
+        push(socket, "send_message", %{
+          "to" => receiver_id,
+          "body" => "threaded reply",
+          "type" => "result",
+          "in_reply_to" => "msg-root",
+          "conversation_id" => "conv-77"
+        })
+
+      assert_reply ref, :ok, %{message_id: _}
+
+      assert {:ok, [msg]} = Agents.inspect_inbox(receiver_id)
+      assert msg.in_reply_to == "msg-root"
+      assert msg.conversation_id == "conv-77"
+    end
+
     test "send_message missing 'to' field returns validation error", %{socket: socket} do
       ref = push(socket, "send_message", %{"body" => "hello", "type" => "result"})
 
@@ -503,7 +523,14 @@ defmodule VicheWeb.AgentChannelTest do
     end
 
     test "returns inbox messages without consuming them", %{socket: socket, agent_id: agent_id} do
-      Agents.send_message(%{to: agent_id, from: "sender", body: "peek", type: "ping"})
+      Agents.send_message(%{
+        to: agent_id,
+        from: "sender",
+        body: "peek",
+        type: "ping",
+        in_reply_to: "msg-prev",
+        conversation_id: "conv-peek"
+      })
 
       ref = push(socket, "inspect_inbox", %{})
       assert_reply ref, :ok, %{messages: messages}
@@ -512,6 +539,8 @@ defmodule VicheWeb.AgentChannelTest do
       [msg] = messages
       assert msg.body == "peek"
       assert msg.from == "sender"
+      assert msg.in_reply_to == "msg-prev"
+      assert msg.conversation_id == "conv-peek"
 
       # Second inspect still returns messages (not consumed)
       ref2 = push(socket, "inspect_inbox", %{})
@@ -531,7 +560,14 @@ defmodule VicheWeb.AgentChannelTest do
     end
 
     test "returns inbox messages and consumes them", %{socket: socket, agent_id: agent_id} do
-      Agents.send_message(%{to: agent_id, from: "sender", body: "drain me", type: "task"})
+      Agents.send_message(%{
+        to: agent_id,
+        from: "sender",
+        body: "drain me",
+        type: "task",
+        in_reply_to: "msg-before",
+        conversation_id: "conv-drain"
+      })
 
       ref = push(socket, "drain_inbox", %{})
       assert_reply ref, :ok, %{messages: messages}
@@ -539,6 +575,8 @@ defmodule VicheWeb.AgentChannelTest do
       assert length(messages) == 1
       [msg] = messages
       assert msg.body == "drain me"
+      assert msg.in_reply_to == "msg-before"
+      assert msg.conversation_id == "conv-drain"
 
       # Second drain returns empty (consumed)
       ref2 = push(socket, "drain_inbox", %{})
@@ -563,6 +601,8 @@ defmodule VicheWeb.AgentChannelTest do
       assert payload.type == "task"
       assert is_binary(payload.id)
       assert is_binary(payload.sent_at)
+      assert payload.in_reply_to == nil
+      assert payload.conversation_id == nil
     end
 
     test "register-on-join client receives new_message push for newly created agent" do

@@ -83,6 +83,29 @@ defmodule VicheWeb.MessageControllerTest do
       assert %DateTime{} = msg.sent_at
     end
 
+    test "accepts in_reply_to and conversation_id in request body", %{conn: conn} do
+      recipient_id = register_agent(conn)
+      sender_id = register_agent(build_conn(), ["sending"])
+
+      conn =
+        authed_conn(sender_id)
+        |> post(~p"/messages/#{recipient_id}", %{
+          "type" => "result",
+          "body" => "reply body",
+          "in_reply_to" => "msg-parent",
+          "conversation_id" => "conv-123"
+        })
+
+      assert %{"message_id" => _message_id} = json_response(conn, 202)
+
+      via = {:via, Registry, {Viche.AgentRegistry, recipient_id}}
+      state = AgentServer.get_state(via)
+
+      assert [msg] = state.inbox
+      assert msg.in_reply_to == "msg-parent"
+      assert msg.conversation_id == "conv-123"
+    end
+
     test "returns 422 when current_agent_id is nil (unauthenticated sender)", %{conn: conn} do
       recipient_id = register_agent(conn)
 

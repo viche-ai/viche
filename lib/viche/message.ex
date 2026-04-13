@@ -11,10 +11,12 @@ defmodule Viche.Message do
           type: String.t(),
           from: String.t(),
           body: String.t(),
-          sent_at: DateTime.t()
+          sent_at: DateTime.t(),
+          in_reply_to: String.t() | nil,
+          conversation_id: String.t() | nil
         }
 
-  defstruct [:id, :type, :from, :body, :sent_at]
+  defstruct [:id, :type, :from, :body, :sent_at, :in_reply_to, :conversation_id]
 
   @valid_types ~w(task result ping)
 

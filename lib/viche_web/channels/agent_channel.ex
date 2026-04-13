@@ -113,8 +113,17 @@ defmodule VicheWeb.AgentChannel do
   def handle_in("send_message", %{"to" => to, "body" => body} = params, socket) do
     from = socket.assigns.agent_id
     type = Map.get(params, "type", "task")
+    in_reply_to = Map.get(params, "in_reply_to")
+    conversation_id = Map.get(params, "conversation_id")
 
-    case Viche.Agents.send_message(%{to: to, from: from, body: body, type: type}) do
+    case Viche.Agents.send_message(%{
+           to: to,
+           from: from,
+           body: body,
+           type: type,
+           in_reply_to: in_reply_to,
+           conversation_id: conversation_id
+         }) do
       {:ok, message_id} ->
         {:reply, {:ok, %{message_id: message_id}}, socket}
 
@@ -265,7 +274,9 @@ defmodule VicheWeb.AgentChannel do
         type: msg.type,
         from: msg.from,
         body: msg.body,
-        sent_at: DateTime.to_iso8601(msg.sent_at)
+        sent_at: DateTime.to_iso8601(msg.sent_at),
+        in_reply_to: msg.in_reply_to,
+        conversation_id: msg.conversation_id
       }
     end)
   end

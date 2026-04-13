@@ -362,6 +362,24 @@ defmodule Viche.AgentsTest do
       assert msg.from == "aris"
       assert msg.body == "ping!"
       assert msg.type == "ping"
+      assert msg.in_reply_to == nil
+      assert msg.conversation_id == nil
+    end
+
+    test "accepts optional in_reply_to and conversation_id", %{agent_id: agent_id} do
+      assert {:ok, _message_id} =
+               Agents.send_message(%{
+                 to: agent_id,
+                 from: "aris",
+                 body: "reply payload",
+                 type: "result",
+                 in_reply_to: "msg-123",
+                 conversation_id: "conv-xyz"
+               })
+
+      assert {:ok, [msg]} = Agents.inspect_inbox(agent_id)
+      assert msg.in_reply_to == "msg-123"
+      assert msg.conversation_id == "conv-xyz"
     end
   end
 

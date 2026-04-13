@@ -471,6 +471,8 @@ defmodule Viche.Agents do
   ## Parameters
     - `%{to: agent_id, from: sender, body: text}` — required keys
     - `:type` — optional, defaults to `"task"`. Must be one of `"task"`, `"result"`, `"ping"`.
+    - `:in_reply_to` — optional message ID this message replies to
+    - `:conversation_id` — optional thread identifier
 
   ## Returns
     - `{:ok, message_id}` — fire-and-forget; message_id starts with `"msg-"`
@@ -482,15 +484,21 @@ defmodule Viche.Agents do
   def send_message(%{to: agent_id, from: from, body: body} = attrs)
       when is_binary(from) and from != "" and is_binary(body) and body != "" do
     type = Map.get(attrs, :type, "task")
+    in_reply_to = Map.get(attrs, :in_reply_to)
+    conversation_id = Map.get(attrs, :conversation_id)
 
     with true <- Message.valid_type?(type),
+         :ok <- validate_optional_string(in_reply_to, :invalid_message),
+         :ok <- validate_optional_string(conversation_id, :invalid_message),
          :found <- lookup_agent(agent_id) do
       message = %Message{
         id: generate_message_id(),
         type: type,
         from: from,
         body: body,
-        sent_at: DateTime.utc_now()
+        sent_at: DateTime.utc_now(),
+        in_reply_to: in_reply_to,
+        conversation_id: conversation_id
       }
 
       via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
@@ -503,7 +511,9 @@ defmodule Viche.Agents do
         type: message.type,
         from: message.from,
         body: message.body,
-        sent_at: DateTime.to_iso8601(message.sent_at)
+        sent_at: DateTime.to_iso8601(message.sent_at),
+        in_reply_to: message.in_reply_to,
+        conversation_id: message.conversation_id
       })
 
       {:ok, message.id}
