@@ -12,7 +12,7 @@ STAGED_FILES=$(git diff --cached --name-only)
 if echo "$STAGED_FILES" | grep -q "^channel/opencode-plugin-viche/"; then
   echo "------------------------------------------------------------"
   echo "  Pre-commit: opencode-plugin-viche files changed"
-  echo "  (bun install, tsc, build, test)"
+  echo "  (bun install, tsc, build)"
   echo "------------------------------------------------------------"
 
   cd channel/opencode-plugin-viche
@@ -44,27 +44,33 @@ if echo "$STAGED_FILES" | grep -q "^channel/opencode-plugin-viche/"; then
     exit 1
   fi
 
-  echo "  → bun run test"
-  if ! bun run test; then
-    echo ""
-    echo "------------------------------------------------------------"
-    echo "  BLOCKED: tests failed in opencode-plugin-viche."
-    echo "------------------------------------------------------------"
-    exit 1
-  fi
-
-  echo ""
-  echo "  opencode-plugin-viche checks passed."
-  echo "------------------------------------------------------------"
-
   cd ../..
 fi
+
+echo "------------------------------------------------------------"
+echo "  Pre-commit: running opencode-plugin-viche unit tests"
+echo "------------------------------------------------------------"
+
+cd channel/opencode-plugin-viche
+echo "  → bun run test"
+if ! bun run test; then
+  echo ""
+  echo "------------------------------------------------------------"
+  echo "  BLOCKED: tests failed in opencode-plugin-viche."
+  echo "------------------------------------------------------------"
+  exit 1
+fi
+cd ../..
+
+echo ""
+echo "  opencode-plugin-viche checks passed."
+echo "------------------------------------------------------------"
 
 # ── OpenClaw plugin checks ────────────────────────────────────────────────────
 if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
   echo "------------------------------------------------------------"
   echo "  Pre-commit: openclaw-plugin-viche files changed"
-  echo "  (npm install, tsc, build, test)"
+  echo "  (npm install, tsc, build)"
   echo "------------------------------------------------------------"
 
   cd channel/openclaw-plugin-viche
@@ -96,21 +102,76 @@ if echo "$STAGED_FILES" | grep -q "^channel/openclaw-plugin-viche/"; then
     exit 1
   fi
 
-  echo "  → npm test"
-  if ! npm test; then
+  cd ../..
+fi
+
+echo "------------------------------------------------------------"
+echo "  Pre-commit: running openclaw-plugin-viche unit tests"
+echo "------------------------------------------------------------"
+
+cd channel/openclaw-plugin-viche
+echo "  → npm test"
+if ! npm test; then
+  echo ""
+  echo "------------------------------------------------------------"
+  echo "  BLOCKED: tests failed in openclaw-plugin-viche."
+  echo "------------------------------------------------------------"
+  exit 1
+fi
+cd ../..
+
+echo ""
+echo "  openclaw-plugin-viche checks passed."
+echo "------------------------------------------------------------"
+
+# ── Claude Code plugin checks ─────────────────────────────────────────────────
+if echo "$STAGED_FILES" | grep -q "^channel/claude-code-plugin-viche/"; then
+  echo "------------------------------------------------------------"
+  echo "  Pre-commit: claude-code-plugin-viche files changed"
+  echo "  (bun install, tsc)"
+  echo "------------------------------------------------------------"
+
+  cd channel/claude-code-plugin-viche
+
+  echo "  → bun install --frozen-lockfile"
+  if ! bun install --frozen-lockfile; then
     echo ""
     echo "------------------------------------------------------------"
-    echo "  BLOCKED: tests failed in openclaw-plugin-viche."
+    echo "  BLOCKED: bun install failed in claude-code-plugin-viche."
     echo "------------------------------------------------------------"
     exit 1
   fi
 
-  echo ""
-  echo "  openclaw-plugin-viche checks passed."
-  echo "------------------------------------------------------------"
+  echo "  → bunx tsc --noEmit"
+  if ! bunx tsc --noEmit; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo "  BLOCKED: TypeScript check failed in claude-code-plugin-viche."
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
 
   cd ../..
 fi
+
+echo "------------------------------------------------------------"
+echo "  Pre-commit: running claude-code-plugin-viche unit tests"
+echo "------------------------------------------------------------"
+
+cd channel/claude-code-plugin-viche
+echo "  → bun test tools.test.ts"
+if ! bun test tools.test.ts; then
+  echo ""
+  echo "------------------------------------------------------------"
+  echo "  BLOCKED: unit tests failed in claude-code-plugin-viche."
+  echo "------------------------------------------------------------"
+  exit 1
+fi
+cd ../..
+
+echo ""
+echo "  claude-code-plugin-viche checks passed."
+echo "------------------------------------------------------------"
 
 # ── Elixir checks ─────────────────────────────────────────────────────────────
 echo "------------------------------------------------------------"
