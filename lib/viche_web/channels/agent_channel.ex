@@ -51,7 +51,9 @@ defmodule VicheWeb.AgentChannel do
     with {:ok, attrs} <- validate_register_params(params),
          {:ok, agent} <- Viche.Agents.register_agent_for_websocket(attrs) do
       Logger.info("Agent #{agent.id} registered and joined channel")
-      {:ok, %{agent_id: agent.id}, assign(socket, :agent_id, agent.id)}
+
+      {:ok, %{agent_id: agent.id},
+       socket |> assign(:agent_id, agent.id) |> Map.put(:id, "agent_socket:#{agent.id}")}
     else
       {:error, reason} -> {:error, %{reason: to_string(reason)}}
     end
