@@ -83,4 +83,6 @@ export interface InboundMessagePayload {
   from: string;
   body: string;
   type: string;
+  in_reply_to?: string;
+  conversation_id?: string;
 }

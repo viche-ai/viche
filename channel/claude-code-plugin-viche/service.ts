@@ -232,21 +232,32 @@ function connectAndRegister(server: Server): Promise<void> {
 
     registerChannel.on(
       "new_message",
-      (payload: { id: string; type?: string; from: string; body: string }) => {
+      (payload: {
+        id: string;
+        type?: string;
+        from: string;
+        body: string;
+        in_reply_to?: string;
+        conversation_id?: string;
+      }) => {
         const messageType = payload.type ?? "task";
         const displayType =
           messageType.charAt(0).toUpperCase() + messageType.slice(1);
+
+        const meta: Record<string, unknown> = {
+          message_id: payload.id,
+          from: payload.from,
+          type: messageType,
+        };
+        if (payload.in_reply_to) meta.in_reply_to = payload.in_reply_to;
+        if (payload.conversation_id) meta.conversation_id = payload.conversation_id;
 
         server
           .notification({
             method: "notifications/claude/channel",
             params: {
               content: `[${displayType} from ${payload.from}] ${payload.body}`,
-              meta: {
-                message_id: payload.id,
-                from: payload.from,
-                type: messageType,
-              },
+              meta,
             },
           })
           .catch((err: unknown) => {

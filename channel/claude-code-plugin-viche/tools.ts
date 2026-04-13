@@ -57,6 +57,14 @@ const TOOL_DEFINITIONS = [
           description: "Message type: 'task', 'result', or 'ping'",
           default: "task",
         },
+        in_reply_to: {
+          type: "string",
+          description: "Optional message ID this message is replying to (for threading)",
+        },
+        conversation_id: {
+          type: "string",
+          description: "Optional conversation ID to group related messages into a thread",
+        },
       },
       required: ["to", "body"],
     },
@@ -75,6 +83,14 @@ const TOOL_DEFINITIONS = [
         body: {
           type: "string",
           description: "Your result or response",
+        },
+        in_reply_to: {
+          type: "string",
+          description: "Optional message ID this reply is in response to (for threading)",
+        },
+        conversation_id: {
+          type: "string",
+          description: "Optional conversation ID to group related messages into a thread",
         },
       },
       required: ["to", "body"],
@@ -246,6 +262,8 @@ export function registerToolHandlers(
         to: string;
         body: string;
         type?: string;
+        in_reply_to?: string;
+        conversation_id?: string;
       };
       const msgType = args.type ?? "task";
       try {
@@ -254,11 +272,15 @@ export function registerToolHandlers(
           return notConnectedResponse();
         }
 
-        await channelPush(channel, "send_message", {
+        const payload: Record<string, unknown> = {
           to: args.to,
           body: args.body,
           type: msgType,
-        });
+        };
+        if (args.in_reply_to) payload.in_reply_to = args.in_reply_to;
+        if (args.conversation_id) payload.conversation_id = args.conversation_id;
+
+        await channelPush(channel, "send_message", payload);
         return {
           content: [
             {
@@ -276,18 +298,27 @@ export function registerToolHandlers(
     }
 
     if (toolName === "viche_reply") {
-      const args = request.params.arguments as { to: string; body: string };
+      const args = request.params.arguments as {
+        to: string;
+        body: string;
+        in_reply_to?: string;
+        conversation_id?: string;
+      };
       try {
         const channel = getChannel();
         if (!channel) {
           return notConnectedResponse();
         }
 
-        await channelPush(channel, "send_message", {
+        const payload: Record<string, unknown> = {
           to: args.to,
           body: args.body,
           type: "result",
-        });
+        };
+        if (args.in_reply_to) payload.in_reply_to = args.in_reply_to;
+        if (args.conversation_id) payload.conversation_id = args.conversation_id;
+
+        await channelPush(channel, "send_message", payload);
         return {
           content: [{ type: "text", text: `Reply sent to ${args.to}.` }],
         };

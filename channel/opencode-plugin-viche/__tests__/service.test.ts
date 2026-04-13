@@ -327,7 +327,31 @@ describe("createVicheService", () => {
     expect(args[0].path.id).toBe("sess-4");
     expect(args[0].body.noReply).toBe(false);
     expect(args[0].body.parts[0]?.text).toContain("[Viche Task from other-agent]");
+    expect(args[0].body.parts[0]?.text).not.toContain("reply_to:");
+    expect(args[0].body.parts[0]?.text).not.toContain("thread:");
     expect(args[0].body.parts[0]?.text).toContain("Please review this PR");
+  });
+
+  it("injects inbound task message with threading context when provided", async () => {
+    const service = createVicheService(config, state, client, "/project");
+    await service.ensureSessionReady("sess-4-threaded");
+
+    const payload = {
+      id: "msg-001-threaded",
+      from: "other-agent",
+      body: "Please review this PR",
+      type: "task",
+      in_reply_to: "msg-parent-123",
+      conversation_id: "conv-abc",
+    };
+    await _onHandlers["new_message"]!(payload);
+
+    expect(client.session.promptAsync).toHaveBeenCalledTimes(1);
+    const [callArgs] = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+    const args = callArgs as [{ body: { parts: Array<{ text: string }> } }];
+    expect(args[0].body.parts[0]?.text).toContain(
+      "[Viche Task from other-agent (reply_to:msg-parent-123 thread:conv-abc)]"
+    );
   });
 
   it("injects inbound result message via client.session.promptAsync", async () => {

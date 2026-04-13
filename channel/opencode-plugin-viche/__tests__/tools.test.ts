@@ -96,6 +96,37 @@ describe("createVicheTools (WebSocket transport)", () => {
     expect(result).toContain("Message sent to deadbeef-0000-4000-a000-000000000000");
   });
 
+  it("viche_send passes optional threading fields when provided", async () => {
+    const push = makeChannelPush("ok", { message_id: "msg-thread-1" });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_send.execute(
+      {
+        to: "deadbeef-0000-4000-a000-000000000000",
+        body: "Threaded follow-up",
+        type: "task",
+        in_reply_to: "msg-parent-123",
+        conversation_id: "conv-xyz",
+      },
+      TEST_CONTEXT
+    );
+
+    expect(push).toHaveBeenCalledTimes(1);
+    const [event, payload] = push.mock.calls[0] as [string, Record<string, unknown>];
+    expect(event).toBe("send_message");
+    expect(payload).toEqual({
+      to: "deadbeef-0000-4000-a000-000000000000",
+      body: "Threaded follow-up",
+      type: "task",
+      in_reply_to: "msg-parent-123",
+      conversation_id: "conv-xyz",
+    });
+    expect(result).toContain("Message sent to deadbeef-0000-4000-a000-000000000000");
+  });
+
   it("viche_reply uses send_message with type result and no from", async () => {
     const push = makeChannelPush("ok", { message_id: "msg-2" });
     const ensureSessionReady = mock((_sessionID: string) =>
@@ -117,6 +148,34 @@ describe("createVicheTools (WebSocket transport)", () => {
       type: "result",
     });
     expect(payload.from).toBeUndefined();
+    expect(result).toContain("Reply sent to cafebabe-0000-4000-a000-000000000000");
+  });
+
+  it("viche_reply passes optional in_reply_to when provided", async () => {
+    const push = makeChannelPush("ok", { message_id: "msg-thread-2" });
+    const ensureSessionReady = mock((_sessionID: string) =>
+      Promise.resolve(makeSessionState(push))
+    );
+
+    const tools = createVicheTools(makeConfig(), makeState(), ensureSessionReady);
+    const result = await tools.viche_reply.execute(
+      {
+        to: "cafebabe-0000-4000-a000-000000000000",
+        body: "Done",
+        in_reply_to: "msg-parent-456",
+      },
+      TEST_CONTEXT
+    );
+
+    expect(push).toHaveBeenCalledTimes(1);
+    const [event, payload] = push.mock.calls[0] as [string, Record<string, unknown>];
+    expect(event).toBe("send_message");
+    expect(payload).toEqual({
+      to: "cafebabe-0000-4000-a000-000000000000",
+      body: "Done",
+      type: "result",
+      in_reply_to: "msg-parent-456",
+    });
     expect(result).toContain("Reply sent to cafebabe-0000-4000-a000-000000000000");
   });
 

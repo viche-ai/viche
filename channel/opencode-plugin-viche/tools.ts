@@ -113,6 +113,8 @@ interface PostMessageArgs {
   to: string;
   body: string;
   type: string;
+  in_reply_to?: string;
+  conversation_id?: string;
 }
 
 const MessageAckSchema = z.object({
@@ -130,11 +132,13 @@ const MessageAckSchema = z.object({
 async function postMessage(
   args: PostMessageArgs
 ): Promise<PushResult<{ message_id: string }>> {
-  const { channel, to, body, type } = args;
+  const { channel, to, body, type, in_reply_to, conversation_id } = args;
   const result = await pushWithAck<{ message_id?: string }>(channel, "send_message", {
     to,
     body,
     type,
+    ...(in_reply_to !== undefined ? { in_reply_to } : {}),
+    ...(conversation_id !== undefined ? { conversation_id } : {}),
   });
 
   if (!result.ok) {
@@ -293,9 +297,23 @@ export function createVicheTools(
         .optional()
         .default("task")
         .describe("Message type: 'task' (default), 'result', or 'ping'"),
+      in_reply_to: z
+        .string()
+        .optional()
+        .describe("Optional message ID this message replies to"),
+      conversation_id: z
+        .string()
+        .optional()
+        .describe("Optional conversation thread ID"),
     },
     async execute(
-      args: { to: string; body: string; type?: string },
+      args: {
+        to: string;
+        body: string;
+        type?: string;
+        in_reply_to?: string;
+        conversation_id?: string;
+      },
       context: { sessionID: string }
     ): Promise<string> {
       let sessionState: SessionState;
@@ -314,6 +332,10 @@ export function createVicheTools(
         to,
         body,
         type: msgType,
+        ...(args.in_reply_to !== undefined ? { in_reply_to: args.in_reply_to } : {}),
+        ...(args.conversation_id !== undefined
+          ? { conversation_id: args.conversation_id }
+          : {}),
       });
       if (!result.ok) {
         return `Failed to send message: ${result.error ?? "unknown channel error"}`;
@@ -338,9 +360,13 @@ export function createVicheTools(
           "Agent ID to reply to — copy from the 'from' field of the task message you received (UUID)"
         ),
       body: z.string().describe("Your result, answer, or response to send back"),
+      in_reply_to: z
+        .string()
+        .optional()
+        .describe("Optional message ID this reply is responding to"),
     },
     async execute(
-      args: { to: string; body: string },
+      args: { to: string; body: string; in_reply_to?: string },
       context: { sessionID: string }
     ): Promise<string> {
       let sessionState: SessionState;
@@ -358,6 +384,7 @@ export function createVicheTools(
         to,
         body,
         type: "result",
+        ...(args.in_reply_to !== undefined ? { in_reply_to: args.in_reply_to } : {}),
       });
       if (!result.ok) {
         return `Failed to send reply: ${result.error ?? "unknown channel error"}`;

@@ -64,7 +64,7 @@ const CORRELATION_TTL_MS = 60 * 60 * 1_000; // 1 hour
  * Resolve the target sessionKey for an inbound message.
  *
  * Routing priority:
- *   1. "result" messages with a `replyTo` field: look up the correlation map
+ *   1. "result" messages with a `in_reply_to` field: look up the correlation map
  *      to find which session originally sent that message.
  *   2. "most-recent" policy (default when `defaultInboundSession` is unset or "most-recent"):
  *      use the last session that called viche_send or viche_reply (if any).
@@ -76,11 +76,11 @@ function resolveSessionKey(
   state: VicheState,
 ): string {
   // 1. Correlation-based routing for "result" replies.
-  if (payload.type === "result" && payload.replyTo) {
-    const entry = state.correlations.get(payload.replyTo);
+  if (payload.type === "result" && payload.in_reply_to) {
+    const entry = state.correlations.get(payload.in_reply_to);
     if (entry) {
       // Consume the correlation entry — one-time use.
-      state.correlations.delete(payload.replyTo);
+      state.correlations.delete(payload.in_reply_to);
       return entry.sessionKey;
     }
   }

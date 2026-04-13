@@ -273,6 +273,10 @@ export function createVicheService(
     payload: InboundMessagePayload
   ): Promise<void> {
     const label = payload.type === "result" ? "Result" : "Task";
+    const threadParts: string[] = [];
+    if (payload.in_reply_to) threadParts.push(`reply_to:${payload.in_reply_to}`);
+    if (payload.conversation_id) threadParts.push(`thread:${payload.conversation_id}`);
+    const threadContext = threadParts.length > 0 ? ` (${threadParts.join(" ")})` : "";
     // Sanitize body: replace newlines and carriage returns with a space to
     // prevent prompt-injection attacks that break out of the enclosing bracket.
     const sanitizedBody = payload.body.replace(/[\r\n]/g, " ");
@@ -283,7 +287,7 @@ export function createVicheService(
         parts: [
           {
             type: "text",
-            text: `[Viche ${label} from ${payload.from}] ${sanitizedBody}`,
+            text: `[Viche ${label} from ${payload.from}${threadContext}] ${sanitizedBody}`,
           },
         ],
       },

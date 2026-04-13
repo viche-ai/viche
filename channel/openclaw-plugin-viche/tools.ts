@@ -262,10 +262,20 @@ export function registerVicheTools(
               default: "task",
             }),
           ),
+          in_reply_to: Type.Optional(
+            Type.String({
+              description: "Optional message ID this message is replying to (for threading)",
+            }),
+          ),
+          conversation_id: Type.Optional(
+            Type.String({
+              description: "Optional conversation ID to group related messages into a thread",
+            }),
+          ),
         }),
         async execute(
           _toolCallId: string,
-          params: { to: string; body: string; type?: string },
+          params: { to: string; body: string; type?: string; in_reply_to?: string; conversation_id?: string },
           _signal?: AbortSignal,
         ): Promise<AgentToolResult> {
           const guard = requireConnected(state);
@@ -276,13 +286,17 @@ export function registerVicheTools(
 
           const msgType = params.type ?? "task";
 
+          const sendPayload: Record<string, unknown> = {
+            to: params.to,
+            body: params.body,
+            type: msgType,
+          };
+          if (params.in_reply_to) sendPayload.in_reply_to = params.in_reply_to;
+          if (params.conversation_id) sendPayload.conversation_id = params.conversation_id;
+
           let data: SendMessageResponse | null = null;
           try {
-            data = (await pushChannel(state.channel!, "send_message", {
-              to: params.to,
-              body: params.body,
-              type: msgType,
-            })) as SendMessageResponse;
+            data = (await pushChannel(state.channel!, "send_message", sendPayload)) as SendMessageResponse;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return textResult(`Failed to send message: ${msg}`);
@@ -328,10 +342,20 @@ export function registerVicheTools(
           body: Type.String({
             description: "Your result, answer, or response to send back",
           }),
+          in_reply_to: Type.Optional(
+            Type.String({
+              description: "Optional message ID this reply is in response to (for threading)",
+            }),
+          ),
+          conversation_id: Type.Optional(
+            Type.String({
+              description: "Optional conversation ID to group related messages into a thread",
+            }),
+          ),
         }),
         async execute(
           _toolCallId: string,
-          params: { to: string; body: string },
+          params: { to: string; body: string; in_reply_to?: string; conversation_id?: string },
           _signal?: AbortSignal,
         ): Promise<AgentToolResult> {
           const guard = requireConnected(state);
@@ -340,12 +364,16 @@ export function registerVicheTools(
           // Track session activity for "most-recent" inbound routing.
           state.mostRecentSessionKey = sessionKey;
 
+          const replyPayload: Record<string, unknown> = {
+            to: params.to,
+            body: params.body,
+            type: "result",
+          };
+          if (params.in_reply_to) replyPayload.in_reply_to = params.in_reply_to;
+          if (params.conversation_id) replyPayload.conversation_id = params.conversation_id;
+
           try {
-            const response = await pushChannel(state.channel!, "send_message", {
-              to: params.to,
-              body: params.body,
-              type: "result",
-            });
+            const response = await pushChannel(state.channel!, "send_message", replyPayload);
 
             if (!getMessageId(response)) {
               return textResult(

@@ -396,7 +396,9 @@ export interface InboundMessagePayload {
    * Present when the Viche server populates reply correlation.
    * Used to route "result" messages back to the originating session.
    */
-  replyTo?: string;
+  in_reply_to?: string;
+  /** Optional conversation ID grouping related messages into a thread. */
+  conversation_id?: string;
 }
 
 /** Response body from POST /messages/:agentId (Viche send endpoint). */
