@@ -214,7 +214,7 @@ Viche.Supervisor (one_for_one)
 4. Iterates through agents, calling existing per-message delivery for each
 5. Returns summary with recipient count, message IDs, and any failures
 6. Sender must be member of target registry
-7. Sender receives their own broadcast
+7. Sender is excluded from recipients (sender does not receive own broadcast)
 8. Best-effort delivery — partial failures reported in `failed` list
 
 ### 5. Real-Time Push (WebSocket)

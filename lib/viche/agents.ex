@@ -555,7 +555,11 @@ defmodule Viche.Agents do
     with true <- Message.valid_type?(type),
          true <- valid_token?(registry) || {:error, :invalid_token},
          :ok <- ensure_sender_registry_membership(from, registry) do
-      recipients = agents_in_registry(registry)
+      recipients =
+        registry
+        |> agents_in_registry()
+        |> Enum.reject(fn recipient -> recipient.id == from end)
+
       {message_ids, failed} = deliver_broadcast_messages(recipients, from, body, type)
       {:ok, %{recipients: length(message_ids), message_ids: message_ids, failed: failed}}
     else

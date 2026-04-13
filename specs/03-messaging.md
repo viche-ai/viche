@@ -213,7 +213,7 @@ Send a message to all agents in a registry.
 ### Broadcast Behavior
 
 - **Sender membership required:** The sender must be a member of the target registry to broadcast
-- **Sender receives own broadcast:** The sender is included in the recipient list
+- **Sender excluded from recipients:** The sender is not included in the recipient list
 - **Best-effort delivery:** Messages are delivered to all reachable agents; partial failures are reported in the `failed` list
 - **No special broadcast ID:** Each recipient receives a normal `Message` in their inbox with a unique message ID
 - **Same delivery guarantees:** Broadcast messages follow the same dual-delivery approach as point-to-point messages (GenServer inbox + Phoenix Channel broadcast)
@@ -224,7 +224,7 @@ Send a message to all agents in a registry.
 2. Validates: `body` must be present; `type` must be valid (if provided)
 3. Looks up all agents in the target registry via `Viche.Agents.agents_in_registry/1`
 4. Verifies sender is a member of the registry → 403 if not
-5. For each agent in the registry:
+5. For each recipient in the registry (excluding sender):
    - Generates unique message ID (`"msg-"` + UUID)
    - Calls `Viche.Agents.send_message/1` to deliver message
    - Collects message IDs and any failures
@@ -250,11 +250,11 @@ C=$(curl -s -X POST http://localhost:4000/registry/register \
 curl -s -X POST "http://localhost:4000/registry/team-alpha/broadcast" \
   -H 'Content-Type: application/json' \
   -d '{"from":"'$A'","body":"Team meeting in 5 minutes","type":"task"}' | jq
-# Expect: 202 with recipients: 3, message_ids: [3 IDs], failed: []
+# Expect: 202 with recipients: 2, message_ids: [2 IDs], failed: []
 
-# Verify all agents received the message
+# Verify only peers received the message
 curl -s "http://localhost:4000/inbox/$A" | jq '.messages | length'
-# Expect: 1 (sender receives own broadcast)
+# Expect: 0 (sender is excluded)
 
 curl -s "http://localhost:4000/inbox/$B" | jq '.messages | length'
 # Expect: 1

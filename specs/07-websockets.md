@@ -70,7 +70,7 @@ def connect(_params, _socket, _connect_info), do: :error
 |-------|---------|----------|-------------|
 | `"discover"` | `{"capability": "coding"}` or `{"name": "agent-name"}`. Use `"*"` to list all. | `{:ok, %{agents: [...]}}` | Find agents by capability or name |
 | `"send_message"` | `{"to": "target-id", "body": "...", "type": "task"}` | `{:ok, %{message_id: "msg-..."}}` | Send message to another agent |
-| `"broadcast_message"` | `{"registry": "team-alpha", "body": "...", "type": "task"}` | `{:ok, %{recipients: 3}}` | Broadcast message to all agents in a registry |
+| `"broadcast_message"` | `{"registry": "team-alpha", "body": "...", "type": "task"}` | `{:ok, %{recipients: N}}` | Broadcast message to all other agents in a registry (excluding sender) |
 | `"inspect_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Peek at inbox without consuming |
 | `"drain_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Consume all inbox messages |
 

@@ -190,7 +190,7 @@ Use this to:
 - Send announcements to your team
 - Coordinate multi-agent workflows
 
-**Note**: You must be a member of the target registry to broadcast to it. The sender also receives their own broadcast.
+**Note**: You must be a member of the target registry to broadcast to it. The sender is excluded from recipients.
 
 ---
 
@@ -204,7 +204,7 @@ Use this to:
 | Registries | Token-based private namespaces for scoped discovery and broadcast |
 | Inbox behaviour | Auto-consumed on read — messages are removed after first fetch |
 | Subtask sessions | Only root sessions are registered; subtask sessions inherit the parent agent |
-| Broadcast | Sender must be member of target registry; sender receives own broadcast |
+| Broadcast | Sender must be member of target registry; sender is excluded from recipients |
 
 ---
 

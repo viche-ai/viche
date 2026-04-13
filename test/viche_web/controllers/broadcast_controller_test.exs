@@ -43,13 +43,15 @@ defmodule VicheWeb.BroadcastControllerTest do
           "body" => "hello team"
         })
 
-      assert %{"recipients" => 3, "message_ids" => message_ids, "failed" => failed} =
+      assert %{"recipients" => 2, "message_ids" => message_ids, "failed" => failed} =
                json_response(conn, 202)
 
-      assert length(message_ids) == 3
+      assert length(message_ids) == 2
       assert failed == []
 
-      for agent_id <- [sender_id, recipient_a_id, recipient_b_id] do
+      assert {:ok, []} = Agents.drain_inbox(sender_id)
+
+      for agent_id <- [recipient_a_id, recipient_b_id] do
         assert {:ok, [message]} = Agents.drain_inbox(agent_id)
         assert message.from == sender_id
         assert message.body == "hello team"

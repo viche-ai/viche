@@ -275,7 +275,7 @@ defmodule VicheWeb.AgentChannelTest do
           "type" => "task"
         })
 
-      assert_reply ref, :ok, %{recipients: 2, failed: []}
+      assert_reply ref, :ok, %{recipients: 1, failed: []}
     end
 
     test "broadcast_message derives from socket.assigns.agent_id and pushes new_message events",
@@ -292,22 +292,19 @@ defmodule VicheWeb.AgentChannelTest do
           "from" => "evil-client-id"
         })
 
-      assert_reply ref, :ok, %{recipients: 2, failed: []}
+      assert_reply ref, :ok, %{recipients: 1, failed: []}
 
-      assert_push "new_message", first_payload
-      assert_push "new_message", second_payload
-
-      payloads = [first_payload, second_payload]
-
-      assert Enum.all?(payloads, fn payload ->
-               payload.body == "fanout payload" and payload.type == "task" and
-                 payload.from == sender_id
-             end)
+      assert_push "new_message", payload
+      assert payload.body == "fanout payload"
+      assert payload.type == "task"
+      assert payload.from == sender_id
 
       assert {:ok, recipient_messages} = Agents.inspect_inbox(recipient_id)
       assert length(recipient_messages) == 1
       assert hd(recipient_messages).from == sender_id
       refute hd(recipient_messages).from == "evil-client-id"
+
+      assert {:ok, []} = Agents.inspect_inbox(sender_id)
     end
 
     test "broadcast_message returns not_in_registry when sender is not in target registry", %{
