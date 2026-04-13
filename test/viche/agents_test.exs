@@ -365,6 +365,94 @@ defmodule Viche.AgentsTest do
     end
   end
 
+  describe "broadcast_message/1" do
+    setup do
+      clear_all_agents()
+      :ok
+    end
+
+    test "broadcasts to all agents in registry including sender" do
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      {:ok, recipient_a} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      {:ok, recipient_b} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:ok, %{recipients: 3, message_ids: message_ids, failed: []}} =
+               Agents.broadcast_message(%{
+                 from: sender.id,
+                 registry: "team-alpha",
+                 body: "hello everyone",
+                 type: "task"
+               })
+
+      assert length(message_ids) == 3
+      assert Enum.all?(message_ids, &String.starts_with?(&1, "msg-"))
+
+      for agent_id <- [sender.id, recipient_a.id, recipient_b.id] do
+        assert {:ok, [message]} = Agents.drain_inbox(agent_id)
+        assert message.from == sender.id
+        assert message.body == "hello everyone"
+        assert message.type == "task"
+      end
+    end
+
+    test "returns error when sender is not in target registry" do
+      {:ok, sender} = Agents.register_agent(%{capabilities: ["coding"], registries: ["global"]})
+
+      {:ok, _recipient} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:error, :not_in_registry} =
+               Agents.broadcast_message(%{
+                 from: sender.id,
+                 registry: "team-alpha",
+                 body: "hello everyone",
+                 type: "task"
+               })
+    end
+
+    test "returns error for invalid message type" do
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:error, :invalid_message} =
+               Agents.broadcast_message(%{
+                 from: sender.id,
+                 registry: "team-alpha",
+                 body: "hello everyone",
+                 type: "invalid"
+               })
+    end
+
+    test "returns error for missing body" do
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:error, :invalid_message} =
+               Agents.broadcast_message(%{from: sender.id, registry: "team-alpha"})
+    end
+
+    test "returns error for empty body" do
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:error, :invalid_message} =
+               Agents.broadcast_message(%{from: sender.id, registry: "team-alpha", body: ""})
+    end
+
+    test "returns error for invalid registry token" do
+      {:ok, sender} =
+        Agents.register_agent(%{capabilities: ["coding"], registries: ["team-alpha"]})
+
+      assert {:error, :invalid_token} =
+               Agents.broadcast_message(%{from: sender.id, registry: "bad token!", body: "hello"})
+    end
+  end
+
   describe "inspect_inbox/1" do
     setup do
       {:ok, agent} = Agents.register_agent(%{capabilities: ["test"]})

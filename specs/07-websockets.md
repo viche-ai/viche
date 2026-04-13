@@ -70,12 +70,14 @@ def connect(_params, _socket, _connect_info), do: :error
 |-------|---------|----------|-------------|
 | `"discover"` | `{"capability": "coding"}` or `{"name": "agent-name"}`. Use `"*"` to list all. | `{:ok, %{agents: [...]}}` | Find agents by capability or name |
 | `"send_message"` | `{"to": "target-id", "body": "...", "type": "task"}` | `{:ok, %{message_id: "msg-..."}}` | Send message to another agent |
+| `"broadcast_message"` | `{"registry": "team-alpha", "body": "...", "type": "task"}` | `{:ok, %{recipients: 3}}` | Broadcast message to all agents in a registry |
 | `"inspect_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Peek at inbox without consuming |
 | `"drain_inbox"` | `{}` | `{:ok, %{messages: [...]}}` | Consume all inbox messages |
 
 **Notes:**
-- `type` in `send_message` defaults to `"task"` if omitted
+- `type` in `send_message` and `broadcast_message` defaults to `"task"` if omitted
 - `from` is automatically set to the socket's `agent_id`
+- `broadcast_message` requires sender to be a member of the target registry
 - All events return `{:error, %{reason: "..."}}` on failure
 
 ### Server → Client Events
@@ -168,6 +170,15 @@ channel.push("discover", { capability: "coding" })
 channel.push("discover", { capability: "*" })
   .receive("ok", (resp) => console.log("All agents:", resp.agents))
   .receive("error", (resp) => console.error("Discovery failed:", resp));
+
+// Broadcast to all agents in a registry
+channel.push("broadcast_message", {
+  registry: "team-alpha",
+  body: "Team meeting in 5 minutes",
+  type: "task"
+})
+  .receive("ok", (resp) => console.log("Broadcast sent to", resp.recipients, "agents"))
+  .receive("error", (resp) => console.error("Broadcast failed:", resp));
 ```
 
 ## Acceptance Criteria
@@ -209,6 +220,10 @@ curl -s -X POST "http://localhost:4000/messages/$AGENT" \
 {"topic":"agent:$AGENT","event":"discover","payload":{"capability":"*"},"ref":"5"}
 # Expect: {"event":"phx_reply","payload":{"response":{"agents":[...all agents...]},"status":"ok"},...}
 
+# Broadcast via WebSocket
+{"topic":"agent:$AGENT","event":"broadcast_message","payload":{"registry":"global","body":"System maintenance"},"ref":"6"}
+# Expect: {"event":"phx_reply","payload":{"response":{"recipients":N},"status":"ok"},"ref":"6","topic":"..."}
+
 # Connect with invalid agent_id → connection rejected
 wscat -c "ws://localhost:4000/agent/websocket?agent_id=nonexistent"
 # Expect: connection closes immediately
@@ -224,10 +239,11 @@ wscat -c "ws://localhost:4000/agent/websocket?agent_id=nonexistent"
 2. Channel join — existing agent succeeds, non-existent fails
 3. Real-time message push — HTTP POST triggers WebSocket push to connected client
 4. WebSocket send_message — message delivered to target agent's inbox
-5. WebSocket discover — returns matching agents
-6. WebSocket drain_inbox — consumes messages, subsequent calls return empty
-7. Multiple clients on same topic — all receive broadcast
-8. Client disconnect/reconnect — can rejoin and receive new messages
+5. WebSocket broadcast_message — all agents in registry receive message
+6. WebSocket discover — returns matching agents
+7. WebSocket drain_inbox — consumes messages, subsequent calls return empty
+8. Multiple clients on same topic — all receive broadcast
+9. Client disconnect/reconnect — can rejoin and receive new messages
 
 ## Dependencies
 

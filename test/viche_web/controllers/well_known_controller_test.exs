@@ -46,7 +46,7 @@ defmodule VicheWeb.WellKnownControllerTest do
       assert service["well_known_path"] == "/.well-known/agent-registry"
     end
 
-    test "response contains exactly 5 endpoints", %{conn: conn} do
+    test "response contains exactly 6 endpoints", %{conn: conn} do
       conn = get(conn, "/.well-known/agent-registry")
       body = json_response(conn, 200)
 
@@ -54,6 +54,7 @@ defmodule VicheWeb.WellKnownControllerTest do
 
       assert endpoint_keys == [
                "agent_socket",
+               "broadcast",
                "discover",
                "read_inbox",
                "register",
@@ -81,6 +82,19 @@ defmodule VicheWeb.WellKnownControllerTest do
       assert discover["path"] == "/registry/discover"
       assert is_binary(discover["description"])
       assert is_map(discover["query_params"])
+    end
+
+    test "broadcast endpoint descriptor is correct", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+      broadcast = body["endpoints"]["broadcast"]
+
+      assert broadcast["method"] == "POST"
+      assert broadcast["path"] == "/registry/{token}/broadcast"
+      assert is_binary(broadcast["description"])
+      assert is_map(broadcast["request_schema"])
+      assert is_map(broadcast["response_schema"])
+      assert broadcast["response_schema"]["failed"]["items"]["reason"]["type"] == "string"
     end
 
     test "send_message endpoint descriptor is correct", %{conn: conn} do
@@ -196,6 +210,15 @@ defmodule VicheWeb.WellKnownControllerTest do
       assert is_binary(server_events["new_message"])
       assert is_binary(server_events["agent_joined"])
       assert is_binary(server_events["agent_left"])
+    end
+
+    test "websocket client_events includes broadcast_message", %{conn: conn} do
+      conn = get(conn, "/.well-known/agent-registry")
+      body = json_response(conn, 200)
+      client_events = body["transports"]["websocket"]["client_events"]
+
+      assert is_binary(client_events["broadcast_message"])
+      assert client_events["broadcast_message"] =~ "failed"
     end
 
     test "websocket channel_topics includes agent and registry topics", %{conn: conn} do

@@ -46,6 +46,7 @@ Viche.Supervisor (one_for_one)
 - `VicheWeb.WellKnownController` — `/.well-known/agent-registry` protocol descriptor
 - `VicheWeb.RegistryController` — registration + discovery endpoints
 - `VicheWeb.MessageController` — message sending endpoint
+- `VicheWeb.BroadcastController` — broadcast messaging endpoint
 - `VicheWeb.InboxController` — inbox read endpoint
 - `VicheWeb.AgentSocket` — WebSocket connection handler
 - `VicheWeb.AgentChannel` — Phoenix Channel for real-time message push
@@ -181,7 +182,42 @@ Viche.Supervisor (one_for_one)
 
 **Messaging is cross-namespace:** You can send messages to any agent UUID, regardless of registry membership.
 
-### 4. Real-Time Push (WebSocket)
+### 4. Broadcast
+
+**HTTP POST** `/registry/{token}/broadcast`
+
+```json
+{
+  "body": "System maintenance in 5 minutes",
+  "type": "task"
+}
+```
+
+**Response:**
+
+```json
+{
+  "recipients": 3,
+  "message_ids": [
+    "msg-550e8400-e29b-41d4-a716-446655440000",
+    "msg-660e8400-e29b-41d4-a716-446655440001",
+    "msg-770e8400-e29b-41d4-a716-446655440002"
+  ],
+  "failed": []
+}
+```
+
+**Flow:**
+1. `VicheWeb.BroadcastController.broadcast/2` receives request
+2. Calls `Viche.Agents.broadcast_message/1`
+3. Looks up all agents in target registry via `agents_in_registry/1`
+4. Iterates through agents, calling existing per-message delivery for each
+5. Returns summary with recipient count, message IDs, and any failures
+6. Sender must be member of target registry
+7. Sender receives their own broadcast
+8. Best-effort delivery — partial failures reported in `failed` list
+
+### 5. Real-Time Push (WebSocket)
 
 **WebSocket** `/agent/websocket?agent_id={agent_id}`
 
@@ -264,6 +300,7 @@ All three plugins share a common contract:
 - `viche_discover` — find agents by capability or name
 - `viche_send` — send a message to another agent
 - `viche_reply` — reply to a task with a result (type: "result")
+- `viche_broadcast` — broadcast a message to all agents in a registry
 
 **Transport:**
 - HTTP for registration, discovery, messaging
@@ -465,6 +502,7 @@ Or manually add to `opencode.json`:
 | POST | `/registry/register` | RegistryController | Register agent |
 | GET | `/registry/discover` | RegistryController | Discover by capability/name |
 | POST | `/messages/:agent_id` | MessageController | Send message |
+| POST | `/registry/:token/broadcast` | BroadcastController | Broadcast to all agents in registry |
 | GET | `/inbox/:agent_id` | InboxController | Read & consume inbox |
 
 ### WebSocket
@@ -482,6 +520,7 @@ Or manually add to `opencode.json`:
 **Client → Server events:**
 - `discover` — find agents by capability or name
 - `send_message` — send a message to another agent
+- `broadcast_message` — broadcast a message to all agents in a registry
 - `inspect_inbox` — peek at inbox without consuming
 - `drain_inbox` — consume and return all inbox messages
 

@@ -32,6 +32,16 @@ defmodule Viche.Agents do
           description: String.t() | nil
         }
 
+  @typedoc "Failed recipient entry returned by broadcast_message/1."
+  @type broadcast_failure :: %{agent_id: String.t(), reason: atom()}
+
+  @typedoc "Broadcast result payload returned by broadcast_message/1."
+  @type broadcast_result :: %{
+          recipients: non_neg_integer(),
+          message_ids: [String.t()],
+          failed: [broadcast_failure()]
+        }
+
   # ---------------------------------------------------------------------------
   # Public API
   # ---------------------------------------------------------------------------
@@ -516,6 +526,47 @@ defmodule Viche.Agents do
   def send_message(_attrs), do: {:error, :invalid_message}
 
   @doc """
+  Broadcasts a message to all agents in a registry namespace.
+
+  The sender must be a member of the target registry. Delivery is best-effort:
+  if some recipients fail mid-broadcast, successful deliveries are still returned
+  together with a `failed` list.
+
+  ## Parameters
+    - `%{from: sender_id, registry: token, body: text}` — required keys
+    - `:type` — optional, defaults to `"task"`. Must be one of
+      `"task"`, `"result"`, `"ping"`.
+
+  ## Returns
+    - `{:ok, %{recipients: count, message_ids: [String.t()], failed: [map()]}}`
+    - `{:error, :invalid_message}`
+    - `{:error, :invalid_token}`
+    - `{:error, :sender_not_found}`
+    - `{:error, :not_in_registry}`
+  """
+  @spec broadcast_message(map()) ::
+          {:ok, broadcast_result()}
+          | {:error, :invalid_message | :invalid_token | :sender_not_found | :not_in_registry}
+  def broadcast_message(%{from: from, registry: registry, body: body} = attrs)
+      when is_binary(from) and from != "" and is_binary(registry) and is_binary(body) and
+             body != "" do
+    type = Map.get(attrs, :type, "task")
+
+    with true <- Message.valid_type?(type),
+         true <- valid_token?(registry) || {:error, :invalid_token},
+         :ok <- ensure_sender_registry_membership(from, registry) do
+      recipients = agents_in_registry(registry)
+      {message_ids, failed} = deliver_broadcast_messages(recipients, from, body, type)
+      {:ok, %{recipients: length(message_ids), message_ids: message_ids, failed: failed}}
+    else
+      false -> {:error, :invalid_message}
+      {:error, _} = err -> err
+    end
+  end
+
+  def broadcast_message(_attrs), do: {:error, :invalid_message}
+
+  @doc """
   Peeks at an agent's inbox WITHOUT consuming the messages.
 
   Calling this twice returns the same messages both times. Use `drain_inbox/1` to
@@ -688,6 +739,32 @@ defmodule Viche.Agents do
 
   @spec agent_registries(map()) :: [String.t()]
   defp agent_registries(meta), do: meta.registries || []
+
+  @spec ensure_sender_registry_membership(String.t(), String.t()) ::
+          :ok | {:error, :sender_not_found | :not_in_registry}
+  defp ensure_sender_registry_membership(agent_id, registry) do
+    case authorize_registry_join(agent_id, registry) do
+      :ok -> :ok
+      {:error, :agent_not_found} -> {:error, :sender_not_found}
+      {:error, :not_in_registry} -> {:error, :not_in_registry}
+    end
+  end
+
+  @spec deliver_broadcast_messages([agent_info()], String.t(), String.t(), String.t()) ::
+          {[String.t()], [broadcast_failure()]}
+  defp deliver_broadcast_messages(recipients, from, body, type) do
+    recipients
+    |> Enum.reduce({[], []}, fn recipient, {message_ids, failed} ->
+      case send_message(%{to: recipient.id, from: from, body: body, type: type}) do
+        {:ok, message_id} ->
+          {[message_id | message_ids], failed}
+
+        {:error, reason} ->
+          {message_ids, [%{agent_id: recipient.id, reason: reason} | failed]}
+      end
+    end)
+    |> then(fn {message_ids, failed} -> {Enum.reverse(message_ids), Enum.reverse(failed)} end)
+  end
 
   @spec format_agent_public({String.t(), map()}) :: agent_info()
   defp format_agent_public({id, meta}) do

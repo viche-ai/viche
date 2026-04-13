@@ -77,7 +77,7 @@ describe("loadConfig", () => {
     tempDir = makeTempDir(); // no viche.json
     const cfg = loadConfig(tempDir);
 
-    expect(cfg.registryUrl).toBe("http://localhost:4000");
+    expect(cfg.registryUrl).toBe("https://viche.ai");
     expect(cfg.capabilities).toEqual(["coding"]);
     expect(cfg.agentName).toBe("opencode");
     expect(cfg.description).toBe("OpenCode AI coding assistant");
@@ -187,7 +187,7 @@ describe("loadConfig", () => {
     tempDir = makeTempDir(); // directory exists, no viche.json inside
 
     expect(() => loadConfig(tempDir!)).not.toThrow();
-    expect(loadConfig(tempDir!).registryUrl).toBe("http://localhost:4000");
+    expect(loadConfig(tempDir!).registryUrl).toBe("https://viche.ai");
   });
 
   // ── 9. Graceful on invalid JSON ────────────────────────────────────────────

@@ -71,6 +71,7 @@ defmodule VicheWeb.Router do
     delete "/deregister/:agent_id", RegistryController, :deregister
     get "/discover", RegistryController, :discover
     post "/:agent_id/join", RegistryController, :join
+    post "/:token/broadcast", BroadcastController, :broadcast
   end
 
   scope "/messages", VicheWeb do

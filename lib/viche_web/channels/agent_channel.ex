@@ -141,6 +141,37 @@ defmodule VicheWeb.AgentChannel do
      socket}
   end
 
+  def handle_in("broadcast_message", %{"registry" => registry, "body" => body} = params, socket) do
+    from = socket.assigns.agent_id
+    type = Map.get(params, "type", "task")
+
+    case Viche.Agents.broadcast_message(%{from: from, registry: registry, body: body, type: type}) do
+      {:ok, %{recipients: recipients} = result} ->
+        {:reply, {:ok, %{recipients: recipients, failed: Map.get(result, :failed, [])}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{error: to_string(reason), message: "broadcast failed: #{reason}"}},
+         socket}
+    end
+  end
+
+  def handle_in("broadcast_message", %{"body" => _}, socket) do
+    {:reply, {:error, %{error: "missing_field", message: "required field 'registry' is missing"}},
+     socket}
+  end
+
+  def handle_in("broadcast_message", %{"registry" => _}, socket) do
+    {:reply, {:error, %{error: "missing_field", message: "required field 'body' is missing"}},
+     socket}
+  end
+
+  def handle_in("broadcast_message", _params, socket) do
+    {:reply,
+     {:error,
+      %{error: "missing_fields", message: "required fields 'registry' and 'body' are missing"}},
+     socket}
+  end
+
   def handle_in("discover", _params, socket) do
     {:reply,
      {:error,
