@@ -2,6 +2,21 @@ defmodule VicheWeb.AgentDetailLiveTest do
   use VicheWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  defp setup_user(_context \\ %{}) do
+    {:ok, user} =
+      Viche.Accounts.create_user(%{
+        email: "agent-detail-test-#{System.unique_integer()}@example.com"
+      })
+
+    {:ok, user: user}
+  end
+
+  defp live_as_user(conn, user, path) do
+    conn
+    |> init_test_session(%{"user_id" => user.id})
+    |> live(path)
+  end
+
   defp register_agent!(attrs) do
     {:ok, agent} = Viche.Agents.register_agent(attrs)
     agent
@@ -69,7 +84,12 @@ defmodule VicheWeb.AgentDetailLiveTest do
   end
 
   describe "URL param — ?registry=" do
-    test "?registry=team-alpha is read and stored as selected_registry", %{conn: conn} do
+    setup :setup_user
+
+    test "?registry=team-alpha is read and stored as selected_registry", %{
+      conn: conn,
+      user: user
+    } do
       # Register a team-alpha agent so the registry exists in the known list
       _alpha =
         register_agent!(%{
@@ -85,13 +105,13 @@ defmodule VicheWeb.AgentDetailLiveTest do
           registries: ["global"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/agents/#{agent.id}?registry=team-alpha")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents/#{agent.id}?registry=team-alpha")
 
       # The selector reflects the team-alpha registry
       assert has_element?(view, "#registry-selector option[value='team-alpha'][selected]")
     end
 
-    test "unknown ?registry= param defaults to global", %{conn: conn} do
+    test "unknown ?registry= param defaults to global", %{conn: conn, user: user} do
       agent =
         register_agent!(%{
           name: "detail-def-agent",
@@ -99,14 +119,17 @@ defmodule VicheWeb.AgentDetailLiveTest do
           registries: ["global"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/agents/#{agent.id}?registry=nonexistent-xyz")
+      {:ok, view, _html} =
+        live_as_user(conn, user, ~p"/agents/#{agent.id}?registry=nonexistent-xyz")
 
       assert has_element?(view, "#registry-selector option[value='global'][selected]")
     end
   end
 
   describe "sidebar links carry ?registry= param" do
-    test "sidebar links include the selected registry query param", %{conn: conn} do
+    setup :setup_user
+
+    test "sidebar links include the selected registry query param", %{conn: conn, user: user} do
       _alpha =
         register_agent!(%{
           name: "detail-lnk-alpha",
@@ -121,7 +144,8 @@ defmodule VicheWeb.AgentDetailLiveTest do
           registries: ["global"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/agents/#{agent.id}?registry=team-alpha")
+      {:ok, _view, html} =
+        live_as_user(conn, user, ~p"/agents/#{agent.id}?registry=team-alpha")
 
       # Sidebar navigation links should carry the registry param forward
       assert html =~ "registry=team-alpha"
@@ -184,7 +208,12 @@ defmodule VicheWeb.AgentDetailLiveTest do
   end
 
   describe "handle_event select_registry" do
-    test "switching registry patches the URL to include ?registry= param", %{conn: conn} do
+    setup :setup_user
+
+    test "switching registry patches the URL to include ?registry= param", %{
+      conn: conn,
+      user: user
+    } do
       _alpha =
         register_agent!(%{
           name: "detail-patch-alpha",
@@ -199,7 +228,7 @@ defmodule VicheWeb.AgentDetailLiveTest do
           registries: ["global"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/agents/#{agent.id}")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents/#{agent.id}")
 
       render_hook(view, "select_registry", %{"registry" => "team-alpha"})
       _ = :sys.get_state(view.pid)

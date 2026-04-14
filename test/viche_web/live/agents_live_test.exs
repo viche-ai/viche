@@ -2,6 +2,19 @@ defmodule VicheWeb.AgentsLiveTest do
   use VicheWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  defp setup_user(_context \\ %{}) do
+    {:ok, user} =
+      Viche.Accounts.create_user(%{email: "agents-test-#{System.unique_integer()}@example.com"})
+
+    {:ok, user: user}
+  end
+
+  defp live_as_user(conn, user, path) do
+    conn
+    |> init_test_session(%{"user_id" => user.id})
+    |> live(path)
+  end
+
   # Helper to register an agent and ensure cleanup via process monitoring
   defp register_agent!(attrs) do
     {:ok, agent} = Viche.Agents.register_agent(attrs)
@@ -50,20 +63,28 @@ defmodule VicheWeb.AgentsLiveTest do
   end
 
   describe "registry selector UI" do
-    test "selector #registry-selector is present when public_mode is false", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/agents")
+    setup :setup_user
+
+    test "selector #registry-selector is present when public_mode is false", %{
+      conn: conn,
+      user: user
+    } do
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents")
       # public_mode defaults to false in test env
       assert has_element?(view, "#registry-selector")
     end
 
-    test "selector is NOT present when public_mode is true", %{conn: conn} do
+    test "selector is NOT present when public_mode is true", %{conn: conn, user: user} do
       Application.put_env(:viche, :public_mode, true)
       on_exit(fn -> Application.delete_env(:viche, :public_mode) end)
-      {:ok, view, _html} = live(conn, ~p"/agents")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents")
       refute has_element?(view, "#registry-selector")
     end
 
-    test "selector shows options for all known registries plus 'All registries'", %{conn: conn} do
+    test "selector shows options for all known registries plus 'All registries'", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{name: "opt-global", capabilities: ["coding"], registries: ["global"]})
 
@@ -74,14 +95,14 @@ defmodule VicheWeb.AgentsLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/agents")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents")
 
       assert has_element?(view, "#registry-selector option[value='global']")
       assert has_element?(view, "#registry-selector option[value='team-alpha']")
       assert has_element?(view, "#registry-selector option[value='all']")
     end
 
-    test "changing selector via phx-change updates the agent list", %{conn: conn} do
+    test "changing selector via phx-change updates the agent list", %{conn: conn, user: user} do
       _global =
         register_agent!(%{
           name: "chg-global",
@@ -96,7 +117,7 @@ defmodule VicheWeb.AgentsLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, html} = live(conn, ~p"/agents")
+      {:ok, view, html} = live_as_user(conn, user, ~p"/agents")
       assert html =~ "chg-global"
       refute html =~ "chg-alpha"
 
@@ -111,7 +132,9 @@ defmodule VicheWeb.AgentsLiveTest do
   end
 
   describe "URL param persistence" do
-    test "?registry=team-alpha in URL sets correct filter on mount", %{conn: conn} do
+    setup :setup_user
+
+    test "?registry=team-alpha in URL sets correct filter on mount", %{conn: conn, user: user} do
       _global =
         register_agent!(%{name: "url-global", capabilities: ["coding"], registries: ["global"]})
 
@@ -122,22 +145,22 @@ defmodule VicheWeb.AgentsLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/agents?registry=team-alpha")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/agents?registry=team-alpha")
 
       refute html =~ "url-global"
       assert html =~ "url-alpha"
     end
 
-    test "unknown ?registry= param defaults to global", %{conn: conn} do
+    test "unknown ?registry= param defaults to global", %{conn: conn, user: user} do
       _global =
         register_agent!(%{name: "def-global", capabilities: ["coding"], registries: ["global"]})
 
-      {:ok, _view, html} = live(conn, ~p"/agents?registry=nonexistent-registry")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/agents?registry=nonexistent-registry")
 
       assert html =~ "def-global"
     end
 
-    test "select_registry event updates URL via push_patch", %{conn: conn} do
+    test "select_registry event updates URL via push_patch", %{conn: conn, user: user} do
       _global =
         register_agent!(%{name: "patch-global", capabilities: ["coding"], registries: ["global"]})
 
@@ -148,7 +171,7 @@ defmodule VicheWeb.AgentsLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, html} = live(conn, ~p"/agents")
+      {:ok, view, html} = live_as_user(conn, user, ~p"/agents")
       assert html =~ "patch-global"
       refute html =~ "patch-alpha"
 
@@ -225,14 +248,16 @@ defmodule VicheWeb.AgentsLiveTest do
   end
 
   describe "handle_event select_registry" do
-    test "switching to team-alpha shows only team-alpha agents", %{conn: conn} do
+    setup :setup_user
+
+    test "switching to team-alpha shows only team-alpha agents", %{conn: conn, user: user} do
       _global =
         register_agent!(%{name: "g-only", capabilities: ["coding"], registries: ["global"]})
 
       _alpha =
         register_agent!(%{name: "a-only", capabilities: ["testing"], registries: ["team-alpha"]})
 
-      {:ok, view, html} = live(conn, ~p"/agents")
+      {:ok, view, html} = live_as_user(conn, user, ~p"/agents")
       assert html =~ "g-only"
       refute html =~ "a-only"
 
@@ -242,14 +267,14 @@ defmodule VicheWeb.AgentsLiveTest do
       assert html_after =~ "a-only"
     end
 
-    test "switching to :all shows agents from all registries", %{conn: conn} do
+    test "switching to :all shows agents from all registries", %{conn: conn, user: user} do
       _global =
         register_agent!(%{name: "g-all", capabilities: ["coding"], registries: ["global"]})
 
       _alpha =
         register_agent!(%{name: "a-all", capabilities: ["testing"], registries: ["team-alpha"]})
 
-      {:ok, view, _html} = live(conn, ~p"/agents")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents")
 
       # First switch to team-alpha
       render_hook(view, "select_registry", %{"registry" => "team-alpha"})
@@ -261,14 +286,17 @@ defmodule VicheWeb.AgentsLiveTest do
       assert html_all =~ "a-all"
     end
 
-    test "agent_count in footer reflects global total after registry switch", %{conn: conn} do
+    test "agent_count in footer reflects global total after registry switch", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{name: "g-cnt", capabilities: ["coding"], registries: ["global"]})
 
       _alpha =
         register_agent!(%{name: "a-cnt", capabilities: ["testing"], registries: ["team-alpha"]})
 
-      {:ok, view, _html_before} = live(conn, ~p"/agents")
+      {:ok, view, _html_before} = live_as_user(conn, user, ~p"/agents")
 
       # Switch to team-alpha — only team-alpha agents shown in list
       html_after = render_hook(view, "select_registry", %{"registry" => "team-alpha"})
@@ -288,7 +316,8 @@ defmodule VicheWeb.AgentsLiveTest do
 
     test "switching registries re-subscribes PubSub — agent_joined broadcast refreshes registries",
          %{
-           conn: conn
+           conn: conn,
+           user: user
          } do
       _global =
         register_agent!(%{name: "pubsub-g", capabilities: ["coding"], registries: ["global"]})
@@ -302,7 +331,7 @@ defmodule VicheWeb.AgentsLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/agents")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/agents")
 
       # Switch to team-alpha
       render_hook(view, "select_registry", %{"registry" => "team-alpha"})

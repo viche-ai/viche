@@ -2,6 +2,21 @@ defmodule VicheWeb.SessionsLiveTest do
   use VicheWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  defp setup_user(_context \\ %{}) do
+    {:ok, user} =
+      Viche.Accounts.create_user(%{
+        email: "sessions-test-#{System.unique_integer()}@example.com"
+      })
+
+    {:ok, user: user}
+  end
+
+  defp live_as_user(conn, user, path) do
+    conn
+    |> init_test_session(%{"user_id" => user.id})
+    |> live(path)
+  end
+
   defp register_agent!(attrs) do
     {:ok, agent} = Viche.Agents.register_agent(attrs)
     agent
@@ -31,7 +46,9 @@ defmodule VicheWeb.SessionsLiveTest do
   end
 
   describe "URL param — ?registry=" do
-    test "default registry shows only global agent inboxes", %{conn: conn} do
+    setup :setup_user
+
+    test "default registry shows only global agent inboxes", %{conn: conn, user: user} do
       global_agent =
         register_agent!(%{
           name: "ses-global-bot",
@@ -49,13 +66,13 @@ defmodule VicheWeb.SessionsLiveTest do
       send_message_to!(global_agent)
       send_message_to!(alpha_agent)
 
-      {:ok, _view, html} = live(conn, ~p"/sessions")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/sessions")
 
       assert html =~ "ses-global-bot"
       refute html =~ "ses-alpha-bot"
     end
 
-    test "?registry=team-alpha shows only team-alpha agent inboxes", %{conn: conn} do
+    test "?registry=team-alpha shows only team-alpha agent inboxes", %{conn: conn, user: user} do
       global_agent =
         register_agent!(%{
           name: "ses-url-global",
@@ -73,13 +90,13 @@ defmodule VicheWeb.SessionsLiveTest do
       send_message_to!(global_agent)
       send_message_to!(alpha_agent)
 
-      {:ok, _view, html} = live(conn, ~p"/sessions?registry=team-alpha")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/sessions?registry=team-alpha")
 
       refute html =~ "ses-url-global"
       assert html =~ "ses-url-alpha"
     end
 
-    test "unknown ?registry= param defaults to global agent inboxes", %{conn: conn} do
+    test "unknown ?registry= param defaults to global agent inboxes", %{conn: conn, user: user} do
       global_agent =
         register_agent!(%{
           name: "ses-def-global",
@@ -89,7 +106,7 @@ defmodule VicheWeb.SessionsLiveTest do
 
       send_message_to!(global_agent)
 
-      {:ok, _view, html} = live(conn, ~p"/sessions?registry=nonexistent-xyz")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/sessions?registry=nonexistent-xyz")
 
       assert html =~ "ses-def-global"
     end
@@ -196,7 +213,9 @@ defmodule VicheWeb.SessionsLiveTest do
   end
 
   describe "handle_event select_registry" do
-    test "switching registry updates inbox display", %{conn: conn} do
+    setup :setup_user
+
+    test "switching registry updates inbox display", %{conn: conn, user: user} do
       global_agent =
         register_agent!(%{
           name: "ses-chg-global",
@@ -214,7 +233,7 @@ defmodule VicheWeb.SessionsLiveTest do
       send_message_to!(global_agent)
       send_message_to!(alpha_agent)
 
-      {:ok, view, html} = live(conn, ~p"/sessions")
+      {:ok, view, html} = live_as_user(conn, user, ~p"/sessions")
       assert html =~ "ses-chg-global"
       refute html =~ "ses-chg-alpha"
 
@@ -224,7 +243,7 @@ defmodule VicheWeb.SessionsLiveTest do
       assert html_after =~ "ses-chg-alpha"
     end
 
-    test "switching to :all shows inboxes from all registries", %{conn: conn} do
+    test "switching to :all shows inboxes from all registries", %{conn: conn, user: user} do
       global_agent =
         register_agent!(%{
           name: "ses-all-global",
@@ -242,7 +261,7 @@ defmodule VicheWeb.SessionsLiveTest do
       send_message_to!(global_agent)
       send_message_to!(alpha_agent)
 
-      {:ok, view, _html} = live(conn, ~p"/sessions")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/sessions")
 
       html_all = render_hook(view, "select_registry", %{"registry" => "all"})
 
@@ -250,7 +269,7 @@ defmodule VicheWeb.SessionsLiveTest do
       assert html_all =~ "ses-all-alpha"
     end
 
-    test "agent without inbox messages does not appear in inbox list", %{conn: conn} do
+    test "agent without inbox messages does not appear in inbox list", %{conn: conn, user: user} do
       _silent_agent =
         register_agent!(%{
           name: "ses-silent-global",
@@ -258,7 +277,7 @@ defmodule VicheWeb.SessionsLiveTest do
           registries: ["global"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/sessions")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/sessions")
 
       # Agent with no messages does not appear in the inbox panel
       refute html =~ "ses-silent-global"

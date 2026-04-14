@@ -101,24 +101,17 @@ defmodule VicheWeb.Live.RegistryScope do
   @spec visible_registries(boolean(), String.t() | nil) :: [String.t()]
   def visible_registries(true, _user_id), do: []
 
-  def visible_registries(false, user_id) do
-    {user_registry_ids, membership_ids} =
-      case user_id do
-        id when is_binary(id) ->
-          owned =
-            Viche.Registries.list_user_registries(id)
-            |> Enum.map(& &1.id)
+  def visible_registries(false, nil), do: []
 
-          memberships = Viche.Registries.list_user_memberships(id)
-          {owned, memberships}
+  def visible_registries(false, user_id) when is_binary(user_id) do
+    owned =
+      Viche.Registries.list_user_registries(user_id)
+      |> Enum.map(& &1.id)
 
-        _ ->
-          {[], []}
-      end
-
+    memberships = Viche.Registries.list_user_memberships(user_id)
     agent_registries = Viche.Agents.list_registries()
 
-    (user_registry_ids ++ membership_ids ++ agent_registries)
+    (owned ++ memberships ++ agent_registries)
     |> Enum.uniq()
   end
 

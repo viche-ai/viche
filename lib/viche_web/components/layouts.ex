@@ -117,7 +117,9 @@ defmodule VicheWeb.Layouts do
             >
               {Map.get(@registry_names, reg, reg)}
             </option>
-            <option value="all" selected={@selected_registry == "all"}>All registries</option>
+            <option :if={@registries != []} value="all" selected={@selected_registry == "all"}>
+              All registries
+            </option>
           </select>
         </div>
       </form>
