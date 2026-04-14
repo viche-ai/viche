@@ -42,6 +42,7 @@ defmodule VicheWeb.Router do
     live "/verify", VerifyLive
     live "/demo", DemoLive
     get "/registries/join", RegistryJoinController, :join
+    get "/telegram/pair", TelegramPairingController, :show
   end
 
   scope "/", VicheWeb do
@@ -56,6 +57,7 @@ defmodule VicheWeb.Router do
     # live "/settings", SettingsLive  # Hidden until functional settings are needed
     live "/registries", RegistriesLive
     live "/registries/:id", RegistryDetailLive
+    post "/telegram/pair", TelegramPairingController, :create
   end
 
   scope "/.well-known", VicheWeb do

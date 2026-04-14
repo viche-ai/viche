@@ -29,6 +29,7 @@ defmodule Viche.AgentServer do
           capabilities: [String.t()],
           description: String.t() | nil,
           registries: [String.t()] | nil,
+          connection_type: Agent.connection_type() | nil,
           polling_timeout_ms: pos_integer() | nil,
           grace_period_ms: pos_integer() | nil
         ]
@@ -105,6 +106,11 @@ defmodule Viche.AgentServer do
     GenServer.call(server, {:join_registry, token})
   end
 
+  @spec claim_owner(GenServer.server(), String.t()) :: :ok
+  def claim_owner(server, user_id) when is_binary(user_id) do
+    GenServer.call(server, {:claim_owner, user_id})
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer callbacks
   # ---------------------------------------------------------------------------
@@ -117,6 +123,7 @@ defmodule Viche.AgentServer do
     description = Keyword.get(opts, :description)
     registries = Keyword.get(opts, :registries, ["global"])
     polling_timeout_ms = Keyword.get(opts, :polling_timeout_ms, 60_000)
+    connection_type = Keyword.get(opts, :connection_type, :long_poll)
     grace_period_ms = Keyword.get(opts, :grace_period_ms)
 
     registered_at = DateTime.utc_now()
@@ -129,6 +136,7 @@ defmodule Viche.AgentServer do
       registries: registries,
       inbox: [],
       registered_at: registered_at,
+      connection_type: connection_type,
       last_activity: registered_at,
       polling_timeout_ms: polling_timeout_ms,
       grace_period_ms: grace_period_ms
@@ -209,6 +217,15 @@ defmodule Viche.AgentServer do
     end)
 
     {:reply, {:ok, updated_agent, actually_left}, {updated_agent, meta}}
+  end
+
+  @impl GenServer
+  def handle_call({:claim_owner, user_id}, _from, {%Agent{} = agent, meta}) do
+    Registry.update_value(Viche.AgentRegistry, agent.id, fn current_meta ->
+      Map.put(current_meta, :owner_id, user_id)
+    end)
+
+    {:reply, :ok, {agent, meta}}
   end
 
   @impl GenServer
