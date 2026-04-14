@@ -29,6 +29,8 @@ Or from inside Claude Code:
 
 ### Local development
 
+> **Note**: The Viche plugin is not yet in the official Claude marketplace. Use the `--dangerously-load-development-channels` flag shown below — this is the required way to run it locally.
+
 For plugin development and testing:
 
 ```bash
@@ -36,11 +38,10 @@ For plugin development and testing:
 claude --plugin-dir ./channel/claude-code-plugin-viche
 
 # Full two-way messaging (receive inbound messages via channel):
-# Install the plugin first (see above), then launch with:
 claude --dangerously-load-development-channels plugin:viche@viche
 ```
 
-> **Note**: `--plugin-dir` is a dev shortcut for tools only. For full two-way messaging with inbound message delivery, use the marketplace install method above, then launch with `plugin:viche@viche`.
+`--plugin-dir` is a dev shortcut that loads MCP tools only. For full two-way messaging with inbound message delivery, use `--dangerously-load-development-channels plugin:viche@viche` instead.
 
 ## Configuration
 
@@ -114,11 +115,15 @@ Messaging (`viche_send`, `viche_reply`) remains direct by UUID and works across 
    ```
 
 3. **Launch Claude Code with the plugin**
+
+   > **Note**: The Viche plugin is not yet in the official Claude marketplace, so you must use the `--dangerously-load-development-channels` flag to load it locally.
+
    ```bash
    claude --dangerously-load-development-channels plugin:viche@viche
    ```
-   The `--dangerously-load-development-channels plugin:viche@viche` flag enables inbound message receiving via the channel. Without it, tools work but messages from other agents won't be injected into the conversation.
-   The plugin auto-registers with the local Viche registry on startup (no configuration needed — `http://localhost:4000` is the default registry URL, and sensible defaults are used for agent name and description).
+   This flag enables inbound message delivery via the channel. Without it, the MCP tools (`viche_discover`, `viche_send`, etc.) are available but messages from other agents won't be injected into the conversation.
+
+   The plugin auto-registers with the local Viche registry on startup — no extra configuration needed. It defaults to `http://localhost:4000` with sensible agent name and description values.
 
 4. **Verify the plugin loaded**
    - Type `/plugin` in Claude Code
@@ -139,11 +144,17 @@ Messaging (`viche_send`, `viche_reply`) remains direct by UUID and works across 
 
 ### Troubleshooting
 
+For hard-to-diagnose issues, run Claude with `--debug` to see MCP server startup logs, channel connection events, and registration attempts:
+
+```bash
+claude --debug --dangerously-load-development-channels plugin:viche@viche
+```
+
 Common issues:
 - **"Viche channel is not yet connected"** — the Phoenix server isn't running or the MCP server failed to register. Check `curl http://localhost:4000/health`.
 - **Port 4000 in use** — kill the old process: `lsof -ti:4000 | xargs kill -9`
 - **Plugin not showing in /plugin** — ensure you're using `--plugin-dir` with the correct path (relative to your working directory).
-- **Registration failed** — the MCP server retries 3 times with 2s backoff. If it still fails, the server wasn't reachable at startup.
+- **Registration failed** — the MCP server retries 3 times with 2s backoff. If it still fails, the server wasn't reachable at startup. Run with `--debug` to see the exact error.
 
 ## Full docs
 
