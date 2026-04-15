@@ -45,9 +45,14 @@ defmodule VicheWeb.Router do
   end
 
   scope "/", VicheWeb do
-    pipe_through [:browser, :require_auth]
+    pipe_through :browser
 
     live "/dashboard", DashboardLive
+  end
+
+  scope "/", VicheWeb do
+    pipe_through [:browser, :require_auth]
+
     live "/agents", AgentsLive
     live "/agents/:id", AgentDetailLive
     live "/sessions", SessionsLive

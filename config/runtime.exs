@@ -88,8 +88,9 @@ if config_env() == :prod do
   config :viche,
     telemetry_enabled: System.get_env("VICHE_TELEMETRY") not in ~w(false 0)
 
-  # In prod, show public mode by default. Set VICHE_PUBLIC_MODE=false to disable.
-  public_mode = System.get_env("VICHE_PUBLIC_MODE") not in ~w(false 0)
+  # Public mode hides the registry selector and locks the UI to the global registry.
+  # Intended for self-hosted deployments. Set VICHE_PUBLIC_MODE=true to enable.
+  public_mode = System.get_env("VICHE_PUBLIC_MODE") in ~w(true 1)
   config :viche, :public_mode, public_mode
 
   # Email sender: parse EMAIL_FROM env var as "Name <addr>" or plain address.

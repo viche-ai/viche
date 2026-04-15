@@ -2,6 +2,19 @@ defmodule VicheWeb.NetworkLiveTest do
   use VicheWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
+  defp setup_user(_context \\ %{}) do
+    {:ok, user} =
+      Viche.Accounts.create_user(%{email: "network-test-#{System.unique_integer()}@example.com"})
+
+    {:ok, user: user}
+  end
+
+  defp live_as_user(conn, user, path) do
+    conn
+    |> init_test_session(%{"user_id" => user.id})
+    |> live(path)
+  end
+
   defp register_agent!(attrs) do
     {:ok, agent} = Viche.Agents.register_agent(attrs)
     agent
@@ -38,7 +51,12 @@ defmodule VicheWeb.NetworkLiveTest do
   end
 
   describe "URL param — ?registry=" do
-    test "?registry=team-alpha filters network view to team-alpha agents only", %{conn: conn} do
+    setup :setup_user
+
+    test "?registry=team-alpha filters network view to team-alpha agents only", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{
           name: "net-url-global",
@@ -53,13 +71,13 @@ defmodule VicheWeb.NetworkLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/network?registry=team-alpha")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/network?registry=team-alpha")
 
       refute html =~ "net-url-global"
       assert html =~ "net-url-alpha"
     end
 
-    test "unknown ?registry= param defaults to global agents", %{conn: conn} do
+    test "unknown ?registry= param defaults to global agents", %{conn: conn, user: user} do
       _global =
         register_agent!(%{
           name: "net-def-global",
@@ -67,7 +85,7 @@ defmodule VicheWeb.NetworkLiveTest do
           registries: ["global"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/network?registry=nonexistent-xyz")
+      {:ok, _view, html} = live_as_user(conn, user, ~p"/network?registry=nonexistent-xyz")
 
       assert html =~ "net-def-global"
     end
@@ -162,7 +180,9 @@ defmodule VicheWeb.NetworkLiveTest do
   end
 
   describe "handle_event select_registry" do
-    test "switching registry updates the agent roster display", %{conn: conn} do
+    setup :setup_user
+
+    test "switching registry updates the agent roster display", %{conn: conn, user: user} do
       _global =
         register_agent!(%{
           name: "net-chg-global",
@@ -177,7 +197,7 @@ defmodule VicheWeb.NetworkLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, html} = live(conn, ~p"/network")
+      {:ok, view, html} = live_as_user(conn, user, ~p"/network")
       assert html =~ "net-chg-global"
       refute html =~ "net-chg-alpha"
 
@@ -187,7 +207,10 @@ defmodule VicheWeb.NetworkLiveTest do
       assert html_after =~ "net-chg-alpha"
     end
 
-    test "switching to :all shows agents from all registries in the roster", %{conn: conn} do
+    test "switching to :all shows agents from all registries in the roster", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{
           name: "net-all-global",
@@ -202,7 +225,7 @@ defmodule VicheWeb.NetworkLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/network")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/network")
 
       html_all = render_hook(view, "select_registry", %{"registry" => "all"})
 
@@ -210,7 +233,10 @@ defmodule VicheWeb.NetworkLiveTest do
       assert html_all =~ "net-all-alpha"
     end
 
-    test "registry filter new_agent broadcast re-subscribes and refreshes roster", %{conn: conn} do
+    test "registry filter new_agent broadcast re-subscribes and refreshes roster", %{
+      conn: conn,
+      user: user
+    } do
       _global =
         register_agent!(%{
           name: "net-pubsub-g",
@@ -227,7 +253,7 @@ defmodule VicheWeb.NetworkLiveTest do
           registries: ["team-alpha"]
         })
 
-      {:ok, view, _html} = live(conn, ~p"/network")
+      {:ok, view, _html} = live_as_user(conn, user, ~p"/network")
 
       # Switch to team-alpha
       render_hook(view, "select_registry", %{"registry" => "team-alpha"})
