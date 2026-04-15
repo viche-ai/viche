@@ -1,0 +1,59 @@
+<Layouts.app flash={@flash}>
+  <section class="mx-auto max-w-3xl px-4 py-10">
+    <div class="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+      <div class="mb-8">
+        <h1 class="text-2xl font-semibold text-zinc-900">Pair Telegram Agent</h1>
+        <p class="mt-2 text-sm leading-6 text-zinc-600">
+          Claim
+          <strong>{@link.telegram_name || @link.telegram_username || @link.agent_id}</strong>
+          and add it to one or more private registries.
+        </p>
+      </div>
+
+      <.form for={@form} id="telegram-pairing-form" action={~p"/telegram/pair"} method="post">
+        <input type="hidden" name="pairing[token]" value={@token} />
+
+        <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          This will claim the Telegram-created agent to your Viche account. It will stop being public after pairing.
+        </div>
+
+        <div class="space-y-3">
+          <h2 class="text-sm font-medium uppercase tracking-wide text-zinc-500">Registries</h2>
+
+          <%= if @registries == [] do %>
+            <p class="text-sm text-zinc-600">
+              You do not belong to any private registries yet. You can still claim the agent now.
+            </p>
+          <% else %>
+            <div class="space-y-3">
+              <%= for registry <- @registries do %>
+                <label class="flex items-start gap-3 rounded-xl border border-zinc-200 p-4">
+                  <input
+                    type="checkbox"
+                    name="pairing[registry_ids][]"
+                    value={registry.id}
+                    class="mt-1"
+                  />
+                  <span>
+                    <span class="block text-sm font-medium text-zinc-900">{registry.name}</span>
+                    <span class="block text-xs text-zinc-500">{registry.id}</span>
+                  </span>
+                </label>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+
+        <div class="mt-8 flex items-center gap-3">
+          <button
+            type="submit"
+            class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+          >
+            Claim And Pair Agent
+          </button>
+          <a href={~p"/dashboard"} class="text-sm text-zinc-600 hover:text-zinc-900">Cancel</a>
+        </div>
+      </.form>
+    </div>
+  </section>
+</Layouts.app>

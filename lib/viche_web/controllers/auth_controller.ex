@@ -33,15 +33,19 @@ defmodule VicheWeb.AuthController do
       {:ok, auth_token} ->
         user = Accounts.get_user_by_token_record(auth_token)
         pending_invite = get_session(conn, :pending_invite_token)
+        pending_pairing = get_session(conn, :pending_pairing_token)
 
         redirect_to =
-          if pending_invite,
-            do: ~p"/registries/join?token=#{pending_invite}",
-            else: ~p"/dashboard"
+          cond do
+            pending_pairing -> ~p"/telegram/pair?token=#{pending_pairing}"
+            pending_invite -> ~p"/registries/join?token=#{pending_invite}"
+            true -> ~p"/dashboard"
+          end
 
         conn
         |> put_session(:user_id, user.id)
         |> delete_session(:pending_invite_token)
+        |> delete_session(:pending_pairing_token)
         |> configure_session(renew: true)
         |> redirect(to: redirect_to)
 

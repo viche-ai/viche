@@ -7,18 +7,19 @@ defmodule Viche.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      VicheWeb.Telemetry,
-      Viche.Repo,
-      {DNSCluster, query: Application.get_env(:viche, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Viche.PubSub},
-      {Registry, keys: :unique, name: Viche.AgentRegistry},
-      {DynamicSupervisor, name: Viche.AgentSupervisor, strategy: :one_for_one},
-      Viche.MessageCounter,
-      Viche.Telemetry.Reporter,
-      # Start to serve requests, typically the last entry
-      VicheWeb.Endpoint
-    ]
+    children =
+      [
+        VicheWeb.Telemetry,
+        Viche.Repo,
+        {DNSCluster, query: Application.get_env(:viche, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Viche.PubSub},
+        {Registry, keys: :unique, name: Viche.AgentRegistry},
+        {DynamicSupervisor, name: Viche.AgentSupervisor, strategy: :one_for_one},
+        Viche.MessageCounter,
+        Viche.Telemetry.Reporter,
+        # Start to serve requests, typically the last entry
+        VicheWeb.Endpoint
+      ] ++ telegram_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -34,5 +35,13 @@ defmodule Viche.Application do
   def config_change(changed, _new, removed) do
     VicheWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp telegram_children do
+    case System.get_env("TELEGRAM_BOT_TOKEN") do
+      nil -> []
+      "" -> []
+      token -> [{Viche.Telegram.Bridge, bot_token: token}]
+    end
   end
 end

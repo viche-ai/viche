@@ -268,6 +268,53 @@ defmodule Viche.Agents do
     |> Repo.all()
   end
 
+  @doc "Claims an unowned agent for the given user."
+  @spec claim_agent(String.t(), String.t()) :: :ok | {:error, :already_claimed | :agent_not_found}
+  def claim_agent(agent_id, user_id) when is_binary(agent_id) and is_binary(user_id) do
+    with {:ok, _agent} <- ensure_agent_active(agent_id) do
+      claim_agent_transaction(agent_id, user_id)
+      |> case do
+        {:ok, :ok} -> :ok
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc "Starts an in-memory agent process from an existing persisted agent record."
+  @spec reactivate_agent(String.t(), keyword()) :: {:ok, Agent.t()} | {:error, :agent_not_found}
+  def reactivate_agent(agent_id, opts \\ []) when is_binary(agent_id) do
+    case lookup_agent(agent_id) do
+      :found ->
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        {:ok, AgentServer.get_state(via)}
+
+      :not_found ->
+        case Repo.get(AgentRecord, agent_id) do
+          nil ->
+            {:error, :agent_not_found}
+
+          record ->
+            child_spec =
+              {AgentServer,
+               [
+                 id: record.id,
+                 name: record.name,
+                 capabilities: record.capabilities,
+                 description: record.description,
+                 registries: record.registries,
+                 connection_type: Keyword.get(opts, :connection_type, :long_poll),
+                 polling_timeout_ms: record.polling_timeout_ms,
+                 owner_id: record.user_id
+               ]}
+
+            {:ok, _pid} = DynamicSupervisor.start_child(Viche.AgentSupervisor, child_spec)
+
+            via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+            {:ok, AgentServer.get_state(via)}
+        end
+    end
+  end
+
   @doc """
   Returns all agent IDs that have an owner (user_id IS NOT NULL).
   Used for dashboard filtering — unclaimed agents are hidden.
@@ -357,6 +404,7 @@ defmodule Viche.Agents do
       if token in (meta.registries || []) do
         via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
         {:ok, agent, actually_left} = AgentServer.deregister_from_registries(via, [token])
+        persist_agent_registries(agent.id, agent.registries)
         broadcast_agent_left(agent_id, actually_left)
         {:ok, agent}
       else
@@ -377,6 +425,7 @@ defmodule Viche.Agents do
         {:ok, agent, actually_left} =
           AgentServer.deregister_from_registries(via, registries_to_leave)
 
+        persist_agent_registries(agent.id, agent.registries)
         broadcast_agent_left(agent_id, actually_left)
         {:ok, agent}
 
@@ -407,6 +456,7 @@ defmodule Viche.Agents do
 
       case AgentServer.join_registry(via, token) do
         {:ok, agent} ->
+          persist_agent_registries(agent.id, agent.registries)
           broadcast_registry_joined(agent, token)
           {:ok, agent}
 
@@ -865,6 +915,7 @@ defmodule Viche.Agents do
     name = Map.get(attrs, :name)
     description = Map.get(attrs, :description)
     polling_timeout_ms = Map.get(attrs, :polling_timeout_ms)
+    connection_type = Map.get(attrs, :connection_type, :long_poll)
     grace_period_ms = Map.get(attrs, :grace_period_ms)
     # The fix for #21 introduces `owner_id` (so we should respect it), and #47 uses `user_id`.
     # Let's use `user_id` as the primary, and fallback to `owner_id` from #21 if present.
@@ -894,6 +945,7 @@ defmodule Viche.Agents do
           capabilities: caps,
           description: description,
           registries: registries,
+          connection_type: connection_type,
           owner_id: user_id
         ]
 
@@ -960,5 +1012,60 @@ defmodule Viche.Agents do
     }
 
     VicheWeb.Endpoint.broadcast("registry:#{token}", "agent_joined", payload)
+  end
+
+  @spec persist_agent_registries(String.t(), [String.t()]) :: :ok
+  defp persist_agent_registries(agent_id, registries) do
+    from(a in AgentRecord, where: a.id == ^agent_id)
+    |> Repo.update_all(set: [registries: registries])
+
+    :ok
+  end
+
+  @spec claim_agent_transaction(String.t(), String.t()) :: {:ok, :ok} | {:error, term()}
+  defp claim_agent_transaction(agent_id, user_id) do
+    Repo.transaction(fn ->
+      case claim_agent_record(agent_id, user_id) do
+        :ok ->
+          via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+          :ok = AgentServer.claim_owner(via, user_id)
+          :ok
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @spec claim_agent_record(String.t(), String.t()) ::
+          :ok | {:error, :already_claimed | :agent_not_found}
+  defp claim_agent_record(agent_id, user_id) do
+    case Repo.update_all(
+           from(a in AgentRecord, where: a.id == ^agent_id and is_nil(a.user_id)),
+           set: [user_id: user_id]
+         ) do
+      {1, _} -> :ok
+      _ -> claim_failure(agent_id)
+    end
+  end
+
+  @spec claim_failure(String.t()) :: {:error, :already_claimed | :agent_not_found}
+  defp claim_failure(agent_id) do
+    case Repo.get(AgentRecord, agent_id) do
+      nil -> {:error, :agent_not_found}
+      _ -> {:error, :already_claimed}
+    end
+  end
+
+  @spec ensure_agent_active(String.t()) :: {:ok, Agent.t()} | {:error, :agent_not_found}
+  defp ensure_agent_active(agent_id) do
+    case lookup_agent(agent_id) do
+      :found ->
+        via = {:via, Registry, {Viche.AgentRegistry, agent_id}}
+        {:ok, AgentServer.get_state(via)}
+
+      :not_found ->
+        reactivate_agent(agent_id)
+    end
   end
 end

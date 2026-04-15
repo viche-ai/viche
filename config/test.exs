@@ -51,6 +51,8 @@ config :viche, :public_mode, false
 # Tests explicitly testing auth will enable it using Application.put_env/3.
 config :viche, :require_auth, false
 
+config :viche, :telegram_req_options, plug: {Req.Test, :telegram_api}
+
 # Import local secret config for worktree-specific overrides (ports, database)
 if File.exists?(Path.expand("test.secret.exs", __DIR__)) do
   import_config "test.secret.exs"
