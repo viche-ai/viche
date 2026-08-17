@@ -8,7 +8,9 @@ topic: "Viche agent lifecycle — registration, WebSocket connection, channel jo
 scope: lib/viche/, lib/viche_web/channels/, lib/viche_web/controllers/
 query_type: map
 tags: [research, agent-lifecycle, otp, websocket, channels]
-status: complete
+status: partially-superseded
+superseded_date: 2026-08-17
+superseded_by: "pantheon-pi/thoughts/research/2026-08-17-viche-identity-registry-multi-subagent.md"
 confidence: high
 sources_scanned:
   files: 15
@@ -16,6 +18,25 @@ sources_scanned:
 ---
 
 # Research: Viche Agent Lifecycle
+
+> [!WARNING]
+> **PARTIALLY SUPERSEDED — verified stale 2026-08-17 against `main` @ `5380ca7`.**
+> Two claims below are no longer true:
+>
+> 1. **"No cleanup or deregistration logic exists today"** — self-expiry now exists.
+>    See `lib/viche/agent_server.ex`: `polling_timeout_ms` (:137, :252-264) for
+>    long-poll inactivity and `grace_period_ms` (:229-243, :299-301) for WebSocket
+>    disconnect grace. `restart: :temporary` (:37-43) means crashed agents are never
+>    resurrected, and state is GenServer-memory-only (:124-135). There is still no
+>    background sweeper and no explicit TTL field, but agents do expire on their own.
+> 2. **8-character hex `agent_id`** — ids are now UUIDs, minted by
+>    `Ecto.UUID.generate()` via `lib/viche/agents.ex:872`.
+>
+> The lifecycle *structure* documented here (DynamicSupervisor, GenServer-per-agent,
+> Elixir Registry, atomic inbox drain) was re-verified and still holds.
+> Current identity/lifecycle findings:
+> `~/Projects/pantheon-pi/thoughts/research/2026-08-17-viche-identity-registry-multi-subagent.md`
+> and bead `viche-7yi`.
 
 **Date**: 2026-03-24
 **Commit**: HEAD
